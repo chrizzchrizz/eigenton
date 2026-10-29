@@ -33,7 +33,7 @@ class ContinuePlaybackSheetVC: UIViewController {
 
   private static let margin: CGFloat = 24
   private static let artworkSize: CGFloat = 132
-  private static let macSheetWidth: CGFloat = 480
+  private static let formSheetWidth: CGFloat = 480
 
   private let content: Content
   private let contentStack = UIStackView()
@@ -41,9 +41,14 @@ class ContinuePlaybackSheetVC: UIViewController {
   init(content: Content) {
     self.content = content
     super.init(nibName: nil, bundle: nil)
-    #if targetEnvironment(macCatalyst)
+    // iPad and Mac show a narrow card instead of a sheet over the full width
+    if isFormSheet {
       modalPresentationStyle = .formSheet
-    #endif
+    }
+  }
+
+  private var isFormSheet: Bool {
+    UIDevice.current.userInterfaceIdiom != .phone
   }
 
   required init?(coder: NSCoder) {
@@ -76,13 +81,13 @@ class ContinuePlaybackSheetVC: UIViewController {
     }
     addCloseButton()
 
-    #if targetEnvironment(macCatalyst)
-      // a form sheet on Mac ignores the detents and would be far taller than the content
+    if isFormSheet {
+      // a form sheet ignores the detents and would be far taller than the content
       preferredContentSize = CGSize(
-        width: Self.macSheetWidth,
-        height: contentHeight(forWidth: Self.macSheetWidth) + Self.margin
+        width: Self.formSheetWidth,
+        height: contentHeight(forWidth: Self.formSheetWidth) + Self.margin
       )
-    #endif
+    }
     if let sheet = sheetPresentationController {
       sheet.detents = [.custom { [weak self] context in
         self?.preferredSheetHeight(maximum: context.maximumDetentValue)
@@ -143,29 +148,37 @@ class ContinuePlaybackSheetVC: UIViewController {
       artwork.bottomAnchor.constraint(equalTo: artworkContainer.bottomAnchor),
     ])
     contentStack.addArrangedSubview(artworkContainer)
-    contentStack.setCustomSpacing(12, after: artworkContainer)
 
-    let titleLabel = makeLabel(song.title, style: .headline, color: .label)
-    let artistLabel = makeLabel(song.creatorName, style: .subheadline, color: .secondaryLabel)
+    // like the popup player: title and artist left aligned above the progress
+    let titleLabel = makeLabel(song.title, style: .title3, color: .label, alignment: .natural)
+    titleLabel.font = UIFontMetrics(forTextStyle: .title3)
+      .scaledFont(for: .systemFont(ofSize: 20, weight: .bold))
+    let artistLabel = makeLabel(
+      song.creatorName,
+      style: .title3,
+      color: .label,
+      alignment: .natural
+    )
+    contentStack.setCustomSpacing(20, after: artworkContainer)
     contentStack.addArrangedSubview(titleLabel)
     contentStack.setCustomSpacing(2, after: titleLabel)
     contentStack.addArrangedSubview(artistLabel)
 
-    let position = Int(playQueue.startPositionInSeconds)
-    if song.duration > 0, position > 0 {
-      let progress = UIProgressView(progressViewStyle: .bar)
-      progress.progress = Float(min(Double(position) / Double(song.duration), 1))
-      contentStack.addArrangedSubview(progress)
-      contentStack.addArrangedSubview(makeLabel(
-        "\(position.asDurationString) / \(song.duration.asDurationString)",
-        style: .footnote,
-        color: .secondaryLabel
+    if song.duration > 0 {
+      let position = min(Int(playQueue.startPositionInSeconds), song.duration)
+      contentStack.setCustomSpacing(20, after: artistLabel)
+      let progressBar = makeProgressBar(progress: CGFloat(position) / CGFloat(song.duration))
+      contentStack.addArrangedSubview(progressBar)
+      contentStack.setCustomSpacing(8, after: progressBar)
+      contentStack.addArrangedSubview(makeTimeRow(
+        elapsed: position.asDurationString,
+        duration: song.duration.asDurationString
       ))
     }
 
-    contentStack.setCustomSpacing(24, after: contentStack.arrangedSubviews.last ?? artworkContainer)
+    contentStack.setCustomSpacing(24, after: contentStack.arrangedSubviews.last ?? artistLabel)
 
-    var configuration = UIButton.Configuration.tinted()
+    var configuration = UIButton.Configuration.prominentGlass()
     configuration.title = "Sync Play Queue"
     configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer {
       var attributes = $0
@@ -178,7 +191,7 @@ class ContinuePlaybackSheetVC: UIViewController {
     configuration.cornerStyle = .capsule
     configuration.buttonSize = .large
     configuration.baseBackgroundColor = .systemGreen
-    configuration.baseForegroundColor = .systemGreen
+    configuration.baseForegroundColor = .white
     let button = UIButton(
       configuration: configuration,
       primaryAction: UIAction { [weak self] action in
@@ -187,9 +200,19 @@ class ContinuePlaybackSheetVC: UIViewController {
         self?.dismiss(animated: true) { onContinue() }
       }
     )
-    // Mac would draw its own button style without the tinted background
+    // Mac would draw its own button style without the glass background
     button.preferredBehavioralStyle = .pad
-    contentStack.addArrangedSubview(button)
+    // only as wide as its title
+    let buttonContainer = UIView()
+    button.translatesAutoresizingMaskIntoConstraints = false
+    buttonContainer.addSubview(button)
+    NSLayoutConstraint.activate([
+      button.topAnchor.constraint(equalTo: buttonContainer.topAnchor),
+      button.bottomAnchor.constraint(equalTo: buttonContainer.bottomAnchor),
+      button.centerXAnchor.constraint(equalTo: buttonContainer.centerXAnchor),
+      button.leadingAnchor.constraint(greaterThanOrEqualTo: buttonContainer.leadingAnchor),
+    ])
+    contentStack.addArrangedSubview(buttonContainer)
   }
 
   private func fillMessage(title: String, message: String, systemImage: String) {
@@ -226,12 +249,56 @@ class ContinuePlaybackSheetVC: UIViewController {
     ))
   }
 
-  private func makeLabel(_ text: String, style: UIFont.TextStyle, color: UIColor) -> UILabel {
+  /// Bar of the popup player: the played part in the text color on a translucent track.
+  private func makeProgressBar(progress: CGFloat) -> UIView {
+    let height: CGFloat = 6
+    let track = UIView()
+    track.backgroundColor = .label.withAlphaComponent(0.25)
+    track.layer.cornerRadius = height / 2
+    track.clipsToBounds = true
+    let fill = UIView()
+    fill.backgroundColor = .label
+    fill.layer.cornerRadius = height / 2
+    fill.translatesAutoresizingMaskIntoConstraints = false
+    track.addSubview(fill)
+    NSLayoutConstraint.activate([
+      track.heightAnchor.constraint(equalToConstant: height),
+      fill.topAnchor.constraint(equalTo: track.topAnchor),
+      fill.bottomAnchor.constraint(equalTo: track.bottomAnchor),
+      fill.leadingAnchor.constraint(equalTo: track.leadingAnchor),
+      fill.widthAnchor.constraint(equalTo: track.widthAnchor, multiplier: max(progress, 0.001)),
+    ])
+    return track
+  }
+
+  /// Elapsed time on the left, duration on the right.
+  private func makeTimeRow(elapsed: String, duration: String) -> UIView {
+    let elapsedLabel = makeLabel(elapsed, style: .subheadline, color: .label, alignment: .left)
+    let durationLabel = makeLabel(duration, style: .subheadline, color: .label, alignment: .right)
+    for label in [elapsedLabel, durationLabel] {
+      label.font = UIFont.monospacedDigitSystemFont(
+        ofSize: label.font.pointSize,
+        weight: .regular
+      )
+    }
+    let row = UIStackView(arrangedSubviews: [elapsedLabel, durationLabel])
+    row.axis = .horizontal
+    row.distribution = .fillEqually
+    return row
+  }
+
+  private func makeLabel(
+    _ text: String,
+    style: UIFont.TextStyle,
+    color: UIColor,
+    alignment: NSTextAlignment = .center
+  )
+    -> UILabel {
     let label = UILabel()
     label.text = text
     label.font = .preferredFont(forTextStyle: style)
     label.textColor = color
-    label.textAlignment = .center
+    label.textAlignment = alignment
     label.numberOfLines = 0
     return label
   }
