@@ -22,19 +22,19 @@ Eigenton is not affiliated with the Amperfy project. Please report issues [here]
 - 5 star song rating
 - Favorite song
 - Scrobbling
-- Continue playback on another device (play queue sync, Subsonic/Navidrome)
+- Sync the play queue with another device (Subsonic/Navidrome)
 
-## Continue Playback
+## Sync Play Queue
 
-Start listening on one device and continue on another one: the play queue, the current song and its position are saved on the server and can be loaded on another device.
+Start listening on one device and continue on another one: the queue, the current song and its position are saved on the server and can be loaded on another device.
 
 **Setup** (on every device): Settings > Player > enable "Sync Play Queue" and give the device a name under "Device Name", e.g. "iPhone von Chrizz". Without a name the device type ("iPhone", "iPad", "Mac") is used.
 
-**Usage**: tap the devices button on Home, choose "Continue Playback" in the player menu, or on Mac in the Controls menu. A confirmation shows the song, the device that saved the queue, the song count and when it was saved. Continuing replaces the current queue and starts at the saved position.
+**Usage**: tap the devices button on Home, choose "Sync Play Queue" in the player menu, or on Mac in the Controls menu. A sheet shows the song, its position, the device that saved the queue and when it was saved. "Sync Play Queue" replaces the current queue and stops at the saved position, playback continues when you press play.
 
 **Behavior**
 - The queue is saved after a song change, on pause or stop, after the queue changed, every 30 seconds while playing and when the app moves to the background.
-- The device you continue from keeps playing, it doesn't pause. Once it notices the queue was saved by another device (within about 2 minutes), it stops saving until you start playback on it again, so it doesn't overwrite the queue of the device you continued on.
+- The device you sync from keeps playing, it doesn't pause. The device you synced to saves the queue once you press play on it. When the first device notices that (within about 2 minutes), it stops saving until you start playback on it again, so it doesn't overwrite the queue of the other device.
 - If both devices save, the last save wins.
 
 **Limitations**
