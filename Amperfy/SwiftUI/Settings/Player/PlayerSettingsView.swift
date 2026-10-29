@@ -144,7 +144,7 @@ struct PlayerSettingsView: View {
               }
             }
           },
-          footer: "Saves the play queue and position on the server, so another device can continue playback. The device name tells your devices apart, give each one its own. Requires a Subsonic server."
+          footer: "Saves the play queue and position on the server. Sync Play Queue on another device loads them, playback continues when you press play. The device name tells your devices apart, give each one its own. Requires a Subsonic server."
         )
 
         SettingsSection(content: {

@@ -314,7 +314,7 @@ public class PlayQueueSyncer {
   public func continuePlayback(of playQueue: ServerPlayQueue) {
     guard !playQueue.songs.isEmpty else { return }
     os_log(
-      "Take over the play queue of %s: %i songs",
+      "Sync the play queue of %s: %i songs",
       log: log,
       type: .info,
       playQueue.info.changedBy ?? "-",
@@ -325,7 +325,7 @@ public class PlayQueueSyncer {
     player.clearUserQueue()
     player.load(
       context: PlayContext(
-        name: "Taken Over Queue",
+        name: "Synced Play Queue",
         index: playQueue.startIndex,
         playables: playQueue.songs
       ),
