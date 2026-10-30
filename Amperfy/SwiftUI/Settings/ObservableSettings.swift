@@ -77,6 +77,8 @@ final class Settings: ObservableObject {
   @Published
   var isHapticsEnabled = true
   @Published
+  var isArtworkBackgroundEnabled = true
+  @Published
   var isHideNetworkErrorBanners = false
 
   @Published

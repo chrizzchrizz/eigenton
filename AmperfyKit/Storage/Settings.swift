@@ -185,6 +185,12 @@ public struct UserSettings: Sendable, Codable {
     set { _isHapticsEnabled = newValue }
   }
 
+  private var _isArtworkBackgroundEnabled: Bool = true
+  public var isArtworkBackgroundEnabled: Bool {
+    get { _isArtworkBackgroundEnabled }
+    set { _isArtworkBackgroundEnabled = newValue }
+  }
+
   private var _isHideNetworkErrorBanners: Bool = false
   public var isHideNetworkErrorBanners: Bool {
     get { _isHideNetworkErrorBanners }

@@ -88,6 +88,17 @@ struct DisplaySettingsView: View {
           }
         }
 
+        SettingsSection(
+          content: {
+            SettingsCheckBoxRow(
+              title: "Artwork Background Colors",
+              isOn: $settings.isArtworkBackgroundEnabled
+            )
+          },
+          footer:
+          "Color the background of the player and of album, artist and playlist screens with the main color of the artwork."
+        )
+
         #if !targetEnvironment(macCatalyst)
           SettingsSection(
             content: {

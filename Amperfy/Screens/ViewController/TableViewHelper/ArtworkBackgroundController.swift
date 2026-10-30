@@ -85,7 +85,8 @@ final class ArtworkBackgroundController: NSObject {
   }
 
   func update(animated: Bool? = nil) {
-    guard let owner else { return }
+    guard let owner, owner.appDelegate.storage.settings.user.isArtworkBackgroundEnabled
+    else { return }
     let artworkDisplayPreference = owner.appDelegate.storage.settings.accounts
       .getSetting(account.info).read.artworkDisplayPreference
     guard let imagePath = imagePath(artworkDisplayPreference) else { return }

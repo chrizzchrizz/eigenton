@@ -273,6 +273,11 @@ class SettingsHostVC: UIViewController {
       self.appDelegate.storage.settings.user.isHapticsEnabled = newValue
     }))
 
+    settings.isArtworkBackgroundEnabled = appDelegate.storage.settings.user.isArtworkBackgroundEnabled
+    changesAgent.append(settings.$isArtworkBackgroundEnabled.sink(receiveValue: { newValue in
+      self.appDelegate.storage.settings.user.isArtworkBackgroundEnabled = newValue
+    }))
+
     settings.isHideNetworkErrorBanners = appDelegate.storage.settings.user.isHideNetworkErrorBanners
     changesAgent.append(settings.$isHideNetworkErrorBanners.sink(receiveValue: { newValue in
       self.appDelegate.storage.settings.user.isHideNetworkErrorBanners = newValue
