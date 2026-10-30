@@ -521,16 +521,21 @@ class EntityPreviewActionBuilder {
   }
 
   private func createMusicQueueAction() -> UIMenuElement {
-    UIMenu(title: "Music Queue", image: .listBullet, children: [
-      UIAction(title: "Play next", image: .contextQueueInsert) { action in
+    var actions = [
+      UIAction(title: "Insert in Queue", image: .contextQueueInsert) { action in
         guard !self.entityPlayables.isEmpty else { return }
         self.appDelegate.player.insertContextQueue(playables: self.entityPlayables)
       },
-      UIAction(title: "Append to queue", image: .contextQueueAppend) { action in
-        guard !self.entityPlayables.isEmpty else { return }
-        self.appDelegate.player.appendContextQueue(playables: self.entityPlayables)
-      },
-    ])
+    ]
+    if appDelegate.player.hasLoadedPlayables {
+      actions.append(
+        UIAction(title: "Append to Queue", image: .contextQueueAppend) { action in
+          guard !self.entityPlayables.isEmpty else { return }
+          self.appDelegate.player.appendContextQueue(playables: self.entityPlayables)
+        }
+      )
+    }
+    return UIMenu(options: .displayInline, children: actions)
   }
 
   private func createPodcastQueueAction() -> UIMenuElement {
