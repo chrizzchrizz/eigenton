@@ -176,6 +176,8 @@ class TabBarVC: UITabBarController {
   var regularWidthConstraint: NSLayoutConstraint?
   var heightConstraint: NSLayoutConstraint?
   var compactWidthConstraint: NSLayoutConstraint?
+  /// `NSLayoutConstraint.secondItem` is unretained and dangles once the old container is gone.
+  private weak var compactWidthSuperview: UIView?
 
   func configureTraitChangesForMiniPlayer() {
     guard let miniPlayer else { return }
@@ -227,10 +229,11 @@ class TabBarVC: UITabBarController {
   private func activateCompactWidthConstraint() {
     guard let glassContainer = miniPlayer?.glassContainer,
           let superview = glassContainer.superview else { return }
-    if compactWidthConstraint?.secondItem !== superview {
+    if compactWidthSuperview !== superview {
       compactWidthConstraint?.isActive = false
       compactWidthConstraint = glassContainer.widthAnchor
         .constraint(equalTo: superview.widthAnchor)
+      compactWidthSuperview = superview
     }
     compactWidthConstraint?.isActive = true
   }
