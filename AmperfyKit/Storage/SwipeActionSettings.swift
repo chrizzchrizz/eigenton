@@ -38,6 +38,28 @@ public enum SwipeActionType: Int, CaseIterable, Sendable, Codable {
   case appendPodcastQueue = 10
   case favorite = 11
 
+  /// The user queue actions are no longer offered; "Play next" and "Append to queue" use the context queue.
+  public var isSelectable: Bool {
+    switch self {
+    case .appendUserQueue, .insertUserQueue:
+      return false
+    default:
+      return true
+    }
+  }
+
+  /// Replaces a no longer selectable action by its context queue counterpart.
+  fileprivate var selectableReplacement: SwipeActionType {
+    switch self {
+    case .insertUserQueue:
+      return .insertContextQueue
+    case .appendUserQueue:
+      return .appendContextQueue
+    default:
+      return self
+    }
+  }
+
   public var displayName: String {
     switch self {
     case .insertUserQueue:
@@ -45,9 +67,9 @@ public enum SwipeActionType: Int, CaseIterable, Sendable, Codable {
     case .appendUserQueue:
       return "Append User Queue"
     case .insertContextQueue:
-      return "Insert Context Queue"
+      return "Play next"
     case .appendContextQueue:
-      return "Append Context Queue"
+      return "Append to queue"
     case .download:
       return "Download"
     case .removeFromCache:
@@ -74,9 +96,9 @@ public enum SwipeActionType: Int, CaseIterable, Sendable, Codable {
     case .appendUserQueue:
       return "Append to User Queue"
     case .insertContextQueue:
-      return "Insert in Context Queue"
+      return "Play next"
     case .appendContextQueue:
-      return "Append to Context Queue"
+      return "Append to queue"
     case .download:
       return "Download"
     case .removeFromCache:
@@ -145,9 +167,20 @@ public struct SwipeActionSettings: Sendable, Codable {
   }
 
   public init(leading: [SwipeActionType], trailing: [SwipeActionType]) {
-    let notUsedSet = Set(SwipeActionType.allCases).subtracting(Set(leading))
+    let leading = Self.selectable(leading)
+    let trailing = Self.selectable(trailing).filter { !leading.contains($0) }
+    let notUsedSet = Set(SwipeActionType.allCases.filter { $0.isSelectable })
+      .subtracting(Set(leading))
       .subtracting(Set(trailing))
     self.combined = [leading, trailing, Array(notUsedSet)]
+  }
+
+  private static func selectable(_ actions: [SwipeActionType]) -> [SwipeActionType] {
+    var result = [SwipeActionType]()
+    for action in actions.map({ $0.selectableReplacement }) where !result.contains(action) {
+      result.append(action)
+    }
+    return result
   }
 
   // Explicit Codable conformance to ensure stable schema
@@ -159,16 +192,9 @@ public struct SwipeActionSettings: Sendable, Codable {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     // Decode combined as an array of arrays of SwipeActionType
     let decodedCombined = try container.decode([[SwipeActionType]].self, forKey: .combined)
-    // Ensure we always have exactly three buckets: leading, trailing, notUsed
-    if decodedCombined.count >= 3 {
-      self.combined = decodedCombined
-    } else if decodedCombined.count == 2 {
-      // If older data without notUsed, compute it
-      let leading = decodedCombined[0]
-      let trailing = decodedCombined[1]
-      let notUsedSet = Set(SwipeActionType.allCases).subtracting(Set(leading))
-        .subtracting(Set(trailing))
-      self.combined = [leading, trailing, Array(notUsedSet)]
+    // The stored notUsed bucket is ignored, it is derived from leading and trailing
+    if decodedCombined.count >= 2 {
+      self.init(leading: decodedCombined[0], trailing: decodedCombined[1])
     } else {
       // Fallback to defaults if data is malformed
       self = SwipeActionSettings.defaultSettings
@@ -187,8 +213,6 @@ public struct SwipeActionSettings: Sendable, Codable {
         .insertContextQueue,
 
       ], trailing: [
-        .appendUserQueue,
-        .insertUserQueue,
         .appendPodcastQueue,
         .insertPodcastQueue,
         .download,
