@@ -41,6 +41,15 @@ open class EntityImageView: UIView {
   private var circularFrameColor: ((UIImage) -> UIColor)?
   private var isCircularPlaceholder = false
 
+  /// Shown collection whose server cover is not downloaded yet; shown again once it is
+  private var collectionWaitingForServerArtwork: (
+    theme: ThemePreference,
+    collection: ArtworkCollection,
+    cornerRadius: CornerRadius
+  )?
+  /// Accounts whose artwork downloads are observed
+  private var observedAccounts = Set<AccountInfo>()
+
   private var quadImages: [LibraryEntityImage] {
     [
       quadImage1,
@@ -168,6 +177,7 @@ open class EntityImageView: UIView {
     imageTintColor: UIColor,
     backgroundColor: UIColor
   ) {
+    collectionWaitingForServerArtwork = nil
     singleImage.tintColor = imageTintColor
     view.backgroundColor = backgroundColor
     view.layoutMargins = UIEdgeInsets(
@@ -189,7 +199,16 @@ open class EntityImageView: UIView {
     quadImages.forEach { $0.isHidden = true }
     singleImage.isHidden = false
 
-    switch collection.display {
+    let display = collection.display
+    collectionWaitingForServerArtwork = nil
+    if case .standalone = display {
+      // downloaded by the single image
+    } else if let serverArtwork = collection.serverArtwork {
+      collectionWaitingForServerArtwork = (theme, collection, cornerRadius)
+      download(serverArtwork: serverArtwork)
+    }
+
+    switch display {
     case let .quad(quadEntities):
       singleImage.isHidden = true
       quadImages.forEach {
@@ -209,6 +228,37 @@ open class EntityImageView: UIView {
       )
     case .placeholder:
       singleImage.display(artworkType: collection.defaultArtworkType)
+    }
+  }
+
+  private func download(serverArtwork: Artwork) {
+    guard let accountInfo = serverArtwork.account?.info else { return }
+    let appDelegate = AmperKit.shared
+    let artworkDownloadManager = appDelegate.getMeta(accountInfo).artworkDownloadManager
+    if observedAccounts.insert(accountInfo).inserted {
+      appDelegate.notificationHandler.register(
+        self,
+        selector: #selector(downloadFinishedSuccessful(notification:)),
+        name: .downloadFinishedSuccess,
+        object: artworkDownloadManager
+      )
+    }
+    artworkDownloadManager.download(object: serverArtwork)
+  }
+
+  @objc
+  private func downloadFinishedSuccessful(notification: Notification) {
+    guard let downloadNotification = DownloadNotification.fromNotification(notification)
+    else { return }
+    Task { @MainActor in
+      guard let waiting = collectionWaitingForServerArtwork,
+            waiting.collection.serverArtwork?.uniqueID == downloadNotification.id
+      else { return }
+      display(
+        theme: waiting.theme,
+        collection: waiting.collection,
+        cornerRadius: waiting.cornerRadius
+      )
     }
   }
 }

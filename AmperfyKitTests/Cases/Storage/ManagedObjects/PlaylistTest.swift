@@ -96,6 +96,38 @@ class PlaylistTest: XCTestCase {
     XCTAssertEqual(playlist.id, id)
   }
 
+  func testServerCoverIsShownOnceDownloaded() {
+    let serverArtwork = library.getOrCreateArtwork(
+      account: account,
+      remoteInfo: ArtworkRemoteInfo(id: "pl-1", type: "")
+    )
+    testPlaylist.artwork = serverArtwork
+    let songCover = testPlaylist.getArtworkCollection(theme: .blue)
+
+    // not downloaded yet (or failed, or downloads are off): the song covers are shown
+    for status in [ImageStatus.NotChecked, .FetchError, .IsDefaultImage] {
+      serverArtwork.status = status
+      let collection = testPlaylist.getArtworkCollection(theme: .blue)
+      if case .standalone = collection.display { XCTFail("\(status)") }
+      XCTAssertEqual(collection.singleImageEntity, songCover.singleImageEntity)
+      // the download is still requested
+      XCTAssertTrue(collection.artworks.contains(serverArtwork))
+    }
+
+    serverArtwork.status = .CustomImage
+    serverArtwork.relFilePath = URL(string: "artworks/pl-1.jpg")
+    let collection = testPlaylist.getArtworkCollection(theme: .blue)
+    guard case let .standalone(shownArtwork) = collection.display else { XCTFail(); return }
+    XCTAssertEqual(shownArtwork, serverArtwork)
+    XCTAssertEqual(collection.artworks, [serverArtwork])
+  }
+
+  func testWithoutServerCover() {
+    let collection = testPlaylist.getArtworkCollection(theme: .blue)
+    XCTAssertNil(collection.serverArtwork)
+    if case .standalone = collection.display { XCTFail() }
+  }
+
   func testFetch() {
     let playlist = library.createPlaylist(account: account)
     XCTAssertEqual(playlist.account?.serverHash, TestAccountInfo.test1ServerHash)

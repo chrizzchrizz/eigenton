@@ -26,16 +26,17 @@ public class ArtworkCollection {
   public let defaultArtworkType: ArtworkType
   public let singleImageEntity: AbstractLibraryEntity?
   public let quadImageEntity: [AbstractLibraryEntity]?
-  /// Displayed if there is no entity to display (e.g. a playlist server cover)
-  public let fallbackArtwork: Artwork?
+  /// Cover provided by the server (e.g. for a playlist). Shown instead of the entities as soon
+  /// as it is downloaded, until then the entities are shown.
+  public let serverArtwork: Artwork?
 
   init(
     defaultArtworkType: ArtworkType,
     singleImageEntity: AbstractLibraryEntity?,
     quadImageEntity: [AbstractLibraryEntity]? = nil,
-    fallbackArtwork: Artwork? = nil
+    serverArtwork: Artwork? = nil
   ) {
-    self.fallbackArtwork = fallbackArtwork
+    self.serverArtwork = serverArtwork
     self.defaultArtworkType = defaultArtworkType
     self.singleImageEntity = singleImageEntity
     self.quadImageEntity = quadImageEntity
@@ -50,6 +51,9 @@ public class ArtworkCollection {
   }
 
   public var display: Display {
+    if let serverArtwork, serverArtwork.imagePath != nil {
+      return .standalone(serverArtwork)
+    }
     if let quadEntities = quadImageEntity {
       if quadEntities.count > 1 {
         // all images are the same
@@ -63,21 +67,21 @@ public class ArtworkCollection {
       return .placeholder
     } else if let singleImageEntity {
       return .single(singleImageEntity)
-    } else if let fallbackArtwork {
-      return .standalone(fallbackArtwork)
     }
     return .placeholder
   }
 
-  /// Artworks that have to be downloaded to show this collection.
+  /// Artworks that have to be downloaded to show this collection. Contains the server cover
+  /// until it is downloaded, so it replaces the entities afterwards.
   public var artworks: [Artwork] {
-    let all: [Artwork?]
+    var all: [Artwork?]
     switch display {
     case let .quad(entities): all = entities.map { $0.artwork }
     case let .single(entity): all = [entity.artwork]
     case let .standalone(artwork): all = [artwork]
     case .placeholder: all = []
     }
+    all.append(serverArtwork)
     var seenIDs = Set<String>()
     return all.compactMap { $0 }.filter { seenIDs.insert($0.uniqueID).inserted }
   }

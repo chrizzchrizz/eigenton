@@ -571,34 +571,28 @@ extension Playlist: PlayableContainable {
   }
 
   public func getArtworkCollection(theme: ThemePreference) -> ArtworkCollection {
-    // The server cover wins, as long as the server really has one for this playlist
-    if let serverArtwork = artwork, serverArtwork.status != .FetchError,
-       serverArtwork.status != .IsDefaultImage {
-      return ArtworkCollection(
-        defaultArtworkType: getDefaultArtworkType(),
-        singleImageEntity: nil,
-        fallbackArtwork: serverArtwork
-      )
-    }
-
+    // The server cover replaces the song covers once it is downloaded
     let artworkItems = artworkItems
 
     if artworkItems.isEmpty {
       return ArtworkCollection(
         defaultArtworkType: getDefaultArtworkType(),
-        singleImageEntity: nil
+        singleImageEntity: nil,
+        serverArtwork: artwork
       )
     } else if artworkItems.count == 1 {
       return ArtworkCollection(
         defaultArtworkType: getDefaultArtworkType(),
-        singleImageEntity: artworkItems[0].playable
+        singleImageEntity: artworkItems[0].playable,
+        serverArtwork: artwork
       )
     } else {
       let quadImages = artworkItems.compactMap { $0.playable }.prefix(upToAsArray: 4)
       return ArtworkCollection(
         defaultArtworkType: getDefaultArtworkType(),
         singleImageEntity: artworkItems[0].playable,
-        quadImageEntity: quadImages
+        quadImageEntity: quadImages,
+        serverArtwork: artwork
       )
     }
   }
