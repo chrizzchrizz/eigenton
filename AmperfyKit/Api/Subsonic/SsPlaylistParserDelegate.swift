@@ -87,6 +87,9 @@ class SsPlaylistParserDelegate: SsXmlParser {
         if playlist?.artwork?.remoteInfo != remoteInfo {
           playlist?.artwork = library.getOrCreateArtwork(account: account, remoteInfo: remoteInfo)
         }
+      } else {
+        // the server has no cover (anymore)
+        playlist?.artwork = nil
       }
 
       if let attributeChanged = attributeDict["changed"] {
