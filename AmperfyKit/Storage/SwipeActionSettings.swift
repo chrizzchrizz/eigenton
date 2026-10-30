@@ -38,7 +38,7 @@ public enum SwipeActionType: Int, CaseIterable, Sendable, Codable {
   case appendPodcastQueue = 10
   case favorite = 11
 
-  /// The user queue actions are no longer offered; "Play next" and "Append to queue" use the context queue.
+  /// The user queue actions are no longer offered; "Insert in Queue" and "Append to Queue" use the context queue.
   public var isSelectable: Bool {
     switch self {
     case .appendUserQueue, .insertUserQueue:
@@ -67,9 +67,9 @@ public enum SwipeActionType: Int, CaseIterable, Sendable, Codable {
     case .appendUserQueue:
       return "Append User Queue"
     case .insertContextQueue:
-      return "Play next"
+      return "Insert"
     case .appendContextQueue:
-      return "Append to queue"
+      return "Append"
     case .download:
       return "Download"
     case .removeFromCache:
@@ -96,9 +96,9 @@ public enum SwipeActionType: Int, CaseIterable, Sendable, Codable {
     case .appendUserQueue:
       return "Append to User Queue"
     case .insertContextQueue:
-      return "Play next"
+      return "Insert in Queue"
     case .appendContextQueue:
-      return "Append to queue"
+      return "Append to Queue"
     case .download:
       return "Download"
     case .removeFromCache:
@@ -209,8 +209,8 @@ public struct SwipeActionSettings: Sendable, Codable {
   public static var defaultSettings: SwipeActionSettings {
     SwipeActionSettings(
       leading: [
-        .appendContextQueue,
         .insertContextQueue,
+        .appendContextQueue,
 
       ], trailing: [
         .appendPodcastQueue,

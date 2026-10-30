@@ -63,11 +63,15 @@ struct SwipeDisplaySettings {
   func isAllowedToDisplay(
     actionType: SwipeActionType,
     containable: PlayableContainable,
-    isOfflineMode: Bool
+    isOfflineMode: Bool,
+    hasLoadedPlayables: Bool
   )
     -> Bool {
     switch playContextTypeOfElements {
     case .music:
+      if actionType == .appendContextQueue, !hasLoadedPlayables {
+        return false
+      }
       if actionType == .addToPlaylist,
          containable.playables.count == 1,
          containable.playables[0].isRadio {
@@ -238,7 +242,8 @@ class BasicTableViewController: KeyCommandTableViewController {
       if !swipeDisplaySettings.isAllowedToDisplay(
         actionType: actionType,
         containable: containable,
-        isOfflineMode: appDelegate.storage.settings.user.isOfflineMode
+        isOfflineMode: appDelegate.storage.settings.user.isOfflineMode,
+        hasLoadedPlayables: appDelegate.player.hasLoadedPlayables
       ) { continue }
       let buttonColor = Self.swipeButtonColors.element(at: createdActionsIndex) ?? Self
         .swipeButtonColors.last!
@@ -274,7 +279,8 @@ class BasicTableViewController: KeyCommandTableViewController {
       if !swipeDisplaySettings.isAllowedToDisplay(
         actionType: actionType,
         containable: containable,
-        isOfflineMode: appDelegate.storage.settings.user.isOfflineMode
+        isOfflineMode: appDelegate.storage.settings.user.isOfflineMode,
+        hasLoadedPlayables: appDelegate.player.hasLoadedPlayables
       ) { continue }
       let buttonColor = Self.swipeButtonColors.element(at: createdActionsIndex) ?? Self
         .swipeButtonColors.last!
