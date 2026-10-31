@@ -23,34 +23,75 @@
 import XCTest
 
 class SwipeActionSettingsTest: XCTestCase {
-  func testDefaultSettingsOfferNoUserQueueActions() {
-    let settings = SwipeActionSettings.defaultSettings
-    let all = settings.leading + settings.trailing + settings.notUsed
-    XCTAssertTrue(all.allSatisfy { $0.isSelectable })
-    XCTAssertTrue(settings.leading.contains(.insertContextQueue))
-    XCTAssertTrue(settings.leading.contains(.appendContextQueue))
+  func testSimplifiedQueueIsEnabledByDefault() {
+    XCTAssertTrue(UserSettings().isSimplifiedQueueEnabled)
   }
 
-  func testUserQueueActionsAreReplacedByContextQueueActions() {
+  func testDefaultSettingsOfferNoUserQueueActionsWhenSimplified() {
+    let settings = SwipeActionSettings.defaultSettings.normalized(isSimplifiedQueue: true)
+    let all = settings.leading + settings.trailing + settings.notUsed
+    XCTAssertTrue(all.allSatisfy { $0.isSelectable(isSimplifiedQueue: true) })
+    XCTAssertEqual(settings.leading, [.insertContextQueue, .appendContextQueue])
+  }
+
+  func testUserQueueActionsAreReplacedByContextQueueActionsWhenSimplified() {
     let settings = SwipeActionSettings(
       leading: [.insertUserQueue, .download],
       trailing: [.appendUserQueue, .insertContextQueue]
-    )
+    ).normalized(isSimplifiedQueue: true)
     XCTAssertEqual(settings.leading, [.insertContextQueue, .download])
     XCTAssertEqual(settings.trailing, [.appendContextQueue])
     XCTAssertFalse(settings.notUsed.contains(.insertUserQueue))
     XCTAssertFalse(settings.notUsed.contains(.appendUserQueue))
   }
 
-  func testStoredSettingsWithUserQueueActionsAreMigrated() throws {
-    let stored = SwipeActionSettings(leading: [.favorite], trailing: [.play])
-    var combined = stored.combined
+  func testAllActionsAreOfferedWhenNotSimplified() {
+    let stored = SwipeActionSettings(
+      leading: [.insertUserQueue, .download],
+      trailing: [.appendUserQueue, .insertContextQueue]
+    )
+    let settings = stored.normalized(isSimplifiedQueue: false)
+    XCTAssertEqual(settings.leading, [.insertUserQueue, .download])
+    XCTAssertEqual(settings.trailing, [.appendUserQueue, .insertContextQueue])
+    XCTAssertTrue(settings.notUsed.contains(.appendContextQueue))
+    XCTAssertFalse(settings.notUsed.contains(.insertUserQueue))
+  }
+
+  func testNormalizingDoesNotChangeStoredSettings() {
+    let stored = SwipeActionSettings(leading: [.insertUserQueue], trailing: [])
+    _ = stored.normalized(isSimplifiedQueue: true)
+    XCTAssertEqual(stored.leading, [.insertUserQueue])
+  }
+
+  func testStoredSettingsWithUserQueueActionsAreKeptAndNormalizedOnDemand() throws {
+    var combined = SwipeActionSettings(leading: [.favorite], trailing: [.play]).combined
     combined[0] = [.appendUserQueue, .insertUserQueue, .favorite]
     combined[2].append(.insertUserQueue)
     let data = try JSONEncoder().encode(["combined": combined])
     let decoded = try JSONDecoder().decode(SwipeActionSettings.self, from: data)
-    XCTAssertEqual(decoded.leading, [.appendContextQueue, .insertContextQueue, .favorite])
-    XCTAssertEqual(decoded.trailing, [.play])
-    XCTAssertTrue(decoded.notUsed.allSatisfy { $0.isSelectable })
+    XCTAssertEqual(decoded.leading, [.appendUserQueue, .insertUserQueue, .favorite])
+    let simplified = decoded.normalized(isSimplifiedQueue: true)
+    XCTAssertEqual(simplified.leading, [.appendContextQueue, .insertContextQueue, .favorite])
+    XCTAssertEqual(simplified.trailing, [.play])
+    XCTAssertTrue(simplified.notUsed.allSatisfy { $0.isSelectable(isSimplifiedQueue: true) })
+  }
+
+  func testNamesDependOnSimplifiedQueue() {
+    XCTAssertEqual(
+      SwipeActionType.insertContextQueue.displayName(isSimplifiedQueue: true),
+      "Insert"
+    )
+    XCTAssertEqual(
+      SwipeActionType.insertContextQueue.displayName(isSimplifiedQueue: false),
+      "Insert Context Queue"
+    )
+    XCTAssertEqual(
+      SwipeActionType.appendContextQueue.settingsName(isSimplifiedQueue: true),
+      "Append to Queue"
+    )
+    XCTAssertEqual(
+      SwipeActionType.appendContextQueue.settingsName(isSimplifiedQueue: false),
+      "Append to Context Queue"
+    )
   }
 }

@@ -64,12 +64,13 @@ struct SwipeDisplaySettings {
     actionType: SwipeActionType,
     containable: PlayableContainable,
     isOfflineMode: Bool,
+    isSimplifiedQueue: Bool,
     hasLoadedPlayables: Bool
   )
     -> Bool {
     switch playContextTypeOfElements {
     case .music:
-      if actionType == .appendContextQueue, !hasLoadedPlayables {
+      if actionType == .appendContextQueue, isSimplifiedQueue, !hasLoadedPlayables {
         return false
       }
       if actionType == .addToPlaylist,
@@ -238,11 +239,12 @@ class BasicTableViewController: KeyCommandTableViewController {
 
     var createdActionsIndex = 0
     var actions = [UIContextualAction]()
-    for actionType in appDelegate.storage.settings.user.swipeActionSettings.leading {
+    for actionType in appDelegate.storage.settings.user.activeSwipeActionSettings.leading {
       if !swipeDisplaySettings.isAllowedToDisplay(
         actionType: actionType,
         containable: containable,
         isOfflineMode: appDelegate.storage.settings.user.isOfflineMode,
+        isSimplifiedQueue: appDelegate.storage.settings.user.isSimplifiedQueueEnabled,
         hasLoadedPlayables: appDelegate.player.hasLoadedPlayables
       ) { continue }
       let buttonColor = Self.swipeButtonColors.element(at: createdActionsIndex) ?? Self
@@ -275,11 +277,12 @@ class BasicTableViewController: KeyCommandTableViewController {
     else { return UISwipeActionsConfiguration() }
     var createdActionsIndex = 0
     var actions = [UIContextualAction]()
-    for actionType in appDelegate.storage.settings.user.swipeActionSettings.trailing {
+    for actionType in appDelegate.storage.settings.user.activeSwipeActionSettings.trailing {
       if !swipeDisplaySettings.isAllowedToDisplay(
         actionType: actionType,
         containable: containable,
         isOfflineMode: appDelegate.storage.settings.user.isOfflineMode,
+        isSimplifiedQueue: appDelegate.storage.settings.user.isSimplifiedQueueEnabled,
         hasLoadedPlayables: appDelegate.player.hasLoadedPlayables
       ) { continue }
       let buttonColor = Self.swipeButtonColors.element(at: createdActionsIndex) ?? Self
@@ -405,7 +408,9 @@ class BasicTableViewController: KeyCommandTableViewController {
     -> UIContextualAction {
     let action = UIContextualAction(
       style: .normal,
-      title: actionType.displayName
+      title: actionType.displayName(
+        isSimplifiedQueue: appDelegate.storage.settings.user.isSimplifiedQueueEnabled
+      )
     ) { [weak self] action, view, completionHandler in
       // the table keeps its last swipe actions, which must not keep the screen alive
       guard let self else {

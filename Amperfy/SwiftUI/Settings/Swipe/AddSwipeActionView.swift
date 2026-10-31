@@ -37,7 +37,8 @@ struct AddSwipeActionView: View {
   var addCB: (_ swipePosition: SwipePosition, _ elementToAdd: SwipeActionType) -> ()
 
   func reload() {
-    actionNotInUse = settings.swipeActionSettings.notUsed
+    actionNotInUse = settings.swipeActionSettings
+      .normalized(isSimplifiedQueue: settings.isSimplifiedQueueEnabled).notUsed
   }
 
   var body: some View {
@@ -50,7 +51,7 @@ struct AddSwipeActionView: View {
         .padding([.top], 16)
       List {
         ForEach(actionNotInUse, id: \.self) { swipe in
-          SwipeCellView(swipe: swipe)
+          SwipeCellView(swipe: swipe, isSimplifiedQueue: settings.isSimplifiedQueueEnabled)
             .onTapGesture {
               addCB(swipePosition, swipe)
               isVisible = false

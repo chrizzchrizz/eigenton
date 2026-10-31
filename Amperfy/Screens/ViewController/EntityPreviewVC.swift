@@ -521,6 +521,30 @@ class EntityPreviewActionBuilder {
   }
 
   private func createMusicQueueAction() -> UIMenuElement {
+    if appDelegate.storage.settings.user.isSimplifiedQueueEnabled {
+      return createSimplifiedMusicQueueAction()
+    }
+    return UIMenu(title: "Music Queue", image: .listBullet, children: [
+      UIAction(title: "Insert Context Queue", image: .contextQueueInsert) { action in
+        guard !self.entityPlayables.isEmpty else { return }
+        self.appDelegate.player.insertContextQueue(playables: self.entityPlayables)
+      },
+      UIAction(title: "Append Context Queue", image: .contextQueueAppend) { action in
+        guard !self.entityPlayables.isEmpty else { return }
+        self.appDelegate.player.appendContextQueue(playables: self.entityPlayables)
+      },
+      UIAction(title: "Insert User Queue", image: .userQueueInsert) { action in
+        guard !self.entityPlayables.isEmpty else { return }
+        self.appDelegate.player.insertUserQueue(playables: self.entityPlayables)
+      },
+      UIAction(title: "Append User Queue", image: .userQueueAppend) { action in
+        guard !self.entityPlayables.isEmpty else { return }
+        self.appDelegate.player.appendUserQueue(playables: self.entityPlayables)
+      },
+    ])
+  }
+
+  private func createSimplifiedMusicQueueAction() -> UIMenuElement {
     var actions = [
       UIAction(title: "Insert in Queue", image: .contextQueueInsert) { action in
         guard !self.entityPlayables.isEmpty else { return }

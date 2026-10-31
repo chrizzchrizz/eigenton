@@ -29,11 +29,12 @@ struct SwipeCellView: View {
   var colorScheme: ColorScheme
 
   var swipe: SwipeActionType
+  var isSimplifiedQueue: Bool
 
   var body: some View {
     HStack {
       Image(uiImage: colorScheme == .light ? swipe.image : swipe.image.invertedImage())
-      Text(swipe.settingsName)
+      Text(swipe.settingsName(isSimplifiedQueue: isSimplifiedQueue))
       Spacer()
     }
     .contentShape(Rectangle())
@@ -44,6 +45,6 @@ struct SwipeCellView: View {
 
 struct SwipeCellView_Previews: PreviewProvider {
   static var previews: some View {
-    SwipeCellView(swipe: .addToPlaylist)
+    SwipeCellView(swipe: .addToPlaylist, isSimplifiedQueue: true)
   }
 }

@@ -73,10 +73,11 @@ public struct LogData: Encodable {
 
     var userSettings = UserSettingsLog()
     let settings = amperfyData.storage.settings
-    userSettings.swipeLeadingActions = settings.user.swipeActionSettings.leading
-      .compactMap { $0.displayName }
-    userSettings.swipeTrailingActions = settings.user.swipeActionSettings.trailing
-      .compactMap { $0.displayName }
+    let isSimplifiedQueue = settings.user.isSimplifiedQueueEnabled
+    userSettings.swipeLeadingActions = settings.user.activeSwipeActionSettings.leading
+      .compactMap { $0.displayName(isSimplifiedQueue: isSimplifiedQueue) }
+    userSettings.swipeTrailingActions = settings.user.activeSwipeActionSettings.trailing
+      .compactMap { $0.displayName(isSimplifiedQueue: isSimplifiedQueue) }
     userSettings.playerDisplayStyle = settings.user.playerDisplayStyle.description
     userSettings.isOfflineMode = settings.user.isOfflineMode
     logData.userSettings = userSettings

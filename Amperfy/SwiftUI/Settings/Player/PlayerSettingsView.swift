@@ -163,6 +163,16 @@ struct PlayerSettingsView: View {
 
         SettingsSection(
           content: {
+            SettingsCheckBoxRow(
+              title: "Simplified Queue",
+              isOn: $settings.isSimplifiedQueueEnabled
+            )
+          },
+          footer: "Insert puts songs right after the current one, Append puts them at the end of the queue. Turn off to also use the separate User Queue: its songs play once before the queue continues and stay when you start something new."
+        )
+
+        SettingsSection(
+          content: {
             SettingsRow(title: "Format") {
               Menu(settings.streamingFormatCellularPreference.description) {
                 ForEach(StreamingFormatPreference.allCases, id: \.self) { format in

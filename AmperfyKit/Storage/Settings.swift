@@ -173,6 +173,13 @@ public struct UserSettings: Sendable, Codable {
     set { _playQueueDeviceName = newValue }
   }
 
+  private var _isSimplifiedQueueEnabled: Bool = true
+  /// Offers only "Insert" and "Append" on the play queue. Off also offers the separate user queue.
+  public var isSimplifiedQueueEnabled: Bool {
+    get { _isSimplifiedQueueEnabled }
+    set { _isSimplifiedQueueEnabled = newValue }
+  }
+
   private var _isAutoplayEnabled: Bool = false
   public var isAutoplayEnabled: Bool {
     get { _isAutoplayEnabled }
@@ -272,6 +279,11 @@ public struct UserSettings: Sendable, Codable {
   public var swipeActionSettings: SwipeActionSettings {
     get { _swipeActionSettings }
     set { _swipeActionSettings = newValue }
+  }
+
+  /// The swipe actions that are currently offered.
+  public var activeSwipeActionSettings: SwipeActionSettings {
+    _swipeActionSettings.normalized(isSimplifiedQueue: _isSimplifiedQueueEnabled)
   }
 
   private var _songsSortSetting: SongElementSortType = .defaultValue

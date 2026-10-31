@@ -38,18 +38,18 @@ public enum SwipeActionType: Int, CaseIterable, Sendable, Codable {
   case appendPodcastQueue = 10
   case favorite = 11
 
-  /// The user queue actions are no longer offered; "Insert in Queue" and "Append to Queue" use the context queue.
-  public var isSelectable: Bool {
+  /// With the simplified queue only the context queue actions are offered.
+  public func isSelectable(isSimplifiedQueue: Bool) -> Bool {
     switch self {
     case .appendUserQueue, .insertUserQueue:
-      return false
+      return !isSimplifiedQueue
     default:
       return true
     }
   }
 
-  /// Replaces a no longer selectable action by its context queue counterpart.
-  fileprivate var selectableReplacement: SwipeActionType {
+  /// Replaces an action that the simplified queue does not offer by its context queue counterpart.
+  fileprivate var simplifiedQueueReplacement: SwipeActionType {
     switch self {
     case .insertUserQueue:
       return .insertContextQueue
@@ -60,16 +60,16 @@ public enum SwipeActionType: Int, CaseIterable, Sendable, Codable {
     }
   }
 
-  public var displayName: String {
+  public func displayName(isSimplifiedQueue: Bool) -> String {
     switch self {
     case .insertUserQueue:
       return "Insert User Queue"
     case .appendUserQueue:
       return "Append User Queue"
     case .insertContextQueue:
-      return "Insert"
+      return isSimplifiedQueue ? "Insert" : "Insert Context Queue"
     case .appendContextQueue:
-      return "Append"
+      return isSimplifiedQueue ? "Append" : "Append Context Queue"
     case .download:
       return "Download"
     case .removeFromCache:
@@ -89,16 +89,16 @@ public enum SwipeActionType: Int, CaseIterable, Sendable, Codable {
     }
   }
 
-  public var settingsName: String {
+  public func settingsName(isSimplifiedQueue: Bool) -> String {
     switch self {
     case .insertUserQueue:
       return "Insert in User Queue"
     case .appendUserQueue:
       return "Append to User Queue"
     case .insertContextQueue:
-      return "Insert in Queue"
+      return isSimplifiedQueue ? "Insert in Queue" : "Insert in Context Queue"
     case .appendContextQueue:
-      return "Append to Queue"
+      return isSimplifiedQueue ? "Append to Queue" : "Append to Context Queue"
     case .download:
       return "Download"
     case .removeFromCache:
@@ -167,20 +167,28 @@ public struct SwipeActionSettings: Sendable, Codable {
   }
 
   public init(leading: [SwipeActionType], trailing: [SwipeActionType]) {
-    let leading = Self.selectable(leading)
-    let trailing = Self.selectable(trailing).filter { !leading.contains($0) }
-    let notUsedSet = Set(SwipeActionType.allCases.filter { $0.isSelectable })
-      .subtracting(Set(leading))
+    let notUsedSet = Set(SwipeActionType.allCases).subtracting(Set(leading))
       .subtracting(Set(trailing))
     self.combined = [leading, trailing, Array(notUsedSet)]
   }
 
-  private static func selectable(_ actions: [SwipeActionType]) -> [SwipeActionType] {
-    var result = [SwipeActionType]()
-    for action in actions.map({ $0.selectableReplacement }) where !result.contains(action) {
-      result.append(action)
+  /// The actions the simplified queue offers: user queue actions are replaced by their context
+  /// queue counterparts and are no longer listed as unused. The stored settings stay untouched,
+  /// so switching the simplified queue off again offers all actions.
+  public func normalized(isSimplifiedQueue: Bool) -> SwipeActionSettings {
+    guard isSimplifiedQueue else { return self }
+    func replaced(_ actions: [SwipeActionType]) -> [SwipeActionType] {
+      var result = [SwipeActionType]()
+      for action in actions.map({ $0.simplifiedQueueReplacement }) where !result.contains(action) {
+        result.append(action)
+      }
+      return result
     }
-    return result
+    let leading = replaced(leading)
+    let trailing = replaced(trailing).filter { !leading.contains($0) }
+    var normalized = SwipeActionSettings(leading: leading, trailing: trailing)
+    normalized.combined[2] = normalized.notUsed.filter { $0.isSelectable(isSimplifiedQueue: true) }
+    return normalized
   }
 
   // Explicit Codable conformance to ensure stable schema

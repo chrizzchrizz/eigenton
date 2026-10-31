@@ -105,4 +105,7 @@ final class Settings: ObservableObject {
 
   @Published
   var isAutoplayEnabled = false
+
+  @Published
+  var isSimplifiedQueueEnabled = true
 }

@@ -53,8 +53,10 @@ struct SwipeSettingsView: View {
   var addPositionType = SwipePosition.leading
 
   func reload() {
-    leading = settings.swipeActionSettings.leading
-    trailing = settings.swipeActionSettings.trailing
+    let active = settings.swipeActionSettings
+      .normalized(isSimplifiedQueue: settings.isSimplifiedQueueEnabled)
+    leading = active.leading
+    trailing = active.trailing
   }
 
   func add(swipePosition: SwipePosition, elementToAdd: SwipeActionType) {
@@ -88,7 +90,7 @@ struct SwipeSettingsView: View {
           }
         ) {
           ForEach(leading, id: \.self) { swipe in
-            SwipeCellView(swipe: swipe)
+            SwipeCellView(swipe: swipe, isSimplifiedQueue: settings.isSimplifiedQueueEnabled)
           }
           .onDelete { index in
             leading.remove(at: index.first!)
@@ -113,7 +115,7 @@ struct SwipeSettingsView: View {
           }
         ) {
           ForEach(trailing, id: \.self) { swipe in
-            SwipeCellView(swipe: swipe)
+            SwipeCellView(swipe: swipe, isSimplifiedQueue: settings.isSimplifiedQueueEnabled)
           }
           .onDelete { index in
             trailing.remove(at: index.first!)
