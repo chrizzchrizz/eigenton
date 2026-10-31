@@ -443,7 +443,9 @@ class PlayerControlView: UIView {
       if player.currentlyPlaying != nil || player.prevQueueCount > 0 || player.nextQueueCount > 0,
          appDelegate.storage.settings.user.isOnlineMode {
         let addContextToPlaylist = UIAction(
-          title: "Add Context Queue to Playlist",
+          title: appDelegate.storage.settings.user.isSimplifiedQueueEnabled
+            ? "Add Queue to Playlist"
+            : "Add Context Queue to Playlist",
           image: .playlistPlus,
           handler: { _ in
             var itemsToAdd = self.player.getAllPrevQueueItems().filterSongs()
