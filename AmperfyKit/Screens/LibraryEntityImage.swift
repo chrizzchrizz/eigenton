@@ -427,6 +427,46 @@ public class LibraryEntityImage: RoundedImage {
   /// Decodes the artwork, scaled down to `maxPixelSize` if it is larger
   @concurrent
   private static func decodeImage(imagePath: String, maxPixelSize: Int) async -> UIImage? {
+    if let image = decodeScaledImage(imagePath: imagePath, maxPixelSize: maxPixelSize) {
+      return image
+    }
+    // formats ImageIO can not scale
+    return await UIImage(contentsOfFile: imagePath)?.byPreparingForDisplay()
+  }
+
+  /// Decodes the artwork synchronously, scaled down to `maxPixelSize` if it is larger
+  /// (formats ImageIO can not scale are decoded at full size).
+  /// Not cached; for callers that need one specific size off the main thread
+  /// (e.g. the Now Playing artwork on the lock screen and in CarPlay).
+  nonisolated public static func decodeArtwork(imagePath: String, maxPixelSize: Int) -> UIImage? {
+    decodeScaledImage(imagePath: imagePath, maxPixelSize: maxPixelSize) ??
+      // formats ImageIO can not scale, at full size
+      UIImage(contentsOfFile: imagePath)?.preparingForDisplay()
+  }
+
+  /// Pixel size of the artwork file (orientation applied), read without decoding the image
+  nonisolated public static func pixelSize(ofArtworkAt imagePath: String) -> CGSize? {
+    guard let source = CGImageSourceCreateWithURL(
+      URL(fileURLWithPath: imagePath) as CFURL,
+      [kCGImageSourceShouldCache: false] as CFDictionary
+    ),
+      let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+      let width = properties[kCGImagePropertyPixelWidth] as? Int,
+      let height = properties[kCGImagePropertyPixelHeight] as? Int,
+      width > 0, height > 0
+    else { return nil }
+    // EXIF orientations 5 to 8 are rotated by 90 degrees
+    let orientation = properties[kCGImagePropertyOrientation] as? Int ?? 1
+    return orientation >= 5
+      ? CGSize(width: height, height: width)
+      : CGSize(width: width, height: height)
+  }
+
+  nonisolated private static func decodeScaledImage(
+    imagePath: String,
+    maxPixelSize: Int
+  )
+    -> UIImage? {
     let url = URL(fileURLWithPath: imagePath) as CFURL
     let options: [CFString: Any] = [
       kCGImageSourceCreateThumbnailFromImageAlways: true,
@@ -434,15 +474,13 @@ public class LibraryEntityImage: RoundedImage {
       kCGImageSourceShouldCacheImmediately: true,
       kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
     ]
-    if let source = CGImageSourceCreateWithURL(
+    guard let source = CGImageSourceCreateWithURL(
       url,
       [kCGImageSourceShouldCache: false] as CFDictionary
     ),
-      let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) {
-      return UIImage(cgImage: cgImage)
-    }
-    // formats ImageIO can not scale
-    return await UIImage(contentsOfFile: imagePath)?.byPreparingForDisplay()
+      let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+    else { return nil }
+    return UIImage(cgImage: cgImage)
   }
 
   private static func byteCount(of image: UIImage) -> Int {

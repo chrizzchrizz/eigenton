@@ -32,6 +32,9 @@ public class NowPlayingInfoCenterHandler {
   private var nowPlayingInfoCenter: MPNowPlayingInfoCenter
   private let getArtworkDownloaderCB: GetArtworkDownloadManagerCallback
   private var accountNotificationHandler: AccountNotificationHandler?
+  /// The Now Playing info is rebuilt every second (elapsed time). The artwork is kept until the
+  /// playable or its artwork file changes, so the file is not read and decoded again each time.
+  private var currentArtwork: (key: String, artwork: MPMediaItemArtwork)?
 
   init(
     musicPlayer: AudioPlayer,
@@ -75,21 +78,10 @@ public class NowPlayingInfoCenterHandler {
     let albumTitle = playable.asSong?.album?.name ?? ""
     let nowPlaying = displayNowPlayingInfo(for: playable)
 
-    var artworkImage = UIImage()
-    if let accountInfo = playable.account?.info {
-      artworkImage = LibraryEntityImage.getImageToDisplayImmediately(
-        libraryEntity: playable,
-        themePreference: storage.settings.accounts.getSetting(accountInfo).read.themePreference,
-        artworkDisplayPreference: storage.settings.accounts.getSetting(accountInfo).read
-          .artworkDisplayPreference,
-        useCache: true
-      )
-      if let artwork = playable.artwork {
-        getArtworkDownloaderCB(accountInfo).download(object: artwork)
-      }
+    if let accountInfo = playable.account?.info, let artwork = playable.artwork {
+      getArtworkDownloaderCB(accountInfo).download(object: artwork)
     }
 
-    let concurrentSafeArtworkImage = artworkImage
     nowPlayingInfoCenter.nowPlayingInfo = [
       MPNowPlayingInfoPropertyMediaType: NSNumber(value: MPNowPlayingInfoMediaType.audio.rawValue),
       MPNowPlayingInfoPropertyServiceIdentifier: AmperKit.name,
@@ -109,14 +101,69 @@ public class NowPlayingInfoCenterHandler {
           .asDouble
       ),
 
-      MPMediaItemPropertyArtwork: MPMediaItemArtwork(
-        boundsSize: concurrentSafeArtworkImage.size,
-        requestHandler: { @Sendable size -> UIImage in
-          // this completion handler is not called in main thread!
-          return concurrentSafeArtworkImage
-        }
-      ),
+      MPMediaItemPropertyArtwork: artwork(for: playable),
     ]
+  }
+
+  private func artwork(for playable: AbstractPlayable) -> MPMediaItemArtwork {
+    var themePreference = storage.settings.accounts.activeSetting.read.themePreference
+    var filePath: String?
+    var artworkDisplayPreference = ArtworkDisplayPreference.defaultValue
+    if let accountInfo = playable.account?.info {
+      let setting = storage.settings.accounts.getSetting(accountInfo).read
+      themePreference = setting.themePreference
+      artworkDisplayPreference = setting.artworkDisplayPreference
+      filePath = playable.imagePath(setting: artworkDisplayPreference)
+    }
+    let key = "\(playable.uniqueID)|\(filePath ?? "")|\(themePreference)"
+    if let currentArtwork, currentArtwork.key == key {
+      return currentArtwork.artwork
+    }
+    let fallbackImage = LibraryEntityImage.getImageToDisplayImmediately(
+      libraryEntity: playable,
+      themePreference: themePreference,
+      artworkDisplayPreference: artworkDisplayPreference,
+      useCache: true
+    )
+    let artwork = Self.createArtwork(filePath: filePath, fallbackImage: fallbackImage)
+    currentArtwork = (key, artwork)
+    return artwork
+  }
+
+  /// The image cache only holds artworks at the size they were shown in the app (often small
+  /// list thumbnails), which look blurry on the lock screen and in CarPlay. The artwork file is
+  /// therefore decoded at the size the system requests.
+  private static func createArtwork(
+    filePath: String?,
+    fallbackImage: UIImage
+  )
+    -> MPMediaItemArtwork {
+    guard let filePath,
+          let pixelSize = LibraryEntityImage.pixelSize(ofArtworkAt: filePath)
+    else {
+      return MPMediaItemArtwork(
+        boundsSize: fallbackImage.size,
+        requestHandler: { @Sendable _ -> UIImage in fallbackImage }
+      )
+    }
+    let decodedImages = DecodedArtworkCache()
+    return MPMediaItemArtwork(
+      boundsSize: pixelSize,
+      requestHandler: { @Sendable size -> UIImage in
+        // this completion handler is not called in main thread!
+        // the requested size is in points, 3 is the highest display scale of the devices
+        let maxPixelSize = max(Int((max(size.width, size.height) * 3).rounded(.up)), 1)
+        if let image = decodedImages.image(maxPixelSize: maxPixelSize) {
+          return image
+        }
+        guard let image = LibraryEntityImage.decodeArtwork(
+          imagePath: filePath,
+          maxPixelSize: maxPixelSize
+        ) else { return fallbackImage }
+        decodedImages.set(image, maxPixelSize: maxPixelSize)
+        return image
+      }
+    )
   }
 
   private func displayNowPlayingInfo(for playable: AbstractPlayable) -> RadioNowPlayingInfo {
@@ -135,12 +182,16 @@ public class NowPlayingInfoCenterHandler {
     else { return }
     if curPlayable.uniqueID == downloadNotification.id {
       Task { @MainActor in
+        // the downloaded file can contain an embedded artwork
+        currentArtwork = nil
         updateNowPlayingInfo(playable: curPlayable)
       }
     }
     if let artwork = curPlayable.artwork,
        artwork.uniqueID == downloadNotification.id {
       Task { @MainActor in
+        // the file at the same path was replaced
+        currentArtwork = nil
         updateNowPlayingInfo(playable: curPlayable)
       }
     }
@@ -192,4 +243,25 @@ extension NowPlayingInfoCenterHandler: MusicPlayable {
   public func didRepeatChange() {}
 
   public func didPlaybackRateChange() {}
+}
+
+// MARK: - DecodedArtworkCache
+
+/// Artworks decoded for the Now Playing info, by pixel size. The system requests the artwork
+/// from a background thread, usually in only a few sizes.
+private final class DecodedArtworkCache: @unchecked Sendable {
+  private let lock = NSLock()
+  private var images = [Int: UIImage]()
+
+  func image(maxPixelSize: Int) -> UIImage? {
+    lock.withLock { images[maxPixelSize] }
+  }
+
+  func set(_ image: UIImage, maxPixelSize: Int) {
+    lock.withLock {
+      // only the latest sizes are kept, a size change replaces the old images
+      if images.count >= 2 { images.removeAll() }
+      images[maxPixelSize] = image
+    }
+  }
 }
