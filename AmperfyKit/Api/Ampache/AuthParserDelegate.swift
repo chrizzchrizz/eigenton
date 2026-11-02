@@ -26,6 +26,8 @@ import UIKit
 class AuthParserDelegate: AmpacheXmlParser {
   var authHandshake: AuthentificationHandshake?
   var serverApiVersion: String?
+  /// The Ampache version, e.g. `8.3.0`; only in a `ping` response
+  var serverVersion: String?
   private var authBuffer = AuthentificationHandshake()
   private let safetyOffsetTimeBeforeSessionExpireInMinutes: TimeInterval = -5.0 * 60.0
 
@@ -40,6 +42,8 @@ class AuthParserDelegate: AmpacheXmlParser {
       authBuffer.token = buffer
     case "api":
       serverApiVersion = buffer
+    case "server":
+      serverVersion = buffer
     case "session_expire":
       authBuffer.sessionExpire = buffer.asIso8601Date ?? Date()
       authBuffer.reauthenicateTime = Date(

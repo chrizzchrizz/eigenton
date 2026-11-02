@@ -89,6 +89,8 @@ final class AmpacheXmlServerApi: URLCleanser, Sendable {
   static let apiPathComponents = ["server", "xml.server.php"]
 
   internal let serverApiVersion = Atomic<String?>(wrappedValue: nil)
+  /// The Ampache version from `ping`, e.g. `8.3.0`; nil until requested or if the request failed
+  private let serverVersion = Atomic<String?>(wrappedValue: nil)
   internal let clientApiVersion = "500000"
 
   private let log = OSLog(subsystem: "Amperfy", category: "Ampache")
@@ -172,6 +174,7 @@ final class AmpacheXmlServerApi: URLCleanser, Sendable {
 
   func provideCredentials(credentials: LoginCredentials) {
     authHandshake.wrappedValue = nil
+    serverVersion.wrappedValue = nil
     self.credentials.wrappedValue = credentials
   }
 
@@ -280,6 +283,34 @@ final class AmpacheXmlServerApi: URLCleanser, Sendable {
       }
       throw AuthenticationError.notAbleToLogin
     }
+  }
+
+  /// The Ampache version from a `ping` without session, cached; nil if it can't be determined
+  private func requestServerVersion() async -> String? {
+    if let version = serverVersion.wrappedValue { return version }
+    guard let apiUrl = createApiUrl(),
+          var urlComp = URLComponents(url: apiUrl, resolvingAgainstBaseURL: false)
+    else { return nil }
+    urlComp.addQueryItem(name: "action", value: "ping")
+    guard let url = urlComp.url,
+          let response = try? await request(url: url, headers: buildHTTPHeaders())
+    else { return nil }
+    let parser = XMLParser(data: response.data)
+    let curDelegate = AuthParserDelegate(performanceMonitor: performanceMonitor)
+    parser.delegate = curDelegate
+    parser.parse()
+    serverVersion.wrappedValue = curDelegate.serverVersion
+    return curDelegate.serverVersion
+  }
+
+  /// The `bitrate` value of a stream request. Ampache 8 reads it as bits per second, Ampache 7 and
+  /// older pass it to the encoder as kbps.
+  static func streamBitrateQueryValue(kbps: Int, serverVersion: String?) -> Int {
+    guard let serverVersion,
+          let major = Int(serverVersion.prefix(while: { $0.isNumber })),
+          major >= 8
+    else { return kbps }
+    return kbps * 1000
   }
 
   private func reauthenticate() async throws -> AuthentificationHandshake {
@@ -812,7 +843,11 @@ final class AmpacheXmlServerApi: URLCleanser, Sendable {
     default:
       // the original file is sent unchanged, a bitrate limit does not apply
       if formatPreference != .raw {
-        urlComp.addQueryItem(name: "bitrate", value: maxBitrate.rawValue)
+        let bitrate = Self.streamBitrateQueryValue(
+          kbps: maxBitrate.rawValue,
+          serverVersion: await requestServerVersion()
+        )
+        urlComp.addQueryItem(name: "bitrate", value: bitrate)
       }
     }
     urlComp.addQueryItem(name: "length", value: 1)

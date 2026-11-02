@@ -59,5 +59,35 @@ class AuthParserTest: XCTestCase {
     XCTAssertEqual(handshake.playlistCount, 19)
     XCTAssertEqual(handshake.podcastCount, 3)
     XCTAssertEqual(handshake.videoCount, 2)
+    XCTAssertNil(parserDelegate.serverVersion)
+  }
+
+  func testParsingPingWithoutSession() {
+    let pingXml = """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <root>
+      <server><![CDATA[8.3.0]]></server>
+      <version><![CDATA[8.1.0]]></version>
+      <compatible><![CDATA[350001]]></compatible>
+    </root>
+    """
+    let parserDelegate = AuthParserDelegate(performanceMonitor: MOCK_PerformanceMonitor())
+    let parser = XMLParser(data: Data(pingXml.utf8))
+    parser.delegate = parserDelegate
+    parser.parse()
+
+    XCTAssertNil(parserDelegate.error)
+    XCTAssertEqual(parserDelegate.serverVersion, "8.3.0")
+    XCTAssertNil(parserDelegate.authHandshake)
+  }
+
+  func testStreamBitrateUnitDependsOnServerVersion() {
+    typealias Api = AmpacheXmlServerApi
+    XCTAssertEqual(Api.streamBitrateQueryValue(kbps: 192, serverVersion: "8.3.0"), 192_000)
+    XCTAssertEqual(Api.streamBitrateQueryValue(kbps: 192, serverVersion: "8.0.0"), 192_000)
+    XCTAssertEqual(Api.streamBitrateQueryValue(kbps: 192, serverVersion: "10.1.0"), 192_000)
+    XCTAssertEqual(Api.streamBitrateQueryValue(kbps: 192, serverVersion: "7.10.5"), 192)
+    XCTAssertEqual(Api.streamBitrateQueryValue(kbps: 192, serverVersion: "develop"), 192)
+    XCTAssertEqual(Api.streamBitrateQueryValue(kbps: 192, serverVersion: nil), 192)
   }
 }
