@@ -83,6 +83,15 @@ class ArtistDetailVC: MultiSourceTableViewController {
     super.viewDidLoad()
     tableView.separatorStyle = .none // rows draw their own separators
     appDelegate.userStatistics.visited(.artistDetail)
+    // the grids are updated as a whole, see controllerDidChangeContent
+    resultUpdateHandler = nil
+    // offline, the local top songs are shown instead of the server's
+    appDelegate.notificationHandler.register(
+      self,
+      selector: #selector(offlineModeChanged),
+      name: .offlineModeChanged,
+      object: nil
+    )
 
     optionsButton = UIBarButtonItem.createOptionsBarButton()
 
@@ -339,7 +348,7 @@ class ArtistDetailVC: MultiSourceTableViewController {
         didLoadServerTopSongs = true
         guard !songs.isEmpty else { return }
         serverTopSongs = songs
-        tableView.reloadSections([Section.topSongs.rawValue], with: .none)
+        reloadSectionsAndGrids([.topSongs])
       } catch {
         appDelegate.eventLogger.report(topic: "Top Songs", error: error, displayPopup: false)
       }
@@ -573,7 +582,14 @@ class ArtistDetailVC: MultiSourceTableViewController {
       compilationsFetchedResultsController.showAllResults()
       topSongsFetchedResultsController.showAllResults()
     }
+    Section.allCases.forEach { gridVC(for: $0)?.reload() }
     tableView.reloadData()
+  }
+
+  @objc
+  private func offlineModeChanged() {
+    guard isViewLoaded else { return }
+    reloadSectionsAndGrids([.topSongs])
   }
 
   override func controller(
@@ -607,7 +623,11 @@ class ArtistDetailVC: MultiSourceTableViewController {
     case compilationsFetchedResultsController.fetchResultsController:
       reloadGrid(in: .compilations, isStructuralChange: isStructuralChange)
     case topSongsFetchedResultsController.fetchResultsController:
-      reloadGrid(in: .topSongs, isStructuralChange: true)
+      // the server's list does not change with the local songs, only their values can
+      reloadGrid(
+        in: .topSongs,
+        isStructuralChange: isStructuralChange && !isShowingServerTopSongs
+      )
     default:
       break
     }
@@ -621,8 +641,7 @@ class ArtistDetailVC: MultiSourceTableViewController {
       tableView(tableView, numberOfRowsInSection: $0.rawValue)
         != tableView.numberOfRows(inSection: $0.rawValue)
     }
-    changedSections.forEach { gridVC(for: $0)?.reload() }
-    tableView.reloadSections(IndexSet(changedSections.map(\.rawValue)), with: .none)
+    reloadSectionsAndGrids(changedSections)
     guard !changedSections.contains(section) else { return }
     if isStructuralChange {
       gridVC(for: section)?.reload()
@@ -630,6 +649,13 @@ class ArtistDetailVC: MultiSourceTableViewController {
     } else {
       gridVC(for: section)?.reconfigure()
     }
+  }
+
+  /// Reloading a section re-embeds its grid without reloading it, so the grids are reloaded too.
+  private func reloadSectionsAndGrids(_ sections: [Section]) {
+    guard !sections.isEmpty else { return }
+    sections.forEach { gridVC(for: $0)?.reload() }
+    tableView.reloadSections(IndexSet(sections.map(\.rawValue)), with: .none)
   }
 
   private func gridVC(for section: Section) -> ArtistGridReloadable? {
@@ -925,6 +951,11 @@ final class ArtistTopSongsGridVC: UICollectionViewController, UICollectionViewDe
 
   func reload() {
     collectionView.reloadData()
+  }
+
+  /// The song count is unchanged, so the shown columns only display their songs again.
+  func reconfigure() {
+    collectionView.reconfigureItems(at: collectionView.indexPathsForVisibleItems)
   }
 
   private var columnCount: Int {
