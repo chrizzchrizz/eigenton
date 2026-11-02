@@ -110,6 +110,9 @@ extension UIViewController {
 class OfflineIndicatingNavigationController: UINavigationController {
   override func viewDidLoad() {
     super.viewDidLoad()
+    #if targetEnvironment(macCatalyst)
+      delegate = self
+    #endif
     viewControllers.forEach { $0.refreshOfflineBarButton() }
     appDelegate.notificationHandler.register(
       self,
@@ -134,3 +137,18 @@ class OfflineIndicatingNavigationController: UINavigationController {
     viewControllers.forEach { $0.refreshOfflineBarButton() }
   }
 }
+
+#if targetEnvironment(macCatalyst)
+  extension OfflineIndicatingNavigationController: UINavigationControllerDelegate {
+    /// On Mac a screen without a title shows the app name in the title bar instead,
+    /// a blank title is shown in quotes. Hide the window title for such screens like on iOS.
+    func navigationController(
+      _ navigationController: UINavigationController,
+      willShow viewController: UIViewController,
+      animated: Bool
+    ) {
+      let hasTitle = !(viewController.navigationItem.title ?? viewController.title ?? "").isEmpty
+      view.window?.windowScene?.titlebar?.titleVisibility = hasTitle ? .visible : .hidden
+    }
+  }
+#endif
