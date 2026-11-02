@@ -45,7 +45,7 @@ final class HomeVC: UICollectionViewController {
       target: self,
       action: #selector(editSectionsTapped)
     )
-    // both neighbours need their own background, Mac otherwise joins them
+    // own background, iOS otherwise joins it with its neighbours (Mac: see applyMacTrailingItemGroups)
     button.sharesBackground = false
     return button
   }()
@@ -121,13 +121,25 @@ final class HomeVC: UICollectionViewController {
     )
   }
 
-  /// On Mac the downloads button is shown left of the edit button (first item is rightmost).
+  /// On Mac the downloads button joins the edit button, each in its own toolbar group.
   private func arrangeNavButtonsForMac() {
     #if targetEnvironment(macCatalyst)
-      navigationItem.rightBarButtonItems = [editButton, downloadsButton.item]
-      refreshContinuePlaybackNavButton()
+      applyMacTrailingItemGroups()
     #endif
   }
+
+  #if targetEnvironment(macCatalyst)
+    /// Mac turns the right bar button items into one toolbar group with a single glass background
+    /// and ignores `sharesBackground`; one group per item gives every button its own background.
+    /// Order is left to right: downloads, edit, continue playback.
+    private func applyMacTrailingItemGroups() {
+      var items: [UIBarButtonItem] = [downloadsButton.item, editButton]
+      if appDelegate.isContinuePlaybackAvailable {
+        items.append(continuePlaybackNavButton)
+      }
+      navigationItem.trailingItemGroups = items.map { .fixedGroup(items: [$0]) }
+    }
+  #endif
 
   override func viewWillAppear(_ animated: Bool) {
     super.viewWillAppear(animated)
@@ -152,12 +164,16 @@ final class HomeVC: UICollectionViewController {
 
   /// Rightmost item.
   private func refreshContinuePlaybackNavButton() {
-    var items = navigationItem.rightBarButtonItems ?? []
-    items.removeAll { $0 === continuePlaybackNavButton }
-    if appDelegate.isContinuePlaybackAvailable {
-      items.insert(continuePlaybackNavButton, at: 0)
-    }
-    navigationItem.rightBarButtonItems = items
+    #if targetEnvironment(macCatalyst)
+      applyMacTrailingItemGroups()
+    #else
+      var items = navigationItem.rightBarButtonItems ?? []
+      items.removeAll { $0 === continuePlaybackNavButton }
+      if appDelegate.isContinuePlaybackAvailable {
+        items.insert(continuePlaybackNavButton, at: 0)
+      }
+      navigationItem.rightBarButtonItems = items
+    #endif
   }
 
   override func viewIsAppearing(_ animated: Bool) {
