@@ -268,7 +268,7 @@ class AlbumDetailVC: SingleSnapshotFetchedResultsTableViewController<SongMO> {
     return cell
   }
 
-  /// Only albums with two or more discs show a "CD n" header above each disc's songs.
+  /// Only albums with two or more discs show a "Disc n" header above each disc's songs.
   /// Not derived from the (possibly filtered) sections, so a search keeps the headers.
   private var isDiscHeaderVisible = false
   /// The headers follow the row content, which is only known once the rows are laid out.
@@ -293,7 +293,7 @@ class AlbumDetailVC: SingleSnapshotFetchedResultsTableViewController<SongMO> {
     guard let discNumber = discNumber(inSection: section) else { return nil }
     let isFirstSectionOfDisc = !(0 ..< section)
       .contains { discNumber == self.discNumber(inSection: $0) }
-    return isFirstSectionOfDisc ? "CD \(discNumber)" : nil
+    return isFirstSectionOfDisc ? "Disc \(discNumber)" : nil
   }
 
   private func discNumber(inSection section: Int) -> Int? {
