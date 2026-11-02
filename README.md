@@ -13,7 +13,8 @@ Eigenton is not affiliated with the Amperfy project. Please report issues [here]
 - Multi account
 - Offline mode
 - CarPlay
-- Gapless playback for appropriate media file formats
+- Gapless playback, also for MP3 and AAC streams transcoded by the server
+- Stream and download the original file or transcode it on the server to MP3 or AAC (AAC needs a server with an AAC transcoder, e.g. Navidrome; Ampache uses MP3 instead)
 - Music, Podcast and Radio support
 - Siri play media command, Siri Shortcuts and App Intents
 - Equalizer
@@ -23,6 +24,7 @@ Eigenton is not affiliated with the Amperfy project. Please report issues [here]
 - Favorite song
 - Scrobbling
 - Sync the play queue with another device (Subsonic/Navidrome)
+- Simplified queue with Insert and Append, or optionally a separate user queue
 
 ## Sync Play Queue
 
@@ -49,18 +51,17 @@ Start listening on one device and continue on another one: the queue, the curren
 
 ## Getting Started
 
-1. Check out the project and, next to it, the AudioStreaming fork it uses as a local package:
+1. Check out the project:
   ```
   git clone https://github.com/chrizzchrizz/eigenton.git
-  git clone https://github.com/chrizzchrizz/AudioStreaming.git
   cd eigenton
   ```
 
-2. Open the `Amperfy.xcodeproj` file (project and scheme still carry the original name).
+2. Open the `Amperfy.xcodeproj` file (project and scheme still carry the original name). Xcode resolves the Swift packages, including the [AudioStreaming fork](https://github.com/chrizzchrizz/AudioStreaming) (branch `preview`).
 
 3. Build and run the "Amperfy" scheme
 
-  >Real device testing: the CarPlay entitlement is removed in this fork. Siri support needs a developer certificate with granted access to `com.apple.developer.siri`; to test without it, clear the remaining entries in `Amperfy/Amperfy.entitlements`.
+  >Real device testing: CarPlay and Siri need a developer certificate with granted access to `com.apple.developer.carplay-audio` and `com.apple.developer.siri`. To test without them, remove these entries from `Amperfy/Amperfy.entitlements`.
 
 ## Contribution
 
@@ -68,7 +69,7 @@ Issues and pull requests for this fork are welcome.
 
 ## Attributions
 
-- [AudioStreaming](https://github.com/dimitris-c/AudioStreaming) by [Dimitris C.](https://github.com/dimitris-c) is licensed under [MIT License](https://github.com/dimitris-c/AudioStreaming/blob/main/LICENSE)
+- [AudioStreaming](https://github.com/dimitris-c/AudioStreaming) by [Dimitris C.](https://github.com/dimitris-c) is licensed under [MIT License](https://github.com/dimitris-c/AudioStreaming/blob/main/LICENSE), used through the [fork](https://github.com/chrizzchrizz/AudioStreaming) with gapless and stability fixes
 - [MarqueeLabel](https://github.com/cbpowell/MarqueeLabel) by [Charles Powell](https://github.com/cbpowell) is licensed under [MIT License](https://github.com/cbpowell/MarqueeLabel/blob/master/LICENSE)
 - [ID3TagEditor](https://github.com/chicio/ID3TagEditor) by [Fabrizio Duroni](https://github.com/chicio) is licensed under [MIT License](https://github.com/chicio/ID3TagEditor/blob/master/LICENSE.md)
 - [CoreDataMigrationRevised-Example](https://github.com/wibosco/CoreDataMigrationRevised-Example) by [William Boles](https://github.com/wibosco) is licensed under [MIT License](https://github.com/wibosco/CoreDataMigrationRevised-Example/blob/master/LICENSE)
