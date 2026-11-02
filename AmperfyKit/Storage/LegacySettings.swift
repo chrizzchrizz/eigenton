@@ -413,7 +413,7 @@ extension PersistentStorage {
           .compactMap { LibraryDisplayType(rawValue: $0) }
         return LibraryDisplaySettings(
           inUse: libraryDisplaySettings,
-          excluded: LibraryDisplaySettings.tabTypes
+          excluded: LibraryDisplaySettings.libraryExcludedTypes
         )
       }
       set {

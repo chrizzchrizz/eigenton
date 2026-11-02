@@ -128,4 +128,20 @@ class DownloadTest: XCTestCase {
     XCTAssertNil(library.getDownload(account: account, id: download.id))
     XCTAssertNotNil(library.getDownload(account: account2, id: otherAccountDownload.id))
   }
+
+  func testPlayableDownloadCountIncludesFinishedAndIgnoresArtworksAndOtherAccounts() {
+    XCTAssertEqual(library.getPlayableDownloadCount(for: account), 0)
+    let pendingSong = createUncachedSong(id: "pending", account: account)
+    createDownload(for: pendingSong, account: account)
+    let finishedSong = createUncachedSong(id: "finished", account: account)
+    createDownload(for: finishedSong, account: account).finishDate = Date()
+    // artwork downloads are not part of the downloads list
+    _ = library.createDownload(account: account, id: "artwork")
+    let otherAccountSong = createUncachedSong(id: "otherAccount", account: account2)
+    createDownload(for: otherAccountSong, account: account2)
+    library.saveContext()
+
+    XCTAssertEqual(library.getPlayableDownloadCount(for: account), 2)
+    XCTAssertEqual(library.getPlayableDownloadCount(for: account2), 1)
+  }
 }

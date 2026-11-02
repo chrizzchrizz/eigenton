@@ -111,6 +111,13 @@ class LibraryNavigatorConfigurator: NSObject {
 
   private var editButton: UIBarButtonItem!
   private weak var navigationItem: UINavigationItem?
+  /// on Mac the downloads button is on Home instead of the sidebar
+  #if !targetEnvironment(macCatalyst)
+    private lazy var downloadsButton = DownloadsBarButton(account: account) { [weak self] in
+      guard let self, let item = libraryItems[.downloads] else { return }
+      pressedOnLibraryItemCB(item)
+    }
+  #endif
   /// one item per library type for the whole lifetime: unchanged items keep their identity on refresh
   private let libraryItems: [LibraryDisplayType: LibraryNavigatorItem]
   /// all library items in the order arranged by the user, checked ones are in use
@@ -205,7 +212,12 @@ class LibraryNavigatorConfigurator: NSObject {
     if isInEditMode {
       editButton.fillProminentOnMac(with: collectionView.tintColor)
     }
-    navigationItem?.rightBarButtonItems = [editButton]
+    #if targetEnvironment(macCatalyst)
+      navigationItem?.rightBarButtonItems = [editButton]
+    #else
+      // first item is rightmost: the downloads button is left of the edit button
+      navigationItem?.rightBarButtonItems = [editButton, downloadsButton.item]
+    #endif
   }
 
   @MainActor @objc
@@ -227,7 +239,7 @@ class LibraryNavigatorConfigurator: NSObject {
       let newSettings = LibraryDisplaySettings(
         order: editor.items.compactMap { $0.library },
         inUse: Set(editor.checkedItems.compactMap { $0.library }),
-        excluded: LibraryDisplaySettings.tabTypes
+        excluded: LibraryDisplaySettings.libraryExcludedTypes
       )
       appDelegate.storage.settings.accounts
         .updateSetting(account.info) { accountSetting in

@@ -397,6 +397,16 @@ public class LibraryStorage: PlayableFileCachable {
     return (try? context.count(for: request)) ?? 0
   }
 
+  /// Number of entries in the downloads list (playable downloads, finished ones included).
+  public func getPlayableDownloadCount(for account: Account) -> Int {
+    let request: NSFetchRequest<DownloadMO> = DownloadMO.fetchRequest()
+    request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+      getFetchPredicate(forAccount: account),
+      DownloadMO.onlyPlayablesPredicate,
+    ])
+    return (try? context.count(for: request)) ?? 0
+  }
+
   public func getUploadableScrobbleEntryCount(for account: Account) -> Int {
     let fetchRequest = ScrobbleEntryMO.fetchRequest()
     fetchRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [

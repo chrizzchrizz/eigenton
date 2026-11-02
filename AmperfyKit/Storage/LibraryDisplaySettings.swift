@@ -169,13 +169,17 @@ public struct LibraryDisplaySettings: Sendable, Codable {
       // types added in later versions are not part of stored settings -> appended as not used
       let order = decodedOrder?.compactMap { LibraryDisplayType(rawValue: $0) } ?? mapped[0] +
         mapped[1]
-      self = LibraryDisplaySettings(order: order, inUse: Set(mapped[0]), excluded: Self.tabTypes)
+      self = LibraryDisplaySettings(
+        order: order,
+        inUse: Set(mapped[0]),
+        excluded: Self.libraryExcludedTypes
+      )
     } else if let first = mapped.first {
       // If only one group present, treat it as inUse and compute notUsed
-      self = LibraryDisplaySettings(inUse: first, excluded: Self.tabTypes)
+      self = LibraryDisplaySettings(inUse: first, excluded: Self.libraryExcludedTypes)
     } else {
       // Fallback to defaults if decoding produced no valid entries
-      self = LibraryDisplaySettings(inUse: [], excluded: Self.tabTypes)
+      self = LibraryDisplaySettings(inUse: [], excluded: Self.libraryExcludedTypes)
     }
   }
 
@@ -209,6 +213,12 @@ public struct LibraryDisplaySettings: Sendable, Codable {
   /// types shown as top level tab instead of inside the library
   public static let tabTypes: Set<LibraryDisplayType> = [.playlists]
 
+  /// types reached by a button in the navigation bar of the library instead of a library entry
+  public static let navigationBarTypes: Set<LibraryDisplayType> = [.downloads]
+
+  /// types that never show up as library entries
+  public static let libraryExcludedTypes = tabTypes.union(navigationBarTypes)
+
   // order used for not used types
   private static let displayOrder: [LibraryDisplayType] = [
     .albums,
@@ -225,7 +235,6 @@ public struct LibraryDisplaySettings: Sendable, Codable {
     .podcasts,
     .radios,
     .directories,
-    .downloads,
   ]
 
   public static var defaultSettings: LibraryDisplaySettings {
@@ -236,7 +245,7 @@ public struct LibraryDisplaySettings: Sendable, Codable {
         .songs,
         .compilations,
       ],
-      excluded: tabTypes
+      excluded: libraryExcludedTypes
     )
   }
 

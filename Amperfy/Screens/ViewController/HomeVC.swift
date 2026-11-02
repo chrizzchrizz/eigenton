@@ -37,6 +37,25 @@ final class HomeVC: UICollectionViewController {
   private let account: Account
   private var accountNotificationHandler: AccountNotificationHandler?
   private let sharedHome: HomeManager
+  /// lazy: the account change callback arranges the buttons already while it is registered
+  private lazy var editButton = {
+    let button = UIBarButtonItem(
+      image: UIImage.pencil,
+      style: .plain,
+      target: self,
+      action: #selector(editSectionsTapped)
+    )
+    // both neighbours need their own background, Mac otherwise joins them
+    button.sharesBackground = false
+    return button
+  }()
+
+  #if targetEnvironment(macCatalyst)
+    /// on Mac the downloads are opened from Home, on iOS from the library
+    private lazy var downloadsButton = DownloadsBarButton(account: account) { [weak self] in
+      self?.showLibraryList(.downloads)
+    }
+  #endif
 
   // MARK: - Init
 
@@ -87,14 +106,6 @@ final class HomeVC: UICollectionViewController {
     }
 
     navigationController?.navigationBar.prefersLargeTitles = true
-    let editButton = UIBarButtonItem(
-      image: UIImage.pencil,
-      style: .plain,
-      target: self,
-      action: #selector(editSectionsTapped)
-    )
-    // both neighbours need their own background, Mac otherwise joins them
-    editButton.sharesBackground = false
     navigationItem.rightBarButtonItem = editButton
     arrangeNavButtonsForMac()
     configureCollectionView()
@@ -110,15 +121,11 @@ final class HomeVC: UICollectionViewController {
     )
   }
 
-  /// On Mac the user button is shown right of the edit button (first item is rightmost).
-  /// Only the user button (first left item) is moved; other left items stay.
+  /// On Mac the downloads button is shown left of the edit button (first item is rightmost).
   private func arrangeNavButtonsForMac() {
     #if targetEnvironment(macCatalyst)
-      guard var leftItems = navigationItem.leftBarButtonItems, !leftItems.isEmpty,
-            let editItem = navigationItem.rightBarButtonItems?.last else { return }
-      let userItem = leftItems.removeFirst()
-      navigationItem.leftBarButtonItems = leftItems
-      navigationItem.rightBarButtonItems = [userItem, editItem]
+      navigationItem.rightBarButtonItems = [editButton, downloadsButton.item]
+      refreshContinuePlaybackNavButton()
     #endif
   }
 
@@ -143,7 +150,7 @@ final class HomeVC: UICollectionViewController {
     return button
   }()
 
-  /// Rightmost item, so the edit button stays the last one the Mac arrangement expects.
+  /// Rightmost item.
   private func refreshContinuePlaybackNavButton() {
     var items = navigationItem.rightBarButtonItems ?? []
     items.removeAll { $0 === continuePlaybackNavButton }

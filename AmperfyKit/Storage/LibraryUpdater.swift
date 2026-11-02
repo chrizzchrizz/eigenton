@@ -183,7 +183,7 @@ public class LibraryUpdater {
             accountSettings
               .libraryDisplaySettings = LibraryDisplaySettings(
                 inUse: libraryDisplaySettingsInUse,
-                excluded: LibraryDisplaySettings.tabTypes
+                excluded: LibraryDisplaySettings.libraryExcludedTypes
               )
           }
         }

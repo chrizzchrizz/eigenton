@@ -301,7 +301,7 @@ extension TabBarVC: UITabBarControllerDelegate {
         accountSettings.libraryDisplaySettings = LibraryDisplaySettings(
           order: order,
           inUse: visibleItems,
-          excluded: LibraryDisplaySettings.tabTypes
+          excluded: LibraryDisplaySettings.libraryExcludedTypes
         )
       }
     NotificationCenter.default.post(name: .LibraryItemsChanged, object: nil, userInfo: nil)

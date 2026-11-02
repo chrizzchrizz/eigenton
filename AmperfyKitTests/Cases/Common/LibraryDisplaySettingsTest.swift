@@ -68,4 +68,29 @@ class LibraryDisplaySettingsTest: XCTestCase {
     XCTAssertEqual(settings.inUse, [.albums, .artists])
     XCTAssertTrue(settings.notUsed.contains(.songs))
   }
+
+  func testLibraryExcludedTypesContainTabAndNavigationBarTypes() {
+    XCTAssertTrue(LibraryDisplaySettings.libraryExcludedTypes.contains(.playlists))
+    XCTAssertTrue(LibraryDisplaySettings.libraryExcludedTypes.contains(.downloads))
+  }
+
+  func testDefaultSettingsDoNotContainDownloads() {
+    XCTAssertFalse(LibraryDisplaySettings.defaultSettings.order.contains(.downloads))
+  }
+
+  func testDecodingStoredSettingsWithDownloadsDropsThem() throws {
+    // downloads in use and as not used entry: format stored before they moved to the nav bar
+    for json in [
+      #"{"combined": [[7, 1, 0], [2]], "order": [7, 1, 0, 2]}"#,
+      #"{"combined": [[1, 0], [7, 2]], "order": [1, 0, 7, 2]}"#,
+    ] {
+      let settings = try JSONDecoder().decode(
+        LibraryDisplaySettings.self,
+        from: Data(json.utf8)
+      )
+      XCTAssertFalse(settings.order.contains(.downloads))
+      XCTAssertFalse(settings.isVisible(libraryType: .downloads))
+      XCTAssertEqual(settings.inUse, [.albums, .artists])
+    }
+  }
 }

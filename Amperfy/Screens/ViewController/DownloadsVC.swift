@@ -24,6 +24,8 @@ import CoreData
 import Foundation
 import UIKit
 
+// MARK: - DownloadsVC
+
 class DownloadsVC: SingleFetchedResultsTableViewController<DownloadMO> {
   override var sceneTitle: String? { "Downloads" }
 
@@ -131,5 +133,85 @@ class DownloadsVC: SingleFetchedResultsTableViewController<DownloadMO> {
       )
     }
     return cell
+  }
+}
+
+// MARK: - DownloadsBarButton
+
+/// Bar button that opens the downloads, only visible while there are downloads.
+@MainActor
+final class DownloadsBarButton {
+  let item: UIBarButtonItem
+
+  init(account: Account, openCB: @escaping @MainActor () -> ()) {
+    self.item = UIBarButtonItem(
+      image: LibraryDisplayType.downloads.image,
+      primaryAction: UIAction { _ in openCB() }
+    )
+    item.accessibilityLabel = LibraryDisplayType.downloads.displayName
+    // own glass background, it has nothing to do with the edit button next to it
+    item.sharesBackground = false
+    DownloadsAvailability.shared(for: account).register(item)
+  }
+}
+
+// MARK: - DownloadsAvailability
+
+/// Tracks whether the downloads list of an account is empty, one instance per account shared by all
+/// downloads buttons. Only counts, so the downloads themselves are never loaded for this.
+@MainActor
+final class DownloadsAvailability {
+  private static var instances = [NSManagedObjectID: DownloadsAvailability]()
+
+  static func shared(for account: Account) -> DownloadsAvailability {
+    let key = account.managedObject.objectID
+    if let instance = instances[key] { return instance }
+    let instance = DownloadsAvailability(account: account)
+    instances[key] = instance
+    return instance
+  }
+
+  private let account: Account
+  private let items = NSHashTable<UIBarButtonItem>.weakObjects()
+  private var saveObserver: NSObjectProtocol?
+  private(set) var hasDownloads = false
+
+  private init(account: Account) {
+    self.account = account
+    self.hasDownloads = countDownloads() > 0
+    let downloadEntityName = DownloadMO.entity().name
+    // saves of all contexts: the main context doesn't report deleted downloads it never loaded
+    self.saveObserver = NotificationCenter.default.addObserver(
+      forName: .NSManagedObjectContextDidSaveObjectIDs,
+      object: nil,
+      queue: nil
+    ) { [weak self] notification in
+      // only inserted or deleted downloads change whether the list is empty
+      let isDownloadAffected = [NSInsertedObjectIDsKey, NSDeletedObjectIDsKey].contains { key in
+        (notification.userInfo?[key] as? Set<NSManagedObjectID>)?
+          .contains { $0.entity.name == downloadEntityName } ?? false
+      }
+      guard isDownloadAffected else { return }
+      Task { @MainActor in self?.refresh() }
+    }
+  }
+
+  func register(_ item: UIBarButtonItem) {
+    items.add(item)
+    item.isHidden = !hasDownloads
+  }
+
+  private func countDownloads() -> Int {
+    (UIApplication.shared.delegate as! AppDelegate).storage.main.library
+      .getPlayableDownloadCount(for: account)
+  }
+
+  private func refresh() {
+    let hasDownloads = countDownloads() > 0
+    guard hasDownloads != self.hasDownloads else { return }
+    self.hasDownloads = hasDownloads
+    for item in items.allObjects {
+      item.isHidden = !hasDownloads
+    }
   }
 }
