@@ -116,13 +116,13 @@ extension AppDelegate: AlertDisplayable {
     style: LogEntryType,
     notificationBanner popupVC: UIViewController
   ) {
-    guard !ToastView.isVisible,
+    guard !Toast.isVisible,
           let topView = Self.topViewController(),
           topView.presentedViewController == nil,
           let window = Self.window
     else { return }
 
-    ToastView.show(
+    Toast.show(
       title: title,
       subtitle: subtitle,
       style: style,

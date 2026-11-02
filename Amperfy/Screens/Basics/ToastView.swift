@@ -20,7 +20,7 @@
 //
 
 import AmperfyKit
-import CoreImage
+import SwiftUI
 import UIKit
 
 // MARK: - ToastPlacement
@@ -33,34 +33,17 @@ struct ToastPlacement {
   let bottomEdge: CGFloat
 }
 
-// MARK: - ToastView
+// MARK: - Toast
 
-/// Compact capsule that rises and springs open above the bottom bar, reveals its text out of a blur
-/// and disappears on its own.
+/// Shows one `ToastView` at a time above the bottom bar of a window.
 @MainActor
-final class ToastView: UIView {
-  static let maxWidth: CGFloat = UIDevice.current.userInterfaceIdiom == .phone ? 200 : 300
-  static let height: CGFloat = 50
+enum Toast {
+  private static let maxWidth: CGFloat = UIDevice.current.userInterfaceIdiom == .phone ? 260 : 360
   /// Distance between the toast and the edge it floats above.
-  static let bottomSpacing: CGFloat = 48
-  private static let riseDistance: CGFloat = 32
-  static let displayDuration: Duration = .seconds(3)
-  private static let openDuration: TimeInterval = 0.3
-  private static let textRevealDelay: TimeInterval = 0.00
-  private static let textRevealDuration: TimeInterval = 0.20
-  private static let textBlurPadding: CGFloat = 12
-  /// Blur radii in points, from the blurriest to the sharp text.
-  private static let textBlurRadii: [CGFloat] = [10, 6, 3, 1.5, 0]
+  private static let bottomSpacing: CGFloat = 16
 
-  private static weak var current: ToastView?
-  static var isVisible: Bool { current != nil }
-
-  private let textStack = UIStackView()
-  private let titleLabel = UILabel()
-  private let subtitleLabel = UILabel()
-  private var onTap: (() -> ())?
-  private var dismissTask: Task<(), Never>?
-  private var isDismissing = false
+  private static var host: UIHostingController<ToastView>?
+  static var isVisible: Bool { host != nil }
 
   static func show(
     title: String,
@@ -70,197 +53,130 @@ final class ToastView: UIView {
     placement: ToastPlacement,
     onTap: (() -> ())? = nil
   ) {
-    guard current == nil else { return }
-    let toast = ToastView(title: title, subtitle: subtitle, color: style.toastColor)
-    toast.onTap = onTap
-    current = toast
-    toast.present(in: window, placement: placement)
-  }
+    guard host == nil else { return }
+    let host = UIHostingController(rootView: ToastView(
+      title: title,
+      subtitle: subtitle,
+      color: style.toastColor,
+      onTap: onTap,
+      onFinished: {
+        Self.host?.view.removeFromSuperview()
+        Self.host = nil
+      }
+    ))
+    Self.host = host
+    host.view.backgroundColor = .clear
+    host.sizingOptions = [.intrinsicContentSize]
 
-  private init(title: String, subtitle: String, color: UIColor) {
-    super.init(frame: .zero)
-    backgroundColor = color
-    layer.shadowColor = UIColor.black.cgColor
-    layer.shadowOpacity = 0.4
-    layer.shadowRadius = 3
-    layer.shadowOffset = CGSize(width: 0, height: 2)
-
-    titleLabel.text = title
-    titleLabel.font = .systemFont(ofSize: 13, weight: .medium)
-    subtitleLabel.text = subtitle
-    subtitleLabel.font = .systemFont(ofSize: 12)
-    for label in [titleLabel, subtitleLabel] {
-      label.textColor = .white
-      label.textAlignment = .center
-      label.numberOfLines = 1
-      label.lineBreakMode = .byTruncatingTail
-    }
-
-    for label in [titleLabel, subtitleLabel] {
-      textStack.addArrangedSubview(label)
-    }
-    textStack.axis = .vertical
-    textStack.alignment = .fill
-    textStack.translatesAutoresizingMaskIntoConstraints = false
-    addSubview(textStack)
-    NSLayoutConstraint.activate([
-      textStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-      textStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
-      textStack.centerYAnchor.constraint(equalTo: centerYAnchor),
-    ])
-
-    addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap)))
-    isAccessibilityElement = true
-    accessibilityLabel = "\(title), \(subtitle)"
-    accessibilityTraits = .staticText
-  }
-
-  @available(*, unavailable)
-  required init?(coder: NSCoder) {
-    fatalError("init(coder:) has not been implemented")
-  }
-
-  override func layoutSubviews() {
-    super.layoutSubviews()
-    layer.cornerRadius = bounds.height / 2
-  }
-
-  private func present(in window: UIWindow, placement: ToastPlacement) {
-    translatesAutoresizingMaskIntoConstraints = false
-    window.addSubview(self)
-    let widthFill = widthAnchor.constraint(equalToConstant: Self.maxWidth)
+    let view = host.view!
+    view.translatesAutoresizingMaskIntoConstraints = false
+    window.addSubview(view)
+    let widthFill = view.widthAnchor.constraint(equalToConstant: maxWidth)
     widthFill.priority = .defaultHigh
     NSLayoutConstraint.activate([
-      centerXAnchor.constraint(equalTo: window.leftAnchor, constant: placement.centerX),
-      bottomAnchor.constraint(
+      view.centerXAnchor.constraint(equalTo: window.leftAnchor, constant: placement.centerX),
+      view.bottomAnchor.constraint(
         equalTo: window.topAnchor,
-        constant: placement.bottomEdge - Self.bottomSpacing
+        constant: placement.bottomEdge - bottomSpacing
       ),
-      heightAnchor.constraint(equalToConstant: Self.height),
-      widthAnchor.constraint(lessThanOrEqualToConstant: Self.maxWidth),
+      view.widthAnchor.constraint(lessThanOrEqualToConstant: maxWidth),
       widthFill,
     ])
-    window.layoutIfNeeded()
+  }
+}
 
-    alpha = 0
-    transform = CGAffineTransform(translationX: 0, y: Self.riseDistance)
-      .scaledBy(x: 0.6, y: 0.6)
-    let textReveal = prepareTextReveal()
-    UIView.animate(
-      withDuration: Self.openDuration,
-      delay: 0,
-      usingSpringWithDamping: 0.6,
-      initialSpringVelocity: 0.9,
-      options: [.allowUserInteraction]
-    ) {
-      self.alpha = 1
-      self.transform = .identity
+// MARK: - ToastView
+
+/// Compact glass capsule that builds out of a blur, disappears on its own the same way in reverse,
+/// a little faster, and calls `onFinished` once it is gone.
+struct ToastView: View {
+  private static let height: CGFloat = 50
+  private static let displayDuration: Duration = .seconds(5)
+  private static let openAnimation: Animation = .spring(duration: 0.5, bounce: 0.2)
+  private static let closeAnimation: Animation = .easeIn(duration: 0.30)
+  private static let transition: AnyTransition = .asymmetric(
+    insertion: AnyTransition(.blurReplace),
+    removal: AnyTransition(.blurReplace)
+  )
+
+  let title: String
+  let subtitle: String
+  let color: Color
+  let onTap: (() -> ())?
+  let onFinished: () -> ()
+
+  @State
+  private var isShown = false
+  @State
+  private var isClosing = false
+  @State
+  private var isTapped = false
+
+  var body: some View {
+    ZStack {
+      // keeps the size while the toast is not shown, so the host view does not jump
+      text.hidden()
+      if isShown {
+        text
+          .glassEffect(.regular.tint(color), in: .capsule)
+          .glassEffectTransition(.materialize)
+          .contentShape(.capsule)
+          .onTapGesture(perform: handleTap)
+          .accessibilityElement(children: .combine)
+          .transition(Self.transition)
+      }
     }
-    textReveal?()
-
-    dismissTask = Task { [weak self] in
-      try? await Task.sleep(for: Self.displayDuration)
-      guard !Task.isCancelled else { return }
-      self?.dismiss()
+    .onAppear {
+      withAnimation(Self.openAnimation) { isShown = true }
+    }
+    .task {
+      guard (try? await Task.sleep(for: Self.displayDuration)) != nil else { return }
+      close()
     }
   }
 
-  /// Hides the text and returns a closure that reveals it from blurred to sharp.
-  private func prepareTextReveal() -> (() -> ())? {
-    let padding = Self.textBlurPadding
-    let size = CGSize(
-      width: textStack.bounds.width + 2 * padding,
-      height: textStack.bounds.height + 2 * padding
-    )
-    // the stack is rendered on its own, so the transparent toast does not affect the image
-    let image = UIGraphicsImageRenderer(size: size).image { context in
-      context.cgContext.translateBy(x: padding, y: padding)
-      textStack.layer.render(in: context.cgContext)
+  private var text: some View {
+    VStack(spacing: 0) {
+      Text(title)
+        .font(.system(size: 13, weight: .medium))
+        .lineLimit(1)
+      // a longer subtitle wraps to a second line and the toast grows with it
+      Text(subtitle)
+        .font(.system(size: 12))
+        .lineLimit(2)
     }
-    guard let sharp = image.cgImage else { return nil }
-    let source = CIImage(cgImage: sharp)
-    let ciContext = CIContext()
-    let frames = Self.textBlurRadii.compactMap { radius -> CGImage? in
-      guard radius > 0 else { return sharp }
-      return ciContext.createCGImage(
-        source.clampedToExtent()
-          .applyingGaussianBlur(sigma: Double(radius * image.scale))
-          .cropped(to: source.extent),
-        from: source.extent
-      )
-    }
-    guard let first = frames.first else { return nil }
+    .foregroundStyle(.white)
+    .multilineTextAlignment(.center)
+    .truncationMode(.tail)
+    .padding(.horizontal, 16)
+    .padding(.vertical, 8)
+    .frame(maxWidth: .infinity, minHeight: Self.height)
+  }
 
-    let blurredText = UIView(frame: textStack.frame.insetBy(dx: -padding, dy: -padding))
-    blurredText.isUserInteractionEnabled = false
-    blurredText.layer.contentsScale = image.scale
-    blurredText.layer.contents = first
-    blurredText.alpha = 0
-    addSubview(blurredText)
-    textStack.alpha = 0
-
-    return { [weak self, weak blurredText] in
-      guard let blurredText else { return }
-      let animation = CAKeyframeAnimation(keyPath: "contents")
-      animation.values = frames
-      animation.calculationMode = .discrete
-      animation.duration = Self.textRevealDuration
-      animation.beginTime = CACurrentMediaTime() + Self.textRevealDelay
-      animation.fillMode = .backwards
-      CATransaction.begin()
-      CATransaction.setCompletionBlock {
-        self?.textStack.alpha = 1
-        blurredText.removeFromSuperview()
-      }
-      blurredText.layer.contents = frames.last
-      blurredText.layer.add(animation, forKey: "unblur")
-      CATransaction.commit()
-      UIView.animate(
-        withDuration: Self.textRevealDuration,
-        delay: Self.textRevealDelay,
-        options: [.curveEaseOut]
-      ) {
-        blurredText.alpha = 1
-      }
+  private func close() {
+    guard !isClosing else { return }
+    isClosing = true
+    withAnimation(Self.closeAnimation) {
+      isShown = false
+    } completion: {
+      onFinished()
     }
   }
 
-  private func dismiss(completion: (() -> ())? = nil) {
-    guard !isDismissing else { return }
-    isDismissing = true
-    dismissTask?.cancel()
-    UIView.animate(
-      withDuration: 0.05,
-      delay: 0,
-      options: [.curveEaseIn],
-      animations: {
-        self.alpha = 0
-      },
-      completion: { _ in
-        self.removeFromSuperview()
-        if Self.current === self {
-          Self.current = nil
-        }
-        completion?()
-      }
-    )
-  }
-
-  @objc
   private func handleTap() {
-    // runs even while the automatic fade out is already in progress
-    let action = onTap
-    onTap = nil
-    dismiss()
-    action?()
+    // runs even while the automatic close is already in progress
+    guard !isTapped else { return }
+    isTapped = true
+    close()
+    onTap?()
   }
 }
 
 extension LogEntryType {
-  fileprivate var toastColor: UIColor {
+  fileprivate var toastColor: Color {
     switch self {
-    case .apiError, .error: return UIColor(named: "ToastError") ?? .systemRed
-    case .debug, .info: return UIColor(named: "ToastInfo") ?? .defaultBlue
+    case .apiError, .error: return Color(uiColor: UIColor(named: "ToastError") ?? .systemRed)
+    case .debug, .info: return Color(uiColor: UIColor(named: "ToastInfo") ?? .defaultBlue)
     }
   }
 }
