@@ -192,3 +192,57 @@ extension AppDelegate: AlertDisplayable {
     return popupVC
   }
 }
+
+#if DEBUG
+
+  // MARK: - Toast demo
+
+  extension AppDelegate {
+    /// Shows the example toasts one after another after app start, to check their look and
+    /// placement. Set to false to start the debug build without them.
+    static let isToastDemoEnabled = false
+
+    private static var isToastDemoStarted = false
+
+    private static let toastDemoExamples: [(title: String, subtitle: String, style: LogEntryType)] =
+      [
+        ("Offline Mode", "Tap to switch to online mode", .info),
+        ("Something went wrong", "Library sync", .error),
+        ("Server error", "Playlist upload · 500", .apiError),
+        ("Downloads", "12 songs could not be downloaded from the server", .error),
+        (
+          "Server error",
+          "The server did not answer in time while syncing the library, please check the connection and try again later",
+          .apiError
+        ),
+        ("Debug", "Toast demo", .debug),
+      ]
+
+    func startToastDemoIfEnabled() {
+      guard Self.isToastDemoEnabled, !Self.isToastDemoStarted else { return }
+      Self.isToastDemoStarted = true
+      Task { @MainActor in
+        try? await Task.sleep(for: .seconds(2))
+        for example in Self.toastDemoExamples {
+          // wait until the previous toast is gone, also when it was tapped
+          while Toast.isVisible {
+            try? await Task.sleep(for: .milliseconds(200))
+          }
+          try? await Task.sleep(for: .milliseconds(500))
+          display(
+            title: example.title,
+            subtitle: example.subtitle,
+            style: example.style,
+            notificationBanner: createPopupVC(
+              topic: example.title,
+              shortMessage: example.subtitle,
+              detailMessage: "Toast demo: \(example.title) – \(example.subtitle)",
+              logType: example.style
+            )
+          )
+        }
+      }
+    }
+  }
+
+#endif

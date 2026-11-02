@@ -203,6 +203,9 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
     appDelegate.quickActionsManager.handleSavedShortCutItemIfSaved()
     appDelegate.rebuildMainMenu()
+    #if DEBUG
+      appDelegate.startToastDemoIfEnabled()
+    #endif
   }
 
   func sceneWillResignActive(_ scene: UIScene) {
