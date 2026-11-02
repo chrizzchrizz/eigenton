@@ -461,11 +461,6 @@ final class HomeVC: UICollectionViewController {
   // MARK: - Section Navigation
 
   private func showLibraryList(_ displayType: LibraryDisplayType) {
-    // playlists have their own tab instead of a library entry
-    if displayType == .playlists {
-      AppDelegate.mainWindowHostVC?.pushTabCategory(tabCategory: .playlists)
-      return
-    }
     navigationController?.pushViewController(
       displayType.controller(account: account, settings: appDelegate.storage.settings),
       animated: true
