@@ -589,58 +589,55 @@ class ArtistDetailVC: MultiSourceTableViewController {
     }
   }
 
+  // The rows are not updated one by one, so the table must not be wrapped in begin/endUpdates:
+  // a section gaining or losing its only row would fail the consistency check of endUpdates.
+  override func controllerWillChangeContent(
+    _ controller: NSFetchedResultsController<NSFetchRequestResult>
+  ) {}
+
   override func controllerDidChangeContent(
     _ controller: NSFetchedResultsController<NSFetchRequestResult>
   ) {
-    super.controllerDidChangeContent(controller)
     // changed values keep the cells, so the artworks are not loaded again
     let isStructuralChange = controllersWithStructuralChange
       .remove(ObjectIdentifier(controller)) != nil
     switch controller {
     case albumsFetchedResultsController.fetchResultsController:
-      reloadGrid(
-        albumsGridVC,
-        in: .albums,
-        fetchedResultsController: albumsFetchedResultsController,
-        isStructuralChange: isStructuralChange
-      )
+      reloadGrid(in: .albums, isStructuralChange: isStructuralChange)
     case compilationsFetchedResultsController.fetchResultsController:
-      reloadGrid(
-        compilationsGridVC,
-        in: .compilations,
-        fetchedResultsController: compilationsFetchedResultsController,
-        isStructuralChange: isStructuralChange
-      )
+      reloadGrid(in: .compilations, isStructuralChange: isStructuralChange)
     case topSongsFetchedResultsController.fetchResultsController:
-      reloadGrid(
-        topSongsGridVC,
-        in: .topSongs,
-        fetchedResultsController: topSongsFetchedResultsController,
-        isStructuralChange: true
-      )
+      reloadGrid(in: .topSongs, isStructuralChange: true)
     default:
       break
     }
   }
 
-  private func reloadGrid<ResultType: NSFetchRequestResult>(
-    _ gridVC: ArtistGridReloadable,
-    in section: Section,
-    fetchedResultsController: BasicFetchedResultsController<ResultType>,
-    isStructuralChange: Bool
-  ) {
-    let hasItems = section == .topSongs
-      ? topSongCount > 0
-      : (fetchedResultsController.sections?[0].numberOfObjects ?? 0) > 0
-    if hasItems != (tableView.numberOfRows(inSection: section.rawValue) > 0) {
-      tableView.reloadSections([section.rawValue], with: .none)
+  private func reloadGrid(in section: Section, isStructuralChange: Bool) {
+    // Any section can have changed its row count, not only the one of this controller
+    // (e.g. the top songs switch between the server's and the local list in offline mode).
+    // Re-embedding a grid does not reload it, so the grids of these sections are reloaded too.
+    let changedSections = Section.allCases.filter {
+      tableView(tableView, numberOfRowsInSection: $0.rawValue)
+        != tableView.numberOfRows(inSection: $0.rawValue)
+    }
+    changedSections.forEach { gridVC(for: $0)?.reload() }
+    tableView.reloadSections(IndexSet(changedSections.map(\.rawValue)), with: .none)
+    guard !changedSections.contains(section) else { return }
+    if isStructuralChange {
+      gridVC(for: section)?.reload()
+      tableView.performBatchUpdates(nil)
     } else {
-      if isStructuralChange {
-        gridVC.reload()
-        tableView.performBatchUpdates(nil)
-      } else {
-        gridVC.reconfigure()
-      }
+      gridVC(for: section)?.reconfigure()
+    }
+  }
+
+  private func gridVC(for section: Section) -> ArtistGridReloadable? {
+    switch section {
+    case .albums: return albumsGridVC
+    case .compilations: return compilationsGridVC
+    case .topSongs: return topSongsGridVC
+    case .top: return nil
     }
   }
 
