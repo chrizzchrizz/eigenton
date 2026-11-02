@@ -174,6 +174,10 @@ public class LibraryEntityImage: RoundedImage {
   /// (false while an existing artwork is still loading).
   public private(set) var isShowingPlaceholder = false
 
+  /// True while a loaded artwork is shown: false for the generated placeholder, also while the
+  /// artwork is still loading or could not be decoded.
+  public var isShowingArtwork: Bool { shownPixelSize > 0 }
+
   /// Called whenever the shown image changes, e.g. when the loaded artwork replaces the placeholder.
   public var imageDidChange: ((UIImage?) -> ())?
 

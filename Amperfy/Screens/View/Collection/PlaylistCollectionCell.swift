@@ -74,8 +74,7 @@ class PlaylistCollectionCell: UICollectionViewCell {
     entityImage.translatesAutoresizingMaskIntoConstraints = false
     entityImage.setSquareImageCorners(true)
     entityImage.artworkDidChange = { [weak self] image in
-      self?.artwork = image
-      self?.updateColors()
+      self?.setArtwork(image)
     }
     tileView.addSubview(entityImage)
 
@@ -117,6 +116,8 @@ class PlaylistCollectionCell: UICollectionViewCell {
       ),
     ])
 
+    updateColors()
+
     registerForTraitChanges(
       [UITraitUserInterfaceStyle.self],
       handler: { (self: PlaylistCollectionCell, _: UITraitCollection) in
@@ -136,7 +137,14 @@ class PlaylistCollectionCell: UICollectionViewCell {
       cornerRadius: .none
     )
     // an unchanged cover does not report a change
-    artwork = entityImage.shownArtwork
+    setArtwork(entityImage.shownArtwork)
+  }
+
+  /// The main color is only computed again for a different artwork, an image view reports
+  /// the same artwork several times (e.g. once per quad image).
+  private func setArtwork(_ image: UIImage?) {
+    guard image !== artwork else { return }
+    artwork = image
     updateColors()
   }
 

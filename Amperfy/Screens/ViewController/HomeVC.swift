@@ -199,13 +199,18 @@ final class HomeVC: UICollectionViewController {
     }
   }
 
+  /// Layout and cell provider both decide with this whether a section shows playlist tiles
+  private static func showsPlaylistTiles(_ section: HomeSection?) -> Bool {
+    section == .lastTimePlayedPlaylists
+  }
+
   private static func createLayout(sectionLookup: SectionLookup)
     -> UICollectionViewCompositionalLayout {
     let layout = UICollectionViewCompositionalLayout { sectionIndex, _ in
       guard let _ = HomeSection(rawValue: sectionIndex) else { return nil }
       // playlist tiles have a fixed aspect ratio, the other cells size themselves
       let groupHeight: NSCollectionLayoutDimension =
-        sectionLookup.section(at: sectionIndex) == .lastTimePlayedPlaylists
+        showsPlaylistTiles(sectionLookup.section(at: sectionIndex))
           ? .absolute(PlaylistCollectionCell.height(forWidth: itemWidth))
           : .estimated(210)
 
@@ -282,7 +287,8 @@ final class HomeVC: UICollectionViewController {
       HomeSection,
       HomeItem
     >(collectionView: collectionView) { collectionView, indexPath, item in
-      if let playlist = item.playableContainable as? Playlist {
+      if Self.showsPlaylistTiles(item.section),
+         let playlist = item.playableContainable as? Playlist {
         let cell = collectionView.dequeueReusableCell(
           withReuseIdentifier: PlaylistCollectionCell.typeName,
           for: indexPath

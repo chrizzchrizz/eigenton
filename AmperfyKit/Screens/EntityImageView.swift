@@ -43,9 +43,8 @@ open class EntityImageView: UIView {
   /// Images inside the frame have square corners, only the frame itself is rounded
   private var hasSquareImageCorners = false
 
-  /// Called whenever the shown artwork changes. The image is the artwork the colors of the
-  /// cover can be derived from (the first one of a quad cover), nil while only a placeholder
-  /// for missing artwork is shown.
+  /// Called whenever an image of the view changes, with `shownArtwork`.
+  /// The same artwork can be reported several times.
   public var artworkDidChange: ((UIImage?) -> ())?
 
   /// Shown collection whose server cover is not downloaded yet; shown again once it is
@@ -153,12 +152,13 @@ open class EntityImageView: UIView {
     }
   }
 
-  /// The artwork the cover colors are derived from, nil if only a placeholder is shown
+  /// The artwork the cover colors are derived from: the single artwork or the first loaded one
+  /// of a quad cover. Nil while only placeholders are shown or the artwork is still loading.
   public var shownArtwork: UIImage? {
     if !singleImage.isHidden {
-      return singleImage.isShowingPlaceholder ? nil : singleImage.image
+      return singleImage.isShowingArtwork ? singleImage.image : nil
     }
-    return quadImages.first { !$0.isHidden && !$0.isShowingPlaceholder && $0.image != nil }?.image
+    return quadImages.first { !$0.isHidden && $0.isShowingArtwork }?.image
   }
 
   private func imageDidChange() {

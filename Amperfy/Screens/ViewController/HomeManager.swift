@@ -31,6 +31,7 @@ struct HomeItem: Hashable, @unchecked Sendable {
   /// so unchanged covers are not recreated (flicker) when a section is rebuilt.
   /// The section is part of the identity as an entity can show up in several sections.
   let id: String
+  let section: HomeSection
   var playableContainable: PlayableContainable
   /// Not part of the identity: a changed value only makes the cell reconfigure (no flicker),
   /// e.g. when a playlist cover gets created or the server cover changes after the item was
@@ -40,33 +41,24 @@ struct HomeItem: Hashable, @unchecked Sendable {
   /// of the identity, a change (e.g. after the songs got synced) only reconfigures the cell.
   let playlistSubtitle: String?
 
-  init(section: HomeSection, playableContainable: PlayableContainable) {
+  init(
+    section: HomeSection,
+    playableContainable: PlayableContainable,
+    playlistSubtitle: String? = nil
+  ) {
     if let playlist = playableContainable as? Playlist {
       self.artworkFingerprint = playlist.managedObject.artworkItems.map(\.objectID) +
         [playlist.managedObject.artwork?.objectID].compactMap { $0 }
-      self.playlistSubtitle = Self.subtitle(for: playlist)
     } else {
       self.artworkFingerprint = []
-      self.playlistSubtitle = nil
     }
+    self.section = section
+    self.playlistSubtitle = playlistSubtitle
     let identifier = playableContainable.containerIdentifier
     self
       .id =
       "\(section)|\(identifier.type.map { "\($0)" } ?? "")|\(identifier.objectID ?? playableContainable.id)"
     self.playableContainable = playableContainable
-  }
-
-  /// Number of artists shown in the subtitle of a playlist tile
-  private static let subtitleArtistCount = 6
-
-  /// Up to `subtitleArtistCount` artists, the song count if the songs of the playlist are not
-  /// synced yet.
-  private static func subtitle(for playlist: Playlist) -> String {
-    let artistNames = playlist.artistNames(limit: subtitleArtistCount)
-    if !artistNames.isEmpty {
-      return artistNames.joined(separator: ", ")
-    }
-    return playlist.songCount == 1 ? "1 Song" : "\(playlist.songCount) Songs"
   }
 
   static func == (lhs: HomeItem, rhs: HomeItem) -> Bool {
@@ -91,6 +83,20 @@ class HomeManager: NSObject {
   private let storage: PersistentStorage
   private let getMeta: (_ accountInfo: AccountInfo) -> MetaManager
   private let eventLogger: EventLogger
+
+  /// Number of artists shown in the subtitle of a playlist tile
+  private static let playlistSubtitleArtistCount = 6
+  /// Subtitles of the playlist tiles. The section is rebuilt on every change of a playlist,
+  /// the artists are only looked up again when the songs of the playlist changed.
+  private var playlistSubtitleCache = [
+    NSManagedObjectID: (songsKey: PlaylistSongsKey, subtitle: String)
+  ]()
+
+  private struct PlaylistSongsKey: Equatable {
+    let itemCount: Int
+    let firstItemID: NSManagedObjectID?
+    let songCount: Int
+  }
 
   var isOfflineMode: Bool {
     storage.settings.user.isOfflineMode
@@ -482,6 +488,27 @@ class HomeManager: NSObject {
     applySnapshotCB?()
   }
 
+  /// Up to `playlistSubtitleArtistCount` artists, the song count if the songs of the playlist
+  /// are not synced yet.
+  private func playlistSubtitle(for playlist: Playlist) -> String {
+    let items = playlist.managedObject.items
+    let songsKey = PlaylistSongsKey(
+      itemCount: items.count,
+      firstItemID: items.first?.objectID,
+      songCount: playlist.songCount
+    )
+    let objectID = playlist.managedObject.objectID
+    if let cached = playlistSubtitleCache[objectID], cached.songsKey == songsKey {
+      return cached.subtitle
+    }
+    let artistNames = playlist.artistNames(limit: Self.playlistSubtitleArtistCount)
+    let subtitle = !artistNames.isEmpty
+      ? artistNames.joined(separator: ", ")
+      : (playlist.songCount == 1 ? "1 Song" : "\(playlist.songCount) Songs")
+    playlistSubtitleCache[objectID] = (songsKey, subtitle)
+    return subtitle
+  }
+
   func updatePlaylistsLastTimePlayed() {
     if let playlists = playlistsLastTimePlayedFetchController?.fetchedObjects as? [PlaylistMO] {
       data[.lastTimePlayedPlaylists] = playlists.prefix(Self.sectionMaxItemCount)
@@ -489,7 +516,11 @@ class HomeManager: NSObject {
           library: storage.main.library,
           managedObject: $0
         ) }.compactMap {
-          HomeItem(section: .lastTimePlayedPlaylists, playableContainable: $0)
+          HomeItem(
+            section: .lastTimePlayedPlaylists,
+            playableContainable: $0,
+            playlistSubtitle: playlistSubtitle(for: $0)
+          )
         }
       applySnapshotCB?()
     }
