@@ -545,7 +545,10 @@ class PlayerUIHandler: NSObject {
     } else {
       playTypeIcon.image = UIImage.antenna
       let streamingBitrate = player.activeStreamingBitrate
-      if let streamingBitrate {
+      if player.activeTranscodingFormat == .raw {
+        // the original file is streamed unchanged, the bitrate limit does not apply
+        displayBitrateInKbps = currentlyPlaying.bitrate / 1000
+      } else if let streamingBitrate {
         if streamingBitrate == .noLimit ||
           (streamingBitrate.rawValue > (currentlyPlaying.bitrate / 1000)) {
           displayBitrateInKbps = currentlyPlaying.bitrate / 1000
