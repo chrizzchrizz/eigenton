@@ -68,8 +68,10 @@ final class HomeVC: UICollectionViewController {
       getMeta: appDelegate.getMeta,
       eventLogger: appDelegate.eventLogger
     )
-    let layout = HomeVC.createLayout()
+    let sectionLookup = SectionLookup()
+    let layout = HomeVC.createLayout(sectionLookup: sectionLookup)
     super.init(collectionViewLayout: layout)
+    sectionLookup.homeVC = self
     sharedHome.applySnapshotCB = { [weak self] in
       guard let self else { return }
       applySnapshot(animated: true)
@@ -187,9 +189,25 @@ final class HomeVC: UICollectionViewController {
   /// Extra space between the large navigation title and the first section.
   private static let firstSectionTopSpacing: CGFloat = 16
 
-  private static func createLayout() -> UICollectionViewCompositionalLayout {
+  /// The layout is created before the view controller exists, it looks up the sections later.
+  @MainActor
+  private final class SectionLookup {
+    weak var homeVC: HomeVC?
+
+    func section(at index: Int) -> HomeSection? {
+      homeVC?.dataSource?.sectionIdentifier(for: index)
+    }
+  }
+
+  private static func createLayout(sectionLookup: SectionLookup)
+    -> UICollectionViewCompositionalLayout {
     let layout = UICollectionViewCompositionalLayout { sectionIndex, _ in
       guard let _ = HomeSection(rawValue: sectionIndex) else { return nil }
+      // playlist tiles have a fixed aspect ratio, the other cells size themselves
+      let groupHeight: NSCollectionLayoutDimension =
+        sectionLookup.section(at: sectionIndex) == .lastTimePlayedPlaylists
+          ? .absolute(PlaylistCollectionCell.height(forWidth: itemWidth))
+          : .estimated(210)
 
       // Item: square image with title below -> estimate height accommodates label
       let itemSize = NSCollectionLayoutSize(
@@ -202,7 +220,7 @@ final class HomeVC: UICollectionViewController {
       // We'll use a vertical group containing the cell's content; the cell itself handles layout.
       let groupSize = NSCollectionLayoutSize(
         widthDimension: .absolute(itemWidth),
-        heightDimension: .estimated(210)
+        heightDimension: groupHeight
       )
       let group = NSCollectionLayoutGroup.horizontal(layoutSize: groupSize, subitems: [item])
 
@@ -247,6 +265,10 @@ final class HomeVC: UICollectionViewController {
       forCellWithReuseIdentifier: AlbumCollectionCell.typeName
     )
     collectionView.register(
+      PlaylistCollectionCell.self,
+      forCellWithReuseIdentifier: PlaylistCollectionCell.typeName
+    )
+    collectionView.register(
       SectionHeaderView.self,
       forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader,
       withReuseIdentifier: SectionHeaderView.reuseID
@@ -260,6 +282,14 @@ final class HomeVC: UICollectionViewController {
       HomeSection,
       HomeItem
     >(collectionView: collectionView) { collectionView, indexPath, item in
+      if let playlist = item.playableContainable as? Playlist {
+        let cell = collectionView.dequeueReusableCell(
+          withReuseIdentifier: PlaylistCollectionCell.typeName,
+          for: indexPath
+        ) as! PlaylistCollectionCell
+        cell.display(playlist: playlist, subtitle: item.playlistSubtitle)
+        return cell
+      }
       let cell = collectionView.dequeueReusableCell(
         withReuseIdentifier: AlbumCollectionCell.typeName,
         for: indexPath
@@ -350,12 +380,11 @@ final class HomeVC: UICollectionViewController {
       snapshot.appendItems(items, toSection: section)
     }
     let oldItems = dataSource.snapshot().itemIdentifiers
-    let oldFingerprints = Dictionary(oldItems.map { ($0.id, $0.artworkFingerprint) }) { first, _ in
-      first
-    }
+    let oldItemsById = Dictionary(oldItems.map { ($0.id, $0) }) { first, _ in first }
     let changedItems = snapshot.itemIdentifiers.filter {
-      guard let old = oldFingerprints[$0.id] else { return false }
-      return old != $0.artworkFingerprint
+      guard let old = oldItemsById[$0.id] else { return false }
+      return old.artworkFingerprint != $0.artworkFingerprint ||
+        old.playlistSubtitle != $0.playlistSubtitle
     }
     snapshot.reconfigureItems(changedItems)
     dataSource.apply(snapshot, animatingDifferences: animated)

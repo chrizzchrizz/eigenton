@@ -36,19 +36,37 @@ struct HomeItem: Hashable, @unchecked Sendable {
   /// e.g. when a playlist cover gets created or the server cover changes after the item was
   /// first shown.
   let artworkFingerprint: [NSManagedObjectID]
+  /// Subtitle of a playlist tile (artists or song count). Like the artwork fingerprint not part
+  /// of the identity, a change (e.g. after the songs got synced) only reconfigures the cell.
+  let playlistSubtitle: String?
 
   init(section: HomeSection, playableContainable: PlayableContainable) {
     if let playlist = playableContainable as? Playlist {
       self.artworkFingerprint = playlist.managedObject.artworkItems.map(\.objectID) +
         [playlist.managedObject.artwork?.objectID].compactMap { $0 }
+      self.playlistSubtitle = Self.subtitle(for: playlist)
     } else {
       self.artworkFingerprint = []
+      self.playlistSubtitle = nil
     }
     let identifier = playableContainable.containerIdentifier
     self
       .id =
       "\(section)|\(identifier.type.map { "\($0)" } ?? "")|\(identifier.objectID ?? playableContainable.id)"
     self.playableContainable = playableContainable
+  }
+
+  /// Number of artists shown in the subtitle of a playlist tile
+  private static let subtitleArtistCount = 6
+
+  /// Up to `subtitleArtistCount` artists, the song count if the songs of the playlist are not
+  /// synced yet.
+  private static func subtitle(for playlist: Playlist) -> String {
+    let artistNames = playlist.artistNames(limit: subtitleArtistCount)
+    if !artistNames.isEmpty {
+      return artistNames.joined(separator: ", ")
+    }
+    return playlist.songCount == 1 ? "1 Song" : "\(playlist.songCount) Songs"
   }
 
   static func == (lhs: HomeItem, rhs: HomeItem) -> Bool {

@@ -40,6 +40,13 @@ open class EntityImageView: UIView {
   private var circularImageInset: CGFloat = 0.1
   private var circularFrameColor: ((UIImage) -> UIColor)?
   private var isCircularPlaceholder = false
+  /// Images inside the frame have square corners, only the frame itself is rounded
+  private var hasSquareImageCorners = false
+
+  /// Called whenever the shown artwork changes. The image is the artwork the colors of the
+  /// cover can be derived from (the first one of a quad cover), nil while only a placeholder
+  /// for missing artwork is shown.
+  public var artworkDidChange: ((UIImage?) -> ())?
 
   /// Shown collection whose server cover is not downloaded yet; shown again once it is
   private var collectionWaitingForServerArtwork: (
@@ -96,6 +103,8 @@ open class EntityImageView: UIView {
     quadImages[1].layer.maskedCorners = [.layerMaxXMinYCorner]
     quadImages[2].layer.maskedCorners = [.layerMinXMaxYCorner]
     quadImages[3].layer.maskedCorners = [.layerMaxXMaxYCorner]
+    singleImage.imageDidChange = { [weak self] _ in self?.imageDidChange() }
+    quadImages.forEach { $0.imageDidChange = { [weak self] _ in self?.imageDidChange() } }
 
     registerForTraitChanges(
       [UITraitUserInterfaceStyle.self],
@@ -120,12 +129,41 @@ open class EntityImageView: UIView {
     circularImageInset = inset
     isCircularPlaceholder = isPlaceholderCircular
     if frameColor != nil {
-      singleImage.imageDidChange = { [weak self] _ in self?.updateCircularStyle() }
       updateCircularStyle()
     } else if wasCircular {
-      singleImage.imageDidChange = nil
       resetCircularStyle()
     }
+  }
+
+  /// Square corners for the images inside the frame, e.g. when the frame is part of a rounded
+  /// tile. The frame corners are still set by `display(cornerRadius:)`.
+  public func setSquareImageCorners(_ isSquare: Bool) {
+    hasSquareImageCorners = isSquare
+    applyImageCornerRadius()
+  }
+
+  private var imageCornerRadius: CGFloat {
+    hasSquareImageCorners ? 0 : RoundedImage.cornerRadius
+  }
+
+  private func applyImageCornerRadius() {
+    quadImages.forEach { $0.layer.cornerRadius = imageCornerRadius }
+    if !showsCircularImage {
+      singleImage.layer.cornerRadius = imageCornerRadius
+    }
+  }
+
+  /// The artwork the cover colors are derived from, nil if only a placeholder is shown
+  public var shownArtwork: UIImage? {
+    if !singleImage.isHidden {
+      return singleImage.isShowingPlaceholder ? nil : singleImage.image
+    }
+    return quadImages.first { !$0.isHidden && !$0.isShowingPlaceholder && $0.image != nil }?.image
+  }
+
+  private func imageDidChange() {
+    updateCircularStyle()
+    artworkDidChange?(shownArtwork)
   }
 
   private var showsCircularImage: Bool {
@@ -143,7 +181,7 @@ open class EntityImageView: UIView {
   }
 
   private func resetCircularStyle() {
-    singleImage.layer.cornerRadius = RoundedImage.cornerRadius
+    singleImage.layer.cornerRadius = imageCornerRadius
     view.layoutMargins = .zero
     view.backgroundColor = .clear
     setNeedsLayout()

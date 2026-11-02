@@ -34,6 +34,7 @@ public class Playlist: Identifyable {
   }
 
   static let artworkItemMaxLookCount = 20
+  static let artistNameMaxLookCount = 200
 
   public let managedObject: PlaylistMO
   private let library: LibraryStorage
@@ -95,6 +96,22 @@ public class Playlist: Identifyable {
 
   public var playables: [AbstractPlayable] {
     managedObject.items.compactMap { AbstractPlayable(managedObject: $0.playable) }
+  }
+
+  /// Distinct artist names in playlist order, at most `limit`. Only the first
+  /// `artistNameMaxLookCount` songs are looked at, so large playlists stay cheap.
+  public func artistNames(limit: Int) -> [String] {
+    var names = [String]()
+    var seenNames = Set<String>()
+    for item in managedObject.items.prefix(Self.artistNameMaxLookCount) {
+      guard let name = AbstractPlayable(managedObject: item.playable).asSong?.artist?.name,
+            !name.isEmpty,
+            seenNames.insert(name).inserted
+      else { continue }
+      names.append(name)
+      if names.count >= limit { break }
+    }
+    return names
   }
 
   public func getPlayable(at: Int) -> AbstractPlayable? {
