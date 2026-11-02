@@ -779,7 +779,8 @@ final class AmpacheXmlServerApi: URLCleanser, Sendable {
     urlComp.addQueryItem(name: "type", value: isSong ? "song" : "podcast_episode")
     urlComp.addQueryItem(name: "id", value: id)
     switch settings.user.cacheTranscodingFormatPreference {
-    case .mp3:
+    case .aac, .mp3:
+      // no AAC for Ampache, see `AmpacheApi.streamingFormat(for:)`
       urlComp.addQueryItem(name: "format", value: "mp3")
     default:
       urlComp.addQueryItem(name: "format", value: "raw")
@@ -801,13 +802,9 @@ final class AmpacheXmlServerApi: URLCleanser, Sendable {
     urlComp.addQueryItem(name: "type", value: isSong ? "song" : "podcast_episode")
     urlComp.addQueryItem(name: "id", value: id)
 
-    switch formatPreference {
-    case .mp3:
-      urlComp.addQueryItem(name: "format", value: "mp3")
-    case .raw:
-      urlComp.addQueryItem(name: "format", value: "raw")
-    case .serverConfig:
-      break // do nothing
+    // `serverConfig` omits the format to let the server decide
+    if let format = formatPreference.formatQueryValue {
+      urlComp.addQueryItem(name: "format", value: format)
     }
     switch maxBitrate {
     case .noLimit:

@@ -692,7 +692,7 @@ class BackendAudioPlayer: NSObject {
     queueType: BackendAudioQueueType = .play
   ) async throws {
     let streamingMaxBitrate = streamingMaxBitrates.getActive(networkMonitor: networkMonitor)
-    let streamingTranscodingFormat = streamingTranscodings.getActive(networkMonitor: networkMonitor)
+    var streamingTranscodingFormat = streamingTranscodings.getActive(networkMonitor: networkMonitor)
     var httpHeaders: [String: String] = [:]
     @MainActor
     func provideUrl() async throws -> URL {
@@ -705,6 +705,11 @@ class BackendAudioPlayer: NSObject {
         playType = .stream
         return streamUrl
       } else {
+        guard let accountInfo = playable.account?.info else {
+          throw BackendError.noCredentials
+        }
+        let backendApi = getBackendApiCB(accountInfo)
+        streamingTranscodingFormat = backendApi.streamingFormat(for: streamingTranscodingFormat)
         if queueType == .play {
           playType = .stream
           perloadedPlayType = nil
@@ -717,10 +722,6 @@ class BackendAudioPlayer: NSObject {
           perloadedStreamingBitrate = streamingMaxBitrate
           preloadTranscodingFormat = streamingTranscodingFormat
         }
-        guard let accountInfo = playable.account?.info else {
-          throw BackendError.noCredentials
-        }
-        let backendApi = getBackendApiCB(accountInfo)
         httpHeaders = backendApi.httpHeaders
         return try await backendApi.generateUrl(
           forStreamingPlayable: playable.info,
@@ -953,7 +954,7 @@ extension BackendAudioPlayer: AudioStreaming.AudioPlayerDelegate {
       if let seekTimeWhenStarted {
         self.seekTimeWhenStarted = nil
         // the duration isn't known yet at start, restart only if transcoding is certain
-        if isSeekByStreamRestartNeeded, activeTranscodingFormat == .mp3 {
+        if isSeekByStreamRestartNeeded, activeTranscodingFormat?.isTranscodingCertain == true {
           restartStream(atSecond: seekTimeWhenStarted)
         } else {
           player?.seek(to: seekTimeWhenStarted)

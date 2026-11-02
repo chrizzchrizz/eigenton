@@ -345,6 +345,11 @@ final class SubsonicServerApi: URLCleanser, Sendable {
       urlComp.addQueryItem(name: "format", value: "mp3")
       let url = try createUrl(from: urlComp)
       return url
+    case .aac:
+      var urlComp = try createAuthApiUrlComponent(version: version, forAction: "stream", id: apiId)
+      urlComp.addQueryItem(name: "format", value: "aac")
+      let url = try createUrl(from: urlComp)
+      return url
     case .serverConfig:
       let urlComp = try createAuthApiUrlComponent(version: version, forAction: "stream", id: apiId)
       // let the server decide which format to use
@@ -371,13 +376,9 @@ final class SubsonicServerApi: URLCleanser, Sendable {
     let version = try await determineApiVersionToUse()
     var urlComp = try createAuthApiUrlComponent(version: version, forAction: "stream", id: apiId)
 
-    switch formatPreference {
-    case .mp3:
-      urlComp.addQueryItem(name: "format", value: "mp3")
-    case .raw:
-      urlComp.addQueryItem(name: "format", value: "raw")
-    case .serverConfig:
-      break // do nothing
+    // `serverConfig` omits the format to let the server decide
+    if let format = formatPreference.formatQueryValue {
+      urlComp.addQueryItem(name: "format", value: format)
     }
     switch maxBitrate {
     case .noLimit:

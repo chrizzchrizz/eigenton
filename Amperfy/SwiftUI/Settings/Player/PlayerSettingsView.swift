@@ -197,7 +197,7 @@ struct PlayerSettingsView: View {
               .disabled(settings.streamingFormatCellularPreference == .raw)
             }
           },
-          footer: "MP3 is transcoded by the server. “Original” streams the file unchanged, so the bitrate limit does not apply. With “Server default”, the codec and quality depend on your server's transcoding settings.",
+          footer: "MP3 and AAC are transcoded by the server. AAC needs a server with an AAC transcoder, e.g. Navidrome; Ampache streams MP3 instead. “Original” streams the file unchanged, so the bitrate limit does not apply. With “Server default”, the codec and quality depend on your server's transcoding settings.",
           header: "Cellular Streaming"
         )
 
@@ -227,7 +227,7 @@ struct PlayerSettingsView: View {
               .disabled(settings.streamingFormatWifiPreference == .raw)
             }
           },
-          footer: "MP3 is transcoded by the server. “Original” streams the file unchanged, so the bitrate limit does not apply. With “Server default”, the codec and quality depend on your server's transcoding settings.",
+          footer: "MP3 and AAC are transcoded by the server. AAC needs a server with an AAC transcoder, e.g. Navidrome; Ampache streams MP3 instead. “Original” streams the file unchanged, so the bitrate limit does not apply. With “Server default”, the codec and quality depend on your server's transcoding settings.",
           header: "WiFi Streaming"
         )
 
@@ -244,7 +244,7 @@ struct PlayerSettingsView: View {
               }
             }
           },
-          footer: "Changes do not apply to songs that are already downloaded. Remove the download and redownload if needed.",
+          footer: "AAC needs a server with an AAC transcoder, e.g. Navidrome; Ampache downloads MP3 instead. Changes do not apply to songs that are already downloaded. Remove the download and redownload if needed.",
           header: "Download"
         )
       }

@@ -70,6 +70,12 @@ final class AmpacheApi: BackendApi {
     )
   }
 
+  /// Ampache has no AAC target by default, and with one it declares the ADTS stream as `audio/mp4`,
+  /// which the player can't read. Stream MP3 instead.
+  func streamingFormat(for preference: StreamingFormatPreference) -> StreamingFormatPreference {
+    preference == .aac ? .mp3 : preference
+  }
+
   func generateUrl(
     forStreamingPlayable playableInfo: AbstractPlayableInfo,
     maxBitrate: StreamingMaxBitratePreference,
@@ -80,7 +86,7 @@ final class AmpacheApi: BackendApi {
       isSong: playableInfo.type == .song,
       id: playableInfo.id,
       maxBitrate: maxBitrate,
-      formatPreference: formatPreference
+      formatPreference: streamingFormat(for: formatPreference)
     )
   }
 

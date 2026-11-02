@@ -333,6 +333,8 @@ public protocol BackendApi: URLCleanser, Sendable {
   func provideCredentials(credentials: LoginCredentials)
   func isAuthenticationValid(credentials: LoginCredentials) async throws
   func generateUrl(forDownloadingPlayable playableInfo: AbstractPlayableInfo) async throws -> URL
+  /// The format the server streams for the user's format preference
+  func streamingFormat(for preference: StreamingFormatPreference) -> StreamingFormatPreference
   func generateUrl(
     forStreamingPlayable playableInfo: AbstractPlayableInfo,
     maxBitrate: StreamingMaxBitratePreference,
@@ -351,4 +353,11 @@ public protocol BackendApi: URLCleanser, Sendable {
   func createLibrarySyncer(account: Account, storage: PersistentStorage) -> LibrarySyncer
   func createArtworkDownloadDelegate() -> DownloadManagerDelegate
   func extractArtworkInfoFromURL(urlString: String) -> ArtworkRemoteInfo?
+}
+
+extension BackendApi {
+  public func streamingFormat(for preference: StreamingFormatPreference)
+    -> StreamingFormatPreference {
+    preference
+  }
 }

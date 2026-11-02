@@ -115,4 +115,30 @@ class SettingsDecodingTest: XCTestCase {
       .raw
     )
   }
+
+  func testAacFormatIsStoredAndDecoded() throws {
+    // must not reuse 3, the raw value of the removed `auto` case
+    XCTAssertEqual(StreamingFormatPreference.aac.rawValue, 4)
+    XCTAssertEqual(CacheTranscodingFormatPreference.aac.rawValue, 4)
+    let encoded = try JSONEncoder().encode(StreamingFormatPreference.aac)
+    XCTAssertEqual(try JSONDecoder().decode(StreamingFormatPreference.self, from: encoded), .aac)
+    XCTAssertEqual(
+      try JSONDecoder().decode(CacheTranscodingFormatPreference.self, from: Data("4".utf8)),
+      .aac
+    )
+  }
+
+  func testStreamingFormatQueryValue() {
+    XCTAssertEqual(StreamingFormatPreference.mp3.formatQueryValue, "mp3")
+    XCTAssertEqual(StreamingFormatPreference.aac.formatQueryValue, "aac")
+    XCTAssertEqual(StreamingFormatPreference.raw.formatQueryValue, "raw")
+    XCTAssertNil(StreamingFormatPreference.serverConfig.formatQueryValue)
+  }
+
+  func testStreamingFormatIsTranscodingCertain() {
+    XCTAssertTrue(StreamingFormatPreference.mp3.isTranscodingCertain)
+    XCTAssertTrue(StreamingFormatPreference.aac.isTranscodingCertain)
+    XCTAssertFalse(StreamingFormatPreference.raw.isTranscodingCertain)
+    XCTAssertFalse(StreamingFormatPreference.serverConfig.isTranscodingCertain)
+  }
 }

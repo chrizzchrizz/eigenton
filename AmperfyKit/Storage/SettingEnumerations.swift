@@ -122,6 +122,7 @@ public enum StreamingMaxBitratePreference: Int, CaseIterable, Sendable, Codable 
 
 public enum StreamingFormatPreference: Int, CaseIterable, Sendable, Codable {
   case mp3 = 0
+  case aac = 4 // 3 was the removed `auto` case
   case raw = 1
   case serverConfig = 2 // omit the format to let the server decide which codec should be used
 
@@ -134,10 +135,36 @@ public enum StreamingFormatPreference: Int, CaseIterable, Sendable, Codable {
     self = Self(rawValue: rawValue) ?? Self.defaultValue
   }
 
+  /// The format value sent to the server, `nil` lets the server decide
+  public var formatQueryValue: String? {
+    switch self {
+    case .mp3:
+      return "mp3"
+    case .aac:
+      return "aac"
+    case .raw:
+      return "raw"
+    case .serverConfig:
+      return nil
+    }
+  }
+
+  /// The server always transcodes the stream to a known codec
+  public var isTranscodingCertain: Bool {
+    switch self {
+    case .aac, .mp3:
+      return true
+    case .raw, .serverConfig:
+      return false
+    }
+  }
+
   public var shortInfo: String {
     switch self {
     case .mp3:
       return "MP3"
+    case .aac:
+      return "AAC"
     case .raw:
       return "RAW"
     case .serverConfig:
@@ -149,6 +176,8 @@ public enum StreamingFormatPreference: Int, CaseIterable, Sendable, Codable {
     switch self {
     case .mp3:
       return "MP3 (transcoded, default)"
+    case .aac:
+      return "AAC (transcoded)"
     case .raw:
       return "Original (no transcoding)"
     case .serverConfig:
@@ -352,6 +381,7 @@ public enum ThemePreference: Int, CaseIterable, Sendable, Codable {
 public enum CacheTranscodingFormatPreference: Int, CaseIterable, Sendable, Codable {
   case raw = 0
   case mp3 = 1
+  case aac = 4 // 3 was the removed `auto` case
   case serverConfig = 2 // omit the format to let the server decide which codec should be used
 
   public static let defaultValue: CacheTranscodingFormatPreference = .mp3
@@ -367,6 +397,8 @@ public enum CacheTranscodingFormatPreference: Int, CaseIterable, Sendable, Codab
     switch self {
     case .mp3:
       return "MP3 (transcoded, default)"
+    case .aac:
+      return "AAC (transcoded)"
     case .raw:
       return "Original (no transcoding)"
     case .serverConfig:
