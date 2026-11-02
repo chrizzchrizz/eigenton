@@ -27,10 +27,10 @@ import UIKit
 class PlaylistCollectionCell: UICollectionViewCell {
   private static let cornerRadius = CornerRadius.medium.asCGFloat
   private static let textInsets = NSDirectionalEdgeInsets(
-    top: 6,
-    leading: 8,
-    bottom: 6,
-    trailing: 8
+    top: 12,
+    leading: 12,
+    bottom: 12,
+    trailing: 12
   )
 
   /// Tile color without artwork: light gray in light mode, dark gray in dark mode
@@ -40,7 +40,7 @@ class PlaylistCollectionCell: UICollectionViewCell {
 
   /// Height of the text area below the cover relative to the tile width
   /// (0.33 = a third of the width, 0.67 = two thirds). Change this to tune the tile height.
-  static let textAreaHeightRatio: CGFloat = 0.4
+  static let textAreaHeightRatio: CGFloat = 0.45
 
   /// Tile height for the given width (set by the layout): square cover plus the text area
   static func height(forWidth width: CGFloat) -> CGFloat {
