@@ -632,7 +632,7 @@ class PopupPlayerVC: UIViewController, UIScrollViewDelegate {
   /// Fades out the rows at the bottom edge of the list. The mask lives in the bounds of the
   /// scroll view, so its frame follows the content offset.
   func refreshBottomFadeMask() {
-    let fadeHeight: CGFloat = 70.0
+    let fadeHeight: CGFloat = 30.0
     let bounds = tableView.bounds
     guard bounds.height > fadeHeight else {
       tableView.layer.mask = nil
