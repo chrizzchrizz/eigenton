@@ -174,9 +174,19 @@ class SingleSnapshotFetchedResultsTableViewController<ResultType>:
             return nil
           }
           guard let existingObject = try? controller.managedObjectContext
-            .existingObject(with: itemIdentifier), existingObject.isUpdated else { return nil }
+            .existingObject(with: itemIdentifier), existingObject.isUpdated,
+            !existingObject.isOnlyPlaybackProgressChanged else { return nil }
           return itemIdentifier
         }
+      // The player saves the progress of the current song every second. Applying the unchanged
+      // snapshot makes the rows lose their separators for a frame on macOS.
+      // Values merged from other contexts are not dirty and therefore not reconfigured,
+      // the callback still needs to refresh the views depending on them.
+      guard !reloadIdentifiers.isEmpty ||
+        !Self.hasSameContent(snapshot, currentSnapshot) else {
+        self.snapshotDidChange?()
+        return
+      }
       snapshot.reconfigureItems(reloadIdentifiers)
 
       dataSource.apply(
@@ -185,6 +195,40 @@ class SingleSnapshotFetchedResultsTableViewController<ResultType>:
       )
       self.snapshotDidChange?()
     }
+  }
+
+  /// The fetched results controller uses the section names (strings) as section identifiers,
+  /// not `Int`, so the typed `sectionIdentifiers` must not be read. Compares the untyped ones.
+  private static func hasSameContent(
+    _ lhs: NSDiffableDataSourceSnapshot<Int, NSManagedObjectID>,
+    _ rhs: NSDiffableDataSourceSnapshot<Int, NSManagedObjectID>
+  )
+    -> Bool {
+    let lhsRef = lhs as NSDiffableDataSourceSnapshotReference
+    let rhsRef = rhs as NSDiffableDataSourceSnapshotReference
+    guard (lhsRef.sectionIdentifiers as NSArray).isEqual(to: rhsRef.sectionIdentifiers)
+    else { return false }
+    return lhsRef.sectionIdentifiers.allSatisfy { section in
+      (lhsRef.itemIdentifiersInSection(withIdentifier: section) as NSArray)
+        .isEqual(to: rhsRef.itemIdentifiersInSection(withIdentifier: section))
+    }
+  }
+}
+
+extension NSManagedObject {
+  private static let playbackProgressKeys: Set<String> = [
+    #keyPath(AbstractPlayableMO.playProgress),
+    #keyPath(AbstractPlayableMO.playDuration),
+    // set together with playDuration, e.g. while the estimate of a transcoded stream changes
+    #keyPath(AbstractPlayableMO.combinedDuration),
+  ]
+
+  /// True if only the playback progress the player saves while playing has changed,
+  /// which the song rows don't show. Podcast episode rows show it and are always updated.
+  var isOnlyPlaybackProgressChanged: Bool {
+    guard !(self is PodcastEpisodeMO) else { return false }
+    let keys = changedValuesForCurrentEvent().keys
+    return !keys.isEmpty && keys.allSatisfy { Self.playbackProgressKeys.contains($0) }
   }
 }
 

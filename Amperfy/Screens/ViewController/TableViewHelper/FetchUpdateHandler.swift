@@ -28,6 +28,10 @@ class FetchUpdatePerObjectHandler: NSObject, NSFetchedResultsControllerDelegate 
   private let tableView: UITableView
 
   public var changesDidEnd: VoidFunctionCallback?
+  /// The updates are only started with the first change that affects the table: the player
+  /// saves the progress of the current song every second, and an empty begin/endUpdates
+  /// makes the rows lose their separators for a frame on macOS.
+  private var isUpdating = false
 
   public init(tableView: UITableView) {
     self.tableView = tableView
@@ -35,19 +39,24 @@ class FetchUpdatePerObjectHandler: NSObject, NSFetchedResultsControllerDelegate 
 
   nonisolated public func controllerWillChangeContent(
     _ controller: NSFetchedResultsController<NSFetchRequestResult>
-  ) {
-    MainActor.assumeIsolated {
-      tableView.beginUpdates()
-    }
-  }
+  ) {}
 
   nonisolated public func controllerDidChangeContent(
     _ controller: NSFetchedResultsController<NSFetchRequestResult>
   ) {
     MainActor.assumeIsolated {
-      tableView.endUpdates()
+      if isUpdating {
+        isUpdating = false
+        tableView.endUpdates()
+      }
       changesDidEnd?()
     }
+  }
+
+  private func beginUpdatesIfNeeded() {
+    guard !isUpdating else { return }
+    isUpdating = true
+    tableView.beginUpdates()
   }
 
   nonisolated public func controller(
@@ -57,8 +66,10 @@ class FetchUpdatePerObjectHandler: NSObject, NSFetchedResultsControllerDelegate 
     for type: NSFetchedResultsChangeType,
     newIndexPath: IndexPath?
   ) {
+    let isVisibleChange = Self.isVisibleChange(of: anObject, for: type)
     MainActor.assumeIsolated {
       self.applyChangesFromFetchedResultsController(
+        isVisibleChange: isVisibleChange,
         at: indexPath,
         for: type,
         newIndexPath: newIndexPath
@@ -83,17 +94,30 @@ class FetchUpdatePerObjectHandler: NSObject, NSFetchedResultsControllerDelegate 
       adjustedNewIndexPath = IndexPath(row: newIndexPath.row, section: section)
     }
     applyChangesFromFetchedResultsController(
+      isVisibleChange: Self.isVisibleChange(of: anObject, for: type),
       at: adjustedIndexPath,
       for: type,
       newIndexPath: adjustedNewIndexPath
     )
   }
 
+  /// The player saves the progress of the current song every second, the song rows don't show it.
+  nonisolated private static func isVisibleChange(
+    of anObject: Any,
+    for type: NSFetchedResultsChangeType
+  )
+    -> Bool {
+    type != .update || (anObject as? NSManagedObject)?.isOnlyPlaybackProgressChanged != true
+  }
+
   private func applyChangesFromFetchedResultsController(
+    isVisibleChange: Bool,
     at indexPath: IndexPath?,
     for type: NSFetchedResultsChangeType,
     newIndexPath: IndexPath?
   ) {
+    guard isVisibleChange else { return }
+    beginUpdatesIfNeeded()
     switch type {
     case .insert:
       tableView.insertRows(at: [newIndexPath!], with: .bottom)
@@ -124,8 +148,10 @@ class FetchUpdatePerObjectHandler: NSObject, NSFetchedResultsControllerDelegate 
       let indexSet = IndexSet(integer: sectionIndex)
       switch type {
       case .insert:
+        beginUpdatesIfNeeded()
         tableView.insertSections(indexSet, with: .automatic)
       case .delete:
+        beginUpdatesIfNeeded()
         tableView.deleteSections(indexSet, with: .automatic)
       default:
         break

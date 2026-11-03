@@ -41,6 +41,8 @@ class ArtistDetailVC: MultiSourceTableViewController {
   var albumToScrollTo: Album?
   /// Fetched results controllers that inserted, deleted or moved items since the last content change.
   private var controllersWithStructuralChange = Set<ObjectIdentifier>()
+  /// Fetched results controllers with a change the grids show since the last content change.
+  private var controllersWithVisibleChange = Set<ObjectIdentifier>()
   private var albumsFetchedResultsController: ArtistAlbumsItemsFetchedResultsController!
   private var compilationsFetchedResultsController: ArtistAlbumsItemsFetchedResultsController!
   /// All songs of the artist, only used for the play and shuffle buttons of the header.
@@ -603,6 +605,10 @@ class ArtistDetailVC: MultiSourceTableViewController {
     if type != .update {
       controllersWithStructuralChange.insert(ObjectIdentifier(controller))
     }
+    // the player saves the progress of the current song every second
+    if type != .update || (anObject as? NSManagedObject)?.isOnlyPlaybackProgressChanged != true {
+      controllersWithVisibleChange.insert(ObjectIdentifier(controller))
+    }
   }
 
   // The rows are not updated one by one, so the table must not be wrapped in begin/endUpdates:
@@ -617,6 +623,7 @@ class ArtistDetailVC: MultiSourceTableViewController {
     // changed values keep the cells, so the artworks are not loaded again
     let isStructuralChange = controllersWithStructuralChange
       .remove(ObjectIdentifier(controller)) != nil
+    guard controllersWithVisibleChange.remove(ObjectIdentifier(controller)) != nil else { return }
     switch controller {
     case albumsFetchedResultsController.fetchResultsController:
       reloadGrid(in: .albums, isStructuralChange: isStructuralChange)
