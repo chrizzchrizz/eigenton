@@ -252,6 +252,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
       return
     }
     appDelegate.scheduleAppRefresh()
+    appDelegate.player.savePlayInformation()
+    appDelegate.storage.main.saveContext()
     appDelegate.savePlayQueueBeforeBackground()
   }
 

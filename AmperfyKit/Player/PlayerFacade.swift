@@ -231,6 +231,8 @@ public protocol PlayerFacade {
   func skipForward(interval: Double)
   func skipBackward(interval: Double)
   func seek(toSecond: Double)
+  /// Saves position and duration of the current item, e.g. before the app goes to the background
+  func savePlayInformation()
 
   func addNotifier(notifier: MusicPlayable)
 
@@ -667,6 +669,10 @@ class PlayerFacadeImpl: PlayerFacade {
 
   func togglePlayPause() {
     musicPlayer.togglePlayPause()
+  }
+
+  func savePlayInformation() {
+    musicPlayer.savePlayInformation()
   }
 
   func stop() {

@@ -40,6 +40,10 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
   public static let replayInsteadPlayPreviousTimeInSec = 5.0
   static let progressTimeStartThreshold: Double = 15.0
   static let progressTimeEndThreshold: Double = 15.0
+  /// Position and duration are saved at this interval while playing, otherwise only on pause, stop,
+  /// item change and when the app goes to the background. Each save updates every list showing
+  /// the playable, so not on every elapsed time update.
+  static let playInformationSaveInterval: TimeInterval = 15.0
 
   var currentlyPlaying: AbstractPlayable? {
     queueHandler.currentlyPlaying
@@ -54,6 +58,15 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
   }
 
   var isShouldPauseAfterFinishedPlaying = false
+  /// The playable whose position the backend player reports. Nil while the next item is prepared:
+  /// the backend may still play the previous item meanwhile (e.g. while a stream URL is requested).
+  private var playableInPlayer: AbstractPlayable? {
+    didSet { lastObservedPosition = nil }
+  }
+
+  private var lastPlayInformationSaveDate: Date?
+  /// Position and duration of playableInPlayer at the last elapsed time update
+  private var lastObservedPosition: (elapsed: Double, duration: Double)?
   var autoplayCB: (@MainActor (Song) async throws -> [Song])?
 
   private var playerStatus: PlayerStatusPersistent
@@ -114,6 +127,14 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
       isShuffle: playerStatus.isShuffle
     )
     playable.countPlayed()
+    if let playableInPlayer, playableInPlayer == playable {
+      // replay: start from the beginning, a saved position would be resumed
+      playable.playProgress = 0
+    } else {
+      // the position of the previous playable is lost once the backend player switches
+      savePlayInformation()
+    }
+    playableInPlayer = nil
     backendAudioPlayer.requestToPlay(
       playable: playable,
       playbackRate: playerStatus.playbackRate,
@@ -123,6 +144,8 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
 
   // BackendAudioPlayerNotifiable
   func notifyItemPreparationFinished() {
+    playableInPlayer = currentlyPlaying
+    lastPlayInformationSaveDate = Date()
     handleRadioStartIfNeeded()
     notifyItemStartedPlayingFromBeginning()
     notifyItemStartedPlaying()
@@ -130,6 +153,20 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
 
   // BackendAudioPlayerNotifiable
   func didItemFinishedPlaying() {
+    if let playableInPlayer, !playableInPlayer.isRadio {
+      // The backend may already report the next (preloaded) item, use the last observed position.
+      // Played to the end: start from the beginning next time. Ended early (e.g. connection loss):
+      // keep the position.
+      if let lastObservedPosition, lastObservedPosition.duration > 0,
+         lastObservedPosition.elapsed > Self.progressTimeStartThreshold,
+         lastObservedPosition.elapsed < lastObservedPosition.duration - Self
+         .progressTimeEndThreshold {
+        playableInPlayer.playProgress = Int(lastObservedPosition.elapsed)
+      } else {
+        playableInPlayer.playProgress = 0
+      }
+    }
+    playableInPlayer = nil
     if isShouldPauseAfterFinishedPlaying {
       isShouldPauseAfterFinishedPlaying = false
       pause()
@@ -275,6 +312,7 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
        currentlyPlaying.isRadio {
       stopButRemainIndex()
     } else {
+      savePlayInformation()
       backendAudioPlayer.pause()
       notifyItemPaused()
     }
@@ -282,12 +320,16 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
 
   // BackendAudioPlayerNotifiable
   func stop() {
+    savePlayInformation()
+    playableInPlayer = nil
     backendAudioPlayer.stop()
     playerStatus.stop()
     notifyPlayerStopped()
   }
 
   func stopButRemainIndex() {
+    savePlayInformation()
+    playableInPlayer = nil
     backendAudioPlayer.stop()
     notifyPlayerStopped()
   }
@@ -330,9 +372,14 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
   // BackendAudioPlayerNotifiable
   func didElapsedTimeChange() {
     notifyElapsedTimeChanged()
-    if let currentItem = currentlyPlaying {
-      savePlayInformation(of: currentItem)
+    if playableInPlayer != nil {
+      lastObservedPosition = (backendAudioPlayer.elapsedTime, backendAudioPlayer.duration)
     }
+    if let lastPlayInformationSaveDate,
+       Date().timeIntervalSince(lastPlayInformationSaveDate) < Self.playInformationSaveInterval {
+      return
+    }
+    savePlayInformation()
   }
 
   // BackendAudioPlayerNotifiable
@@ -346,10 +393,13 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
     updateRadioNowPlaying(from: metadata, radio: radio)
   }
 
-  private func savePlayInformation(of playable: AbstractPlayable) {
+  /// Saves position and duration of the playable in the player, see playInformationSaveInterval
+  func savePlayInformation() {
+    lastPlayInformationSaveDate = Date()
+    guard let playable = playableInPlayer else { return }
     let playDuration = backendAudioPlayer.duration
     let playProgress = backendAudioPlayer.elapsedTime
-    if playDuration != 0.0, playProgress != 0.0, playable == currentlyPlaying {
+    if playDuration != 0.0, playProgress != 0.0 {
       playable.playDuration = Int(playDuration)
       if playProgress > Self.progressTimeStartThreshold,
          playProgress < (playDuration - Self.progressTimeEndThreshold) {

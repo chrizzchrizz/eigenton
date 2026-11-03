@@ -1808,6 +1808,101 @@ class MusicPlayerTest: XCTestCase {
     XCTAssertEqual(testPlayer.elapsedTime, 0.0)
   }
 
+  private func startPlayingCachedSong(at second: Double) {
+    songCached.remoteDuration = 300
+    testPlayer.play(context: PlayContext(name: "", playables: [songCached]))
+    backendPlayer
+      .didStartPlaying(
+        url: library.getFileURL(forPlayable: songCached)!.absoluteString
+      )
+    mockAudioStreamingPlayer.mockElapsedTime = second
+  }
+
+  func testPlayInformation_NotSavedOnEveryElapsedTimeUpdate() {
+    startPlayingCachedSong(at: 100)
+    testMusicPlayer.didElapsedTimeChange()
+    XCTAssertEqual(songCached.playProgress, 0)
+  }
+
+  func testPlayInformation_SavedOnPause() {
+    startPlayingCachedSong(at: 100)
+    testPlayer.pause()
+    XCTAssertEqual(songCached.playProgress, 100)
+    XCTAssertEqual(songCached.playDuration, 300)
+  }
+
+  func testPlayInformation_SavedOnStop() {
+    startPlayingCachedSong(at: 100)
+    testPlayer.stop()
+    XCTAssertEqual(songCached.playProgress, 100)
+  }
+
+  func testPlayInformation_SavedOnRequest() {
+    startPlayingCachedSong(at: 100)
+    testPlayer.savePlayInformation()
+    XCTAssertEqual(songCached.playProgress, 100)
+  }
+
+  func testPlayInformation_SavedBeforeItemChange() {
+    songCached.remoteDuration = 300
+    testPlayer.play(context: PlayContext(name: "", playables: [songCached, songToDownload]))
+    backendPlayer
+      .didStartPlaying(
+        url: library.getFileURL(forPlayable: songCached)!.absoluteString
+      )
+    mockAudioStreamingPlayer.mockElapsedTime = 100
+    testPlayer.playNext()
+    XCTAssertEqual(testPlayer.currentlyPlaying, songToDownload)
+    XCTAssertEqual(songCached.playProgress, 100)
+  }
+
+  func testPlayInformation_NotSavedWhilePreparingNextItem() {
+    songCached.remoteDuration = 300
+    songToDownload.remoteDuration = 200
+    testPlayer.play(context: PlayContext(name: "", playables: [songCached, songToDownload]))
+    backendPlayer
+      .didStartPlaying(
+        url: library.getFileURL(forPlayable: songCached)!.absoluteString
+      )
+    mockAudioStreamingPlayer.mockElapsedTime = 100
+    // the stream of the next song is requested asynchronously, the previous one still plays
+    testPlayer.playNext()
+    testPlayer.pause()
+    XCTAssertEqual(songCached.playProgress, 100)
+    XCTAssertEqual(songToDownload.playProgress, 0)
+    XCTAssertEqual(songToDownload.playDuration, 0)
+  }
+
+  func testPlayInformation_ReplayStartsFromBeginning() {
+    startPlayingCachedSong(at: 100)
+    testPlayer.pause()
+    XCTAssertEqual(songCached.playProgress, 100)
+    testPlayer.play(context: PlayContext(name: "", playables: [songCached]))
+    XCTAssertEqual(songCached.playProgress, 0)
+  }
+
+  func testPlayInformation_ProgressKeptWhenEndedEarly() {
+    startPlayingCachedSong(at: 100)
+    testMusicPlayer.didElapsedTimeChange()
+    testMusicPlayer.didItemFinishedPlaying()
+    XCTAssertEqual(songCached.playProgress, 100)
+  }
+
+  func testPlayInformation_ProgressResetWhenPlayedToEnd() {
+    startPlayingCachedSong(at: 299)
+    testMusicPlayer.didElapsedTimeChange()
+    testMusicPlayer.didItemFinishedPlaying()
+    XCTAssertEqual(songCached.playProgress, 0)
+  }
+
+  func testPlayInformation_ProgressResetWhenFinished() {
+    startPlayingCachedSong(at: 100)
+    testPlayer.pause()
+    XCTAssertEqual(songCached.playProgress, 100)
+    testMusicPlayer.didItemFinishedPlaying()
+    XCTAssertEqual(songCached.playProgress, 0)
+  }
+
   func testPlayPreviousOrReplay_EmptyPlaylist() {
     testPlayer.playPreviousOrReplay()
     XCTAssertEqual(testPlayer.currentlyPlaying, nil)

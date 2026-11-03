@@ -411,6 +411,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     for meta in AmperKit.shared.allActiveMetas {
       meta.value.backgroundLibrarySyncer.stop()
     }
+    player.savePlayInformation()
     storage.main.saveContext()
   }
 
