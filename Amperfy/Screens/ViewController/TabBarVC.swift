@@ -173,6 +173,10 @@ class TabBarVC: UITabBarController {
   }
 
   var centerConstraint: NSLayoutConstraint?
+  /// Maximum mini player width with regular horizontal size class.
+  static let miniPlayerMaxWidthPad: CGFloat = 700
+  static let miniPlayerMaxWidthPhone: CGFloat = 600
+
   var regularWidthConstraint: NSLayoutConstraint?
   var heightConstraint: NSLayoutConstraint?
   var compactWidthConstraint: NSLayoutConstraint?
@@ -200,7 +204,10 @@ class TabBarVC: UITabBarController {
       let mainContentView = mainContent()
       var playerWidth = mainContentView.frame.width - mainContentView.safeAreaInsets
         .left - mainContentView.safeAreaInsets.right
-      playerWidth = min(playerWidth, 600)
+      let maxWidth = traitCollection.userInterfaceIdiom == .pad
+        ? Self.miniPlayerMaxWidthPad
+        : Self.miniPlayerMaxWidthPhone
+      playerWidth = min(playerWidth, maxWidth)
       compactWidthConstraint?.isActive = false
       regularWidthConstraint?.isActive = false
       regularWidthConstraint = miniPlayer.glassContainer.widthAnchor
