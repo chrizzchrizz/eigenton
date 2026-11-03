@@ -1774,6 +1774,40 @@ class MusicPlayerTest: XCTestCase {
     XCTAssertEqual(BackendAudioPlayer.streamRestartTimeOffset(forSecond: 20, duration: 0.5), 20)
   }
 
+  func testPendingSeekIsReached() {
+    let start = Date()
+    let seek = PendingSeek(target: 100, date: start)
+    XCTAssertFalse(seek.isReached(by: 20, at: start))
+    XCTAssertTrue(seek.isReached(by: 98, at: start))
+    XCTAssertTrue(seek.isReached(by: 101.5, at: start))
+    XCTAssertFalse(seek.isReached(by: 103, at: start))
+    // give up waiting, e.g. after a failed seek
+    XCTAssertFalse(seek.isReached(by: 20, at: start.addingTimeInterval(PendingSeek.timeout)))
+    XCTAssertTrue(seek.isReached(by: 20, at: start.addingTimeInterval(PendingSeek.timeout + 1)))
+  }
+
+  func testSeek_ReportsTargetUntilReached() {
+    testPlayer.play(context: PlayContext(name: "", playables: [songCached]))
+    testPlayer.seek(toSecond: 30.0)
+    // the player hasn't started yet and still is at 0
+    XCTAssertEqual(testPlayer.elapsedTime, 30.0)
+    backendPlayer
+      .didStartPlaying(
+        url: library.getFileURL(forPlayable: testPlayer.currentlyPlaying!)!
+          .absoluteString
+      )
+    XCTAssertEqual(testPlayer.elapsedTime, 30.0)
+  }
+
+  func testSeek_TargetDroppedOnPlayableChange() {
+    prepareWithCachedPlaylist()
+    testPlayer.play(playerIndex: PlayerIndex(queueType: .next, index: 2))
+    testPlayer.seek(toSecond: 30.0)
+    XCTAssertEqual(testPlayer.elapsedTime, 30.0)
+    testPlayer.playNext()
+    XCTAssertEqual(testPlayer.elapsedTime, 0.0)
+  }
+
   func testPlayPreviousOrReplay_EmptyPlaylist() {
     testPlayer.playPreviousOrReplay()
     XCTAssertEqual(testPlayer.currentlyPlaying, nil)

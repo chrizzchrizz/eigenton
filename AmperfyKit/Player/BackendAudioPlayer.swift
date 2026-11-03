@@ -130,6 +130,8 @@ class BackendAudioPlayer: NSObject {
   private var isPreloadInvalidated = false
   private var isAutoStartPlayback = true
   private var seekTimeWhenStarted: Double?
+  /// Seek target that the player hasn't reached yet, reported as elapsed time meanwhile
+  private var pendingSeek: PendingSeek?
   private var timerElapsedTimeInterval: Timer?
   private var timerLyricsTimeInterval: Timer?
   private var volumePlayer: Float = 1.0
@@ -203,7 +205,13 @@ class BackendAudioPlayer: NSObject {
   }
 
   var elapsedTime: Double {
-    streamTimeOffset + (player?.elapsedTime() ?? 0.0)
+    let playerPosition = streamTimeOffset + (player?.elapsedTime() ?? 0.0)
+    guard let pendingSeek else { return playerPosition }
+    if pendingSeek.isReached(by: playerPosition, at: Date()) {
+      self.pendingSeek = nil
+      return playerPosition
+    }
+    return pendingSeek.target
   }
 
   var duration: Double {
@@ -401,6 +409,9 @@ class BackendAudioPlayer: NSObject {
   }
 
   func seek(toSecond: Double) {
+    if let currentPlayable, !currentPlayable.isRadio, toSecond.isFinite {
+      pendingSeek = PendingSeek(target: max(toSecond, 0), date: Date())
+    }
     // before the stream has started, the seek is applied in didStartPlaying
     if isSeekByStreamRestartNeeded, currentPlayUrl != "" || shouldPlayAfterStreamRestart != nil {
       restartStream(atSecond: toSecond)
@@ -424,8 +435,11 @@ class BackendAudioPlayer: NSObject {
   private func restartStream(atSecond second: Double) {
     guard let playable = currentPlayable, let accountInfo = playable.account?.info,
           let streamingMaxBitrate = activeStreamingBitrate,
-          let streamingTranscodingFormat = activeTranscodingFormat else { return }
-    guard second.isFinite else { return }
+          let streamingTranscodingFormat = activeTranscodingFormat,
+          second.isFinite else {
+      pendingSeek = nil
+      return
+    }
     let timeOffset = Self.streamRestartTimeOffset(
       forSecond: second,
       duration: currentMetadataDuration
@@ -456,6 +470,8 @@ class BackendAudioPlayer: NSObject {
         // seeking in the player only works within the original stream
         if streamTimeOffset == 0 {
           player?.seek(to: second)
+        } else {
+          pendingSeek = nil
         }
         return
       }
@@ -528,6 +544,7 @@ class BackendAudioPlayer: NSObject {
     currentMetadataDuration = Double(playable.duration)
     currentPlayable = playable
     streamTimeOffset = 0.0
+    pendingSeek = nil
     streamRestartRequest += 1
     shouldPlayAfterStreamRestart = nil
     if isPreviousPlaylableFinshed, let nextPreloadedPlayable = nextPreloadedPlayable,
@@ -651,6 +668,7 @@ class BackendAudioPlayer: NSObject {
     currentMetadataDuration = 0.0
     currentPlayable = nil
     streamTimeOffset = 0.0
+    pendingSeek = nil
     streamRestartRequest += 1
     shouldPlayAfterStreamRestart = nil
     playType = nil
@@ -1015,5 +1033,24 @@ extension BackendAudioPlayer: AudioStreaming.AudioPlayerDelegate {
     Task { @MainActor in
       self.responder?.didReadStreamMetadata(metadata)
     }
+  }
+}
+
+// MARK: - PendingSeek
+
+/// A seek the player hasn't completed yet. Until then the player still reports the old position,
+/// e.g. while a transcoded stream is restarted at the new offset, which takes a few seconds.
+/// Reporting the target meanwhile keeps progress displays from jumping back.
+struct PendingSeek: Equatable {
+  /// Player position (in seconds) that counts as having reached the target
+  static let tolerance: Double = 2
+  /// Give up waiting after this time, e.g. if the seek failed
+  static let timeout: TimeInterval = 10
+
+  let target: Double
+  let date: Date
+
+  func isReached(by position: Double, at now: Date) -> Bool {
+    abs(position - target) <= Self.tolerance || now.timeIntervalSince(date) > Self.timeout
   }
 }
