@@ -616,6 +616,9 @@ class MiniPlayerView: UIView {
     trailingButtonsViewWidthConstraint = trailingButtonsView.widthAnchor
       .constraint(equalToConstant: 160)
 
+    titleLabel.font = .systemFont(ofSize: titleLabel.font.pointSize - 1, weight: .medium)
+    subtitleLabel.font = .systemFont(ofSize: subtitleLabel.font.pointSize - 1)
+
     timeSlider.addTarget(self, action: #selector(timeSliderChanged(_:)), for: .valueChanged)
     timeSlider.addTarget(self, action: #selector(timeSliderIsChanging(_:)), for: .touchDragInside)
     timeSlider.addTarget(self, action: #selector(timeSliderIsChanging(_:)), for: .touchDragOutside)
