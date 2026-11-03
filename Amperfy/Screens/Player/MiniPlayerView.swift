@@ -379,14 +379,21 @@ class MiniPlayerView: UIView {
     view.addSubview(artworkImage)
     view.addSubview(moreButton)
 
+    // title and artist with their intrinsic heights (fixed heights cut off descenders),
+    // centered as a group; an empty artist label has no height and leaves the title centered
+    let labelsGuide = UILayoutGuide()
+    view.addLayoutGuide(labelsGuide)
+
     NSLayoutConstraint.activate([
+      labelsGuide.topAnchor.constraint(equalTo: self.titleLabel.topAnchor),
+      labelsGuide.bottomAnchor.constraint(equalTo: self.subtitleLabel.bottomAnchor),
+      labelsGuide.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+
       artworkImage.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 0),
       artworkImage.topAnchor.constraint(equalTo: view.topAnchor, constant: 0),
       artworkImage.widthAnchor.constraint(equalTo: artworkImage.heightAnchor),
       artworkImage.bottomAnchor.constraint(equalTo: view.bottomAnchor),
 
-      self.titleLabel.topAnchor.constraint(equalTo: view.topAnchor, constant: 3),
-      self.titleLabel.heightAnchor.constraint(equalTo: self.subtitleLabel.heightAnchor),
       self.titleLabel.leadingAnchor.constraint(equalTo: artworkImage.trailingAnchor, constant: 10),
       self.titleLabel.trailingAnchor.constraint(
         equalTo: self.moreButton.leadingAnchor,
@@ -401,10 +408,6 @@ class MiniPlayerView: UIView {
         equalTo: self.moreButton.leadingAnchor,
         constant: 0
       ),
-      self.subtitleLabel.bottomAnchor.constraint(
-        equalTo: view.bottomAnchor,
-        constant: -3
-      ),
 
       self.moreButton.widthAnchor.constraint(equalToConstant: 30),
       self.moreButton.heightAnchor.constraint(equalToConstant: 30),
@@ -412,7 +415,7 @@ class MiniPlayerView: UIView {
         equalTo: view.trailingAnchor,
         constant: 0
       ),
-      self.moreButton.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+      self.moreButton.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: 2),
     ])
 
     return view
@@ -453,7 +456,7 @@ class MiniPlayerView: UIView {
       liveLabel.centerXAnchor.constraint(equalTo: timeSlider.centerXAnchor, constant: 0),
       liveLabel.centerYAnchor.constraint(equalTo: timeSlider.centerYAnchor, constant: 0),
 
-      infoView.topAnchor.constraint(equalTo: view.topAnchor, constant: 3),
+      infoView.topAnchor.constraint(equalTo: view.topAnchor, constant: 8),
       infoView.bottomAnchor.constraint(equalTo: timeSlider.topAnchor, constant: -3),
       infoView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 0),
       infoView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
