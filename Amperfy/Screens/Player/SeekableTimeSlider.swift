@@ -41,6 +41,55 @@ class SeekableTimeSlider: UISlider {
   /// A pointer drag is in progress, UISlider's own tracking isn't involved
   private var isPointerTracking = false
 
+  #if targetEnvironment(macCatalyst)
+    /// A mouse button is down on the slider
+    private var isPointerPressed = false
+    /// The seek on release is being sent
+    private var isSendingSeekOnRelease = false
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+      isPointerPressed = true
+      super.touchesBegan(touches, with: event)
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+      super.touchesEnded(touches, with: event)
+      sendSeekOnReleaseIfPressed()
+    }
+
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+      super.touchesCancelled(touches, with: event)
+      sendSeekOnReleaseIfPressed()
+    }
+
+    /// The seek happens exactly once, when the mouse button is released
+    private func sendSeekOnReleaseIfPressed() {
+      guard isPointerPressed else { return }
+      isPointerPressed = false
+      // e.g. a radio stream can't seek
+      guard isEnabled else { return }
+      isSendingSeekOnRelease = true
+      sendActions(for: .valueChanged)
+      isSendingSeekOnRelease = false
+    }
+
+    // UISlider's own slider interaction sends valueChanged on mouse down (it jumps to the clicked
+    // position, even before touchesBegan) and again after release. Seeking on mouse down would
+    // seek while the user only starts to drag, so only the seek on release above is sent.
+    override func sendAction(_ action: Selector, to target: Any?, for event: UIEvent?) {
+      if !isSendingSeekOnRelease, isValueChangedAction(action, target: target) {
+        return
+      }
+      super.sendAction(action, to: target, for: event)
+    }
+
+    private func isValueChangedAction(_ action: Selector, target: Any?) -> Bool {
+      let actionName = NSStringFromSelector(action)
+      return actions(forTarget: target, forControlEvent: .valueChanged)?
+        .contains(actionName) ?? false
+    }
+  #endif
+
   // For pointer/mouse: the track follows the pointer directly (click and drag),
   // instead of UISlider's thumb-relative drag; the seek happens once on release.
   // While the player completes the seek, it reports the target as elapsed time.
@@ -72,7 +121,10 @@ class SeekableTimeSlider: UISlider {
     // without a touch the drag was cancelled: no seek, the next playback update resets the value
     guard let touch else { return }
     setValue(for: touch.location(in: self))
-    sendActions(for: .valueChanged)
+    #if !targetEnvironment(macCatalyst)
+      // Mac: sent on touchesEnded instead
+      sendActions(for: .valueChanged)
+    #endif
   }
 
   override func cancelTracking(with event: UIEvent?) {
