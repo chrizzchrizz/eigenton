@@ -167,7 +167,13 @@ public class AmperKit {
     backendAudioPlayer
       .updateEqualizerSetting(eqSetting: storage.settings.user.activeEqualizerSetting)
     backendAudioPlayer.updateReplayGainEnabled(isEnabled: storage.settings.user.isReplayGainEnabled)
-    backendAudioPlayer.volume = storage.settings.user.playerVolume
+    #if targetEnvironment(macCatalyst) // ok
+      // Mac has no app volume control anymore (system volume locally, per room on AirPlay):
+      // an app volume saved earlier could not be changed back
+      backendAudioPlayer.volume = 1.0
+    #else
+      backendAudioPlayer.volume = storage.settings.user.playerVolume
+    #endif
 
     playerDownloadPreparationHandler = PlayerDownloadPreparationHandler(
       playerStatus: playerData,

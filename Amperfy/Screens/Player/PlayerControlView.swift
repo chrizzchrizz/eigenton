@@ -169,8 +169,6 @@ class PlayerControlView: UIView {
   @IBOutlet
   weak var displayPlaylistButton: UIButton!
   @IBOutlet
-  weak var volumeButton: UIButton!
-  @IBOutlet
   weak var optionsButton: UIButton!
 
   #if !targetEnvironment(macCatalyst) // ok
@@ -203,8 +201,6 @@ class PlayerControlView: UIView {
       for case let icon as UIImageView in volumeStackView.arrangedSubviews {
         icon.tintColor = .label
       }
-      // the system volume slider replaces the app volume button
-      volumeButton.isHidden = true
     #endif
 
     playButton.imageView?.tintColor = .label
@@ -215,7 +211,6 @@ class PlayerControlView: UIView {
     airplayButton.tintColor = .label
     displayLyricsButton.tintColor = .label
     playerModeButton.tintColor = .label
-    volumeButton.tintColor = .label
     optionsButton.imageView?.tintColor = .label
     refreshPlayer()
     playerHandler?.refreshPlayerOptions(
@@ -288,41 +283,6 @@ class PlayerControlView: UIView {
   @IBAction
   func airplayButtonPushed(_ sender: UIButton) {
     playerHandler?.airplayButtonPushed(rootView: self, sourceButton: sender)
-  }
-
-  @IBAction
-  func volumeButtonPressed(_ sender: Any) {
-    showVolumeSliderMenu()
-  }
-
-  func showVolumeSliderMenu() {
-    let popoverContentController = SliderMenuPopover()
-    let sliderMenuView = popoverContentController.sliderMenuView
-    sliderMenuView.frame = CGRect(x: 0, y: 0, width: 250, height: 50)
-
-    sliderMenuView.slider.minimumValue = 0
-    sliderMenuView.slider.maximumValue = 100
-    sliderMenuView.slider.value = appDelegate.player.volume * 100
-
-    // the slider view stores this callback
-    sliderMenuView.sliderValueChangedCB = { [weak self, weak sliderMenuView] in
-      guard let self, let sliderMenuView else { return }
-      appDelegate.player.volume = Float(sliderMenuView.slider.value) / 100.0
-    }
-
-    popoverContentController.modalPresentationStyle = .popover
-    popoverContentController.preferredContentSize = sliderMenuView.frame.size
-
-    if let popoverPresentationController = popoverContentController.popoverPresentationController {
-      popoverPresentationController.permittedArrowDirections = .down
-      popoverPresentationController.delegate = popoverContentController
-      popoverPresentationController.sourceView = volumeButton
-      rootView?.present(
-        popoverContentController,
-        animated: true,
-        completion: nil
-      )
-    }
   }
 
   @IBAction

@@ -361,24 +361,6 @@ class MiniPlayerView: UIView {
     playerHandler?.airplayButtonPushed(rootView: self, sourceButton: sender)
   }
 
-  fileprivate lazy var volumeButton: UIButton = {
-    var config = UIButton.Configuration.plain()
-    config.image = .volumeMax
-      .withConfiguration(
-        UIImage
-          .SymbolConfiguration(pointSize: PlayerUIHandler.bigButtonImagePointSize)
-      )
-    let button = UIButton(configuration: config)
-    button.tintColor = .label
-    button.addTarget(self, action: #selector(Self.volumeButtonPushed), for: .touchUpInside)
-    return button
-  }()
-
-  @IBAction
-  func volumeButtonPushed(_ sender: UIButton) {
-    showVolumeSliderMenu()
-  }
-
   public lazy var infoView: UIView = {
     let view = UIView(frame: .zero)
 
@@ -517,14 +499,8 @@ class MiniPlayerView: UIView {
     self.lyricsButton.translatesAutoresizingMaskIntoConstraints = false
     self.playlistButton.translatesAutoresizingMaskIntoConstraints = false
     self.airplayButton.translatesAutoresizingMaskIntoConstraints = false
-    self.volumeButton.translatesAutoresizingMaskIntoConstraints = false
 
-    #if targetEnvironment(macCatalyst) // ok
-      let buttons = [lyricsButton, playlistButton, airplayButton, volumeButton]
-    #else
-      // app volume button is only needed on Mac; iOS/iPadOS use the system volume
-      let buttons = [lyricsButton, playlistButton, airplayButton]
-    #endif
+    let buttons = [lyricsButton, playlistButton, airplayButton]
     let stack = UIStackView(arrangedSubviews: buttons)
     stack.axis = .horizontal
     stack.distribution = .equalSpacing
@@ -1020,36 +996,6 @@ class MiniPlayerView: UIView {
 
     return container
   }()
-
-  func showVolumeSliderMenu() {
-    let popoverContentController = SliderMenuPopover()
-    let sliderMenuView = popoverContentController.sliderMenuView
-    sliderMenuView.frame = CGRect(x: 0, y: 0, width: 250, height: 50)
-
-    sliderMenuView.slider.minimumValue = 0
-    sliderMenuView.slider.maximumValue = 100
-    sliderMenuView.slider.value = appDelegate.player.volume * 100
-
-    // the slider view stores this callback
-    sliderMenuView.sliderValueChangedCB = { [weak self, weak sliderMenuView] in
-      guard let self, let sliderMenuView else { return }
-      appDelegate.player.volume = Float(sliderMenuView.slider.value) / 100.0
-    }
-
-    popoverContentController.modalPresentationStyle = .popover
-    popoverContentController.preferredContentSize = sliderMenuView.frame.size
-
-    if let popoverPresentationController = popoverContentController.popoverPresentationController {
-      popoverPresentationController.permittedArrowDirections = .up
-      popoverPresentationController.delegate = popoverContentController
-      popoverPresentationController.sourceView = volumeButton
-      (AppDelegate.mainWindowHostVC as? UIViewController)?.present(
-        popoverContentController,
-        animated: true,
-        completion: nil
-      )
-    }
-  }
 }
 
 // MARK: MusicPlayable
