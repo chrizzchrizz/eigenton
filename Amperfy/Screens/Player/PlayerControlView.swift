@@ -287,7 +287,7 @@ class PlayerControlView: UIView {
 
   @IBAction
   func airplayButtonPushed(_ sender: UIButton) {
-    playerHandler?.airplayButtonPushed(rootView: self)
+    playerHandler?.airplayButtonPushed(rootView: self, sourceButton: sender)
   }
 
   @IBAction

@@ -358,7 +358,7 @@ class MiniPlayerView: UIView {
 
   @objc
   func airplayButtonPushed(_ sender: UIButton) {
-    playerHandler?.airplayButtonPushed(rootView: self)
+    playerHandler?.airplayButtonPushed(rootView: self, sourceButton: sender)
   }
 
   fileprivate lazy var volumeButton: UIButton = {

@@ -20,6 +20,7 @@
 //
 
 import AmperfyKit
+import AVKit
 import MediaPlayer
 import UIKit
 
@@ -41,6 +42,9 @@ class PlayerUIHandler: NSObject {
 
   private var player: PlayerFacade
   private(set) var style: PlayerUIStyle
+  #if targetEnvironment(macCatalyst) // ok
+    private var routePickerView: AVRoutePickerView?
+  #endif
 
   init(player: PlayerFacade, style: PlayerUIStyle) {
     self.player = player
@@ -371,13 +375,31 @@ class PlayerUIHandler: NSObject {
     }
   }
 
-  func airplayButtonPushed(rootView: UIView) {
+  func airplayButtonPushed(rootView: UIView, sourceButton: UIButton) {
     appDelegate.userStatistics.usedAction(.airplay)
 
     #if targetEnvironment(macCatalyst) // ok
-      // macOS: in-app AirPlay routing only applies to AVPlayer, not to the audio unit based output
-      // of AudioStreaming. Open the system sound output settings instead.
-      if let url = URL(string: "x-apple.systempreferences:com.apple.Sound-Settings.extension") {
+      // macOS: show the system route picker anchored at the AirPlay button. The hidden picker
+      // stays in the view hierarchy so the popover keeps its anchor while it is open.
+      let routePickerView: AVRoutePickerView
+      if let existing = self.routePickerView, existing.superview === rootView {
+        routePickerView = existing
+      } else {
+        self.routePickerView?.removeFromSuperview()
+        routePickerView = AVRoutePickerView(frame: .zero)
+        routePickerView.isHidden = true
+        rootView.addSubview(routePickerView)
+        self.routePickerView = routePickerView
+      }
+      // the picker's own route button fills its bounds; covering the AirPlay button exactly puts
+      // the popover arrow on the button
+      routePickerView.frame = sourceButton.convert(sourceButton.bounds, to: rootView)
+      routePickerView.layoutIfNeeded()
+      if let routeButton = firstButton(in: routePickerView) {
+        routeButton.sendActions(for: .touchUpInside)
+      } else if let url =
+        URL(string: "x-apple.systempreferences:com.apple.Sound-Settings.extension") {
+        // the picker's button wasn't found: let the user choose the output in the sound settings
         UIApplication.shared.open(url)
       }
     #else
@@ -385,14 +407,17 @@ class PlayerUIHandler: NSObject {
       let airplayVolume = MPVolumeView(frame: rect)
       airplayVolume.showsVolumeSlider = false
       rootView.addSubview(airplayVolume)
-      for view: UIView in airplayVolume.subviews {
-        if let button = view as? UIButton {
-          button.sendActions(for: .touchUpInside)
-          break
-        }
-      }
+      firstButton(in: airplayVolume)?.sendActions(for: .touchUpInside)
       airplayVolume.removeFromSuperview()
     #endif
+  }
+
+  /// The route button inside the system route picker view: a direct subview first, then deeper
+  private func firstButton(in view: UIView) -> UIButton? {
+    if let button = view.subviews.first(where: { $0 is UIButton }) as? UIButton {
+      return button
+    }
+    return view.subviews.lazy.compactMap { self.firstButton(in: $0) }.first
   }
 
   var isLyricsButtonAllowedToDisplay: Bool {
