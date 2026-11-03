@@ -605,8 +605,7 @@ class ArtistDetailVC: MultiSourceTableViewController {
     if type != .update {
       controllersWithStructuralChange.insert(ObjectIdentifier(controller))
     }
-    // the player saves the progress of the current song every second
-    if type != .update || (anObject as? NSManagedObject)?.isOnlyPlaybackProgressChanged != true {
+    if type.isVisibleRowChange(of: anObject) {
       controllersWithVisibleChange.insert(ObjectIdentifier(controller))
     }
   }

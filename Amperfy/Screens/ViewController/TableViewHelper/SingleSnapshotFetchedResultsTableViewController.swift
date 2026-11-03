@@ -178,7 +178,7 @@ class SingleSnapshotFetchedResultsTableViewController<ResultType>:
             !existingObject.isOnlyPlaybackProgressChanged else { return nil }
           return itemIdentifier
         }
-      // The player saves the progress of the current song every second. Applying the unchanged
+      // The player saves the progress of the current song periodically. Applying the unchanged
       // snapshot makes the rows lose their separators for a frame on macOS.
       // Values merged from other contexts are not dirty and therefore not reconfigured,
       // the callback still needs to refresh the views depending on them.
@@ -212,23 +212,6 @@ class SingleSnapshotFetchedResultsTableViewController<ResultType>:
       (lhsRef.itemIdentifiersInSection(withIdentifier: section) as NSArray)
         .isEqual(to: rhsRef.itemIdentifiersInSection(withIdentifier: section))
     }
-  }
-}
-
-extension NSManagedObject {
-  private static let playbackProgressKeys: Set<String> = [
-    #keyPath(AbstractPlayableMO.playProgress),
-    #keyPath(AbstractPlayableMO.playDuration),
-    // set together with playDuration, e.g. while the estimate of a transcoded stream changes
-    #keyPath(AbstractPlayableMO.combinedDuration),
-  ]
-
-  /// True if only the playback progress the player saves while playing has changed,
-  /// which the song rows don't show. Podcast episode rows show it and are always updated.
-  var isOnlyPlaybackProgressChanged: Bool {
-    guard !(self is PodcastEpisodeMO) else { return false }
-    let keys = changedValuesForCurrentEvent().keys
-    return !keys.isEmpty && keys.allSatisfy { Self.playbackProgressKeys.contains($0) }
   }
 }
 

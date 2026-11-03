@@ -23,6 +23,8 @@ import AmperfyKit
 import CoreData
 import UIKit
 
+// MARK: - FetchUpdatePerObjectHandler
+
 @MainActor
 class FetchUpdatePerObjectHandler: NSObject, NSFetchedResultsControllerDelegate {
   private let tableView: UITableView
@@ -66,7 +68,7 @@ class FetchUpdatePerObjectHandler: NSObject, NSFetchedResultsControllerDelegate 
     for type: NSFetchedResultsChangeType,
     newIndexPath: IndexPath?
   ) {
-    let isVisibleChange = Self.isVisibleChange(of: anObject, for: type)
+    let isVisibleChange = type.isVisibleRowChange(of: anObject)
     MainActor.assumeIsolated {
       self.applyChangesFromFetchedResultsController(
         isVisibleChange: isVisibleChange,
@@ -94,20 +96,11 @@ class FetchUpdatePerObjectHandler: NSObject, NSFetchedResultsControllerDelegate 
       adjustedNewIndexPath = IndexPath(row: newIndexPath.row, section: section)
     }
     applyChangesFromFetchedResultsController(
-      isVisibleChange: Self.isVisibleChange(of: anObject, for: type),
+      isVisibleChange: type.isVisibleRowChange(of: anObject),
       at: adjustedIndexPath,
       for: type,
       newIndexPath: adjustedNewIndexPath
     )
-  }
-
-  /// The player saves the progress of the current song every second, the song rows don't show it.
-  nonisolated private static func isVisibleChange(
-    of anObject: Any,
-    for type: NSFetchedResultsChangeType
-  )
-    -> Bool {
-    type != .update || (anObject as? NSManagedObject)?.isOnlyPlaybackProgressChanged != true
   }
 
   private func applyChangesFromFetchedResultsController(
@@ -157,5 +150,35 @@ class FetchUpdatePerObjectHandler: NSObject, NSFetchedResultsControllerDelegate 
         break
       }
     }
+  }
+}
+
+extension NSFetchedResultsChangeType {
+  /// False for an update that only changes the playback progress, which the song rows don't show
+  nonisolated func isVisibleRowChange(of anObject: Any) -> Bool {
+    self != .update || (anObject as? NSManagedObject)?.isOnlyPlaybackProgressChanged != true
+  }
+}
+
+extension NSManagedObject {
+  private static let playbackInformationKeys: Set<String> = [
+    #keyPath(AbstractPlayableMO.playProgress),
+    #keyPath(AbstractPlayableMO.playDuration),
+    #keyPath(AbstractPlayableMO.combinedDuration),
+  ]
+
+  /// True if only the playback information changed that the player saves while playing, without
+  /// a change of the shown duration. Song rows don't show the position, podcast episode rows do
+  /// and are always updated. The first save of a song usually only confirms its duration.
+  var isOnlyPlaybackProgressChanged: Bool {
+    guard !(self is PodcastEpisodeMO) else { return false }
+    // contains the values before the change
+    let oldValues = changedValuesForCurrentEvent()
+    guard !oldValues.isEmpty,
+          oldValues.keys.allSatisfy({ Self.playbackInformationKeys.contains($0) })
+    else { return false }
+    let durationKey = #keyPath(AbstractPlayableMO.combinedDuration)
+    guard let oldDuration = oldValues[durationKey] else { return true }
+    return (oldDuration as? NSNumber) == (value(forKey: durationKey) as? NSNumber)
   }
 }
