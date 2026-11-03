@@ -41,6 +41,9 @@ extension PopupPlayerVC: UITableViewDataSource, UITableViewDelegate {
     tableView.estimatedRowHeight = PlayableTableCell.rowHeight
     tableView.backgroundColor = UIColor.clear
     tableView.sectionHeaderTopPadding = 0.0
+    // the system edge effect would draw its own background behind the pinned section header,
+    // the rows are cut off below the header instead (see refreshCellMasks)
+    tableView.topEdgeEffect.isHidden = true
     // .none would make the rows draw their own separators, so hide the system ones instead
     tableView.separatorColor = .clear
     // rows share the horizontal margin of the headers and the progress bar
