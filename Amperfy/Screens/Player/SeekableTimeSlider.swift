@@ -20,6 +20,8 @@
 
 import UIKit
 
+// MARK: - SeekableTimeSlider
+
 class SeekableTimeSlider: UISlider {
   static let verticalHitAreaExpansion: CGFloat = 20
   static let horizontalHitAreaExpansion: CGFloat = 8
@@ -36,26 +38,54 @@ class SeekableTimeSlider: UISlider {
     return expandedBounds.contains(point)
   }
 
+  /// A pointer drag is in progress, UISlider's own tracking isn't involved
+  private var isPointerTracking = false
+
+  // For pointer/mouse: the track follows the pointer directly (click and drag),
+  // instead of UISlider's thumb-relative drag; the seek happens once on release.
+  // While the player completes the seek, it reports the target as elapsed time.
   override func beginTracking(_ touch: UITouch, with event: UIEvent?) -> Bool {
     guard isPointerSeekAllowed(touch) else {
       return super.beginTracking(touch, with: event)
     }
-    updateValue(for: touch.location(in: self))
-    return false
+    isPointerTracking = true
+    setValue(for: touch.location(in: self))
+    sendActions(for: .touchDragInside)
+    return true
   }
 
   override func continueTracking(_ touch: UITouch, with event: UIEvent?) -> Bool {
-    guard isPointerSeekAllowed(touch) else {
+    guard isPointerTracking else {
       return super.continueTracking(touch, with: event)
     }
-    // For pointer/mouse: suppress drag seeking and UISlider's continuous drag behavior.
-    return false
+    setValue(for: touch.location(in: self))
+    sendActions(for: .touchDragInside)
+    return true
   }
 
-  private func updateValue(for location: CGPoint) {
+  override func endTracking(_ touch: UITouch?, with event: UIEvent?) {
+    guard isPointerTracking else {
+      super.endTracking(touch, with: event)
+      return
+    }
+    isPointerTracking = false
+    // without a touch the drag was cancelled: no seek, the next playback update resets the value
+    guard let touch else { return }
+    setValue(for: touch.location(in: self))
+    sendActions(for: .valueChanged)
+  }
+
+  override func cancelTracking(with event: UIEvent?) {
+    guard isPointerTracking else {
+      super.cancelTracking(with: event)
+      return
+    }
+    isPointerTracking = false
+  }
+
+  private func setValue(for location: CGPoint) {
     guard let value = valueFromLocation(location) else { return }
     self.value = value
-    sendActions(for: .valueChanged)
   }
 
   private func valueFromLocation(_ location: CGPoint) -> Float? {
