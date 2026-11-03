@@ -113,13 +113,22 @@ class SeekableTimeSlider: UISlider {
 class ExpandableTrackTimeSlider: SeekableTimeSlider {
   static let collapsedTrackHeight: CGFloat = 3.5
   static let expandedTrackHeight: CGFloat = 7
+  /// The player reports the playback position periodically (value unit: seconds). Forward steps
+  /// are animated linearly over the time since the previous update, so the fill moves continuously.
+  /// Faster changes (value units per second, above the highest playback rate) are seeks.
+  static let maxSmoothProgressSpeed: Float = 3
+  /// Longer gaps between updates (e.g. after a pause) aren't animated
+  static let maxSmoothProgressInterval: TimeInterval = 2
 
   private let maximumTrackView = UIView()
   private let minimumTrackView = UIView()
   private(set) var isTrackExpanded = false
+  /// Value the fill shows or animates to
+  private var displayedValue: Float = 0
   /// The user is dragging or clicking. Own flag, UIControl's isTracking is set only after
   /// beginTracking returns and reset only after endTracking returns.
   private var isUserTracking = false
+  private var lastValueChangeDate: Date?
 
   override init(frame: CGRect) {
     super.init(frame: frame)
@@ -160,20 +169,51 @@ class ExpandableTrackTimeSlider: SeekableTimeSlider {
   }
 
   override var value: Float {
-    didSet { setNeedsLayout() }
+    didSet { valueDidChange() }
   }
 
   override var minimumValue: Float {
-    didSet { if minimumValue != oldValue { setNeedsLayout() } }
+    didSet { if minimumValue != oldValue { valueRangeDidChange() } }
   }
 
   override var maximumValue: Float {
-    didSet { if maximumValue != oldValue { setNeedsLayout() } }
+    didSet { if maximumValue != oldValue { valueRangeDidChange() } }
   }
 
   override func setValue(_ value: Float, animated: Bool) {
     super.setValue(value, animated: animated)
+    // UIKit may route this through the value setter as well; displayedValue dedupes it
+    valueDidChange()
+  }
+
+  private func valueRangeDidChange() {
+    minimumTrackView.layer.removeAllAnimations()
     setNeedsLayout()
+  }
+
+  private func valueDidChange() {
+    guard value != displayedValue else { return }
+    let step = value - displayedValue
+    displayedValue = value
+    let now = Date()
+    let interval = lastValueChangeDate.map { now.timeIntervalSince($0) } ?? 0
+    lastValueChangeDate = now
+    guard !isUserTracking, window != nil, step > 0, interval > 0,
+          interval <= Self.maxSmoothProgressInterval,
+          step <= Float(interval) * Self.maxSmoothProgressSpeed else {
+      // seek, drag or song change: jump to the new position
+      minimumTrackView.layer.removeAllAnimations()
+      setNeedsLayout()
+      return
+    }
+    // playback progress: move the fill linearly, arriving about when the next update is due
+    UIView.animate(
+      withDuration: interval,
+      delay: 0,
+      options: [.curveLinear, .beginFromCurrentState, .allowUserInteraction]
+    ) {
+      self.minimumTrackView.frame = self.minimumTrackFrame()
+    }
   }
 
   /// The pointer hovers over the track area. The track is expanded while hovering or dragging,
@@ -187,6 +227,8 @@ class ExpandableTrackTimeSlider: SeekableTimeSlider {
   }
 
   override func beginTracking(_ touch: UITouch, with event: UIEvent?) -> Bool {
+    // set before super: a click already changes the value there, which has to jump
+    isUserTracking = true
     isUserTracking = super.beginTracking(touch, with: event)
     updateTrackExpansion()
     return isUserTracking
