@@ -40,7 +40,7 @@ class PlayerUIHandler: NSObject {
   public static let playAndNextiOSButtonImagePointSize: CGFloat = 15
 
   private var player: PlayerFacade
-  private var style: PlayerUIStyle
+  private(set) var style: PlayerUIStyle
 
   init(player: PlayerFacade, style: PlayerUIStyle) {
     self.player = player

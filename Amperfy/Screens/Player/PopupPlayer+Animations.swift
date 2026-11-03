@@ -25,13 +25,19 @@ import UIKit
 extension PopupPlayerVC {
   static let displaStyleAnimationDuration = TimeInterval(0.2)
 
-  func switchDisplayStyleOptionPersistent() {
+  /// Stores the queue as the popup player's view, also if the lyrics were shown before.
+  static func showQueuePersistent(appDelegate: AppDelegate) {
     appDelegate.userStatistics.usedAction(.changePlayerDisplayStyle)
+    appDelegate.storage.settings.user.isPlayerLyricsDisplayed = false
+    appDelegate.storage.settings.user.playerDisplayStyle = .compact
+  }
+
+  func switchDisplayStyleOptionPersistent() {
     if currentLayout == .lyrics {
       // the playlist button leaves the lyrics and shows the queue
-      appDelegate.storage.settings.user.isPlayerLyricsDisplayed = false
-      appDelegate.storage.settings.user.playerDisplayStyle = .compact
+      Self.showQueuePersistent(appDelegate: appDelegate)
     } else {
+      appDelegate.userStatistics.usedAction(.changePlayerDisplayStyle)
       var displayStyle = appDelegate.storage.settings.user.playerDisplayStyle
       displayStyle.switchToNextStyle()
       appDelegate.storage.settings.user.playerDisplayStyle = displayStyle

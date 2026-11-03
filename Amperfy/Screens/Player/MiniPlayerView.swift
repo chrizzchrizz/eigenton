@@ -293,15 +293,22 @@ class MiniPlayerView: UIView {
 
   @IBAction
   func lyricsPressed() {
-    appDelegate.storage.settings.user.isPlayerLyricsDisplayed.toggle()
-    if appDelegate.storage.settings.user.isPlayerLyricsDisplayed {
-      appDelegate.storage.settings.user.playerDisplayStyle = .large
-    }
-    playerHandler?.refreshDisplayLyricsButton(displayLyricsButton: lyricsButton)
-    playerHandler?.refreshDisplayPlaylistButton(displayPlaylistButton: playlistButton)
+    #if !targetEnvironment(macCatalyst)
+      // iPad: open the popup player with the lyrics shown; the stored cover or queue view stays
+      // for when the lyrics are left, like with the popup player's lyrics button
+      appDelegate.storage.settings.user.isPlayerLyricsDisplayed = true
+      openPlayerView()
+    #else
+      appDelegate.storage.settings.user.isPlayerLyricsDisplayed.toggle()
+      if appDelegate.storage.settings.user.isPlayerLyricsDisplayed {
+        appDelegate.storage.settings.user.playerDisplayStyle = .large
+      }
+      playerHandler?.refreshDisplayLyricsButton(displayLyricsButton: lyricsButton)
+      playerHandler?.refreshDisplayPlaylistButton(displayPlaylistButton: playlistButton)
 
-    guard let host = AppDelegate.mainWindowHostVC as? SplitVC else { return }
-    host.displayOrHideInspector()
+      guard let host = AppDelegate.mainWindowHostVC as? SplitVC else { return }
+      host.displayOrHideInspector()
+    #endif
   }
 
   fileprivate lazy var playlistButton: UIButton = {
@@ -319,15 +326,21 @@ class MiniPlayerView: UIView {
 
   @IBAction
   func playlistPressed() {
-    appDelegate.storage.settings.user.playerDisplayStyle.switchToNextStyle()
-    if appDelegate.storage.settings.user.playerDisplayStyle == .compact {
-      appDelegate.storage.settings.user.isPlayerLyricsDisplayed = false
-    }
-    playerHandler?.refreshDisplayPlaylistButton(displayPlaylistButton: playlistButton)
-    playerHandler?.refreshDisplayLyricsButton(displayLyricsButton: lyricsButton)
+    #if !targetEnvironment(macCatalyst)
+      // iPad: open the popup player with the queue shown
+      PopupPlayerVC.showQueuePersistent(appDelegate: appDelegate)
+      openPlayerView()
+    #else
+      appDelegate.storage.settings.user.playerDisplayStyle.switchToNextStyle()
+      if appDelegate.storage.settings.user.playerDisplayStyle == .compact {
+        appDelegate.storage.settings.user.isPlayerLyricsDisplayed = false
+      }
+      playerHandler?.refreshDisplayPlaylistButton(displayPlaylistButton: playlistButton)
+      playerHandler?.refreshDisplayLyricsButton(displayLyricsButton: lyricsButton)
 
-    guard let host = AppDelegate.mainWindowHostVC as? SplitVC else { return }
-    host.displayOrHideInspector()
+      guard let host = AppDelegate.mainWindowHostVC as? SplitVC else { return }
+      host.displayOrHideInspector()
+    #endif
   }
 
   fileprivate lazy var airplayButton: UIButton = {
@@ -519,11 +532,44 @@ class MiniPlayerView: UIView {
     return stack
   }()
 
+  /// iPad only: lyrics and queue buttons left of the play button that open the popup player
+  /// with that view.
+  private lazy var displayButtonsView: UIStackView = {
+    lyricsButton.translatesAutoresizingMaskIntoConstraints = false
+    playlistButton.translatesAutoresizingMaskIntoConstraints = false
+    let stack = UIStackView(arrangedSubviews: [lyricsButton, playlistButton])
+    stack.axis = .horizontal
+    stack.spacing = 0
+    stack.alignment = .center
+    NSLayoutConstraint.activate([
+      lyricsButton.widthAnchor.constraint(equalToConstant: 40),
+      lyricsButton.heightAnchor.constraint(equalToConstant: 30),
+      playlistButton.widthAnchor.constraint(equalToConstant: 40),
+      playlistButton.heightAnchor.constraint(equalToConstant: 30),
+    ])
+    return stack
+  }()
+
+  /// `configureForiOS` (iPhone and iPad) instead of `configureForMac`.
+  private var isConfiguredForiOS: Bool { playerHandler?.style == .miniPlayeriOS }
+
+  /// iPad with regular width, where the popup player covers the whole screen.
+  private var isPadLayout: Bool {
+    traitCollection.userInterfaceIdiom == .pad &&
+      traitCollection.horizontalSizeClass == .regular
+  }
+
   public func refreshTrailingButtons() {
     guard let playerHandler else { return }
-    lyricsButton.isHidden = !playerHandler.isLyricsButtonAllowedToDisplay
-    let visibleButtonCount = trailingButtonsView.arrangedSubviews.filter { !$0.isHidden }.count
-    trailingButtonsViewWidthConstraint?.constant = CGFloat(visibleButtonCount) * 40
+    if isConfiguredForiOS {
+      // lyrics and queue buttons only on iPad, see displayButtonsView
+      lyricsButton.isHidden = !isPadLayout || !playerHandler.isLyricsButtonAllowedToDisplay
+      playlistButton.isHidden = !isPadLayout
+    } else {
+      lyricsButton.isHidden = !playerHandler.isLyricsButtonAllowedToDisplay
+      let visibleButtonCount = trailingButtonsView.arrangedSubviews.filter { !$0.isHidden }.count
+      trailingButtonsViewWidthConstraint?.constant = CGFloat(visibleButtonCount) * 40
+    }
   }
 
   func refreshMoreButton() {
@@ -561,6 +607,7 @@ class MiniPlayerView: UIView {
       previousTraitCollection: UITraitCollection
     ) in
       self.refreshForTabAccessoryTraitChange()
+      self.refreshTrailingButtons()
       self.tabAccessoryTraitChangeCB?()
     }
   }
@@ -663,7 +710,9 @@ class MiniPlayerView: UIView {
     subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
     playButton.translatesAutoresizingMaskIntoConstraints = false
     nextButton.translatesAutoresizingMaskIntoConstraints = false
+    displayButtonsView.translatesAutoresizingMaskIntoConstraints = false
 
+    addSubview(displayButtonsView)
     addSubview(miniPlayerGotTouchedView)
     addSubview(artworkImage)
     addSubview(titleLabel)
@@ -676,7 +725,7 @@ class MiniPlayerView: UIView {
       miniPlayerGotTouchedView.heightAnchor.constraint(equalTo: heightAnchor),
       miniPlayerGotTouchedView.bottomAnchor.constraint(equalTo: bottomAnchor),
       miniPlayerGotTouchedView.trailingAnchor.constraint(
-        equalTo: playButton.leadingAnchor,
+        equalTo: displayButtonsView.leadingAnchor,
         constant: -8
       ),
 
@@ -688,12 +737,22 @@ class MiniPlayerView: UIView {
       titleLabel.topAnchor.constraint(equalTo: topAnchor, constant: 8),
       titleLabel.bottomAnchor.constraint(equalTo: playButton.centerYAnchor),
       titleLabel.leadingAnchor.constraint(equalTo: artworkImage.trailingAnchor, constant: 8),
-      titleLabel.trailingAnchor.constraint(equalTo: playButton.leadingAnchor, constant: -8),
+      titleLabel.trailingAnchor.constraint(
+        equalTo: displayButtonsView.leadingAnchor,
+        constant: -8
+      ),
 
       subtitleLabel.topAnchor.constraint(equalTo: playButton.centerYAnchor, constant: 0),
       subtitleLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -8),
       subtitleLabel.leadingAnchor.constraint(equalTo: artworkImage.trailingAnchor, constant: 8),
-      subtitleLabel.trailingAnchor.constraint(equalTo: playButton.leadingAnchor, constant: -8),
+      subtitleLabel.trailingAnchor.constraint(
+        equalTo: displayButtonsView.leadingAnchor,
+        constant: -8
+      ),
+
+      // without visible buttons the stack has no width
+      displayButtonsView.centerYAnchor.constraint(equalTo: artworkImage.centerYAnchor),
+      displayButtonsView.trailingAnchor.constraint(equalTo: playButton.leadingAnchor),
 
       playButton.centerYAnchor.constraint(equalTo: artworkImage.centerYAnchor, constant: 0),
       playButton.widthAnchor.constraint(equalToConstant: 30),
@@ -865,7 +924,10 @@ class MiniPlayerView: UIView {
     playerHandler?.refreshArtwork(artworkImage: artworkImage)
     playerHandler?.refreshPlayButton(playButton)
     playerHandler?.refreshPrevNextButtons(previousButton: previousButton, nextButton: nextButton)
-    playerHandler?.refreshDisplayPlaylistButton(displayPlaylistButton: playlistButton)
+    #if targetEnvironment(macCatalyst) // ok
+      // on iPad the buttons only open the popup player and show no state
+      playerHandler?.refreshDisplayPlaylistButton(displayPlaylistButton: playlistButton)
+    #endif
     playerHandler?.refreshRepeatButton(repeatButton: repeatButton)
     playerHandler?.refreshShuffleButton(shuffleButton: shuffleButton)
     playerHandler?.refreshTimeInfo(
