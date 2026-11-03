@@ -104,8 +104,8 @@ class MiniPlayerView: UIView {
     return label
   }()
 
-  fileprivate lazy var timeSlider: SeekableTimeSlider = {
-    let slider = SeekableTimeSlider(frame: .zero)
+  fileprivate lazy var timeSlider: ExpandableTrackTimeSlider = {
+    let slider = ExpandableTrackTimeSlider(frame: .zero)
     slider.preferredBehavioralStyle = .pad
     // explicit colors: the default tint is hard to tell apart from the track on the glass background
     slider.minimumTrackTintColor = .label
@@ -440,19 +440,21 @@ class MiniPlayerView: UIView {
     view.addSubview(hoverContainer)
 
     NSLayoutConstraint.activate([
-      timeSlider.bottomAnchor.constraint(equalTo: hoverContainer.bottomAnchor, constant: -5),
+      // tall enough for the expanded track (same center as before), so the radio mask doesn't clip it
+      timeSlider.bottomAnchor.constraint(equalTo: hoverContainer.bottomAnchor, constant: -3),
       timeSlider.leadingAnchor.constraint(equalTo: hoverContainer.leadingAnchor),
       timeSlider.trailingAnchor.constraint(
         equalTo: hoverContainer.trailingAnchor,
         constant: 0
       ),
-      timeSlider.heightAnchor.constraint(equalToConstant: 3),
+      timeSlider.heightAnchor
+        .constraint(equalToConstant: ExpandableTrackTimeSlider.expandedTrackHeight),
 
       liveLabel.centerXAnchor.constraint(equalTo: timeSlider.centerXAnchor, constant: 0),
       liveLabel.centerYAnchor.constraint(equalTo: timeSlider.centerYAnchor, constant: 0),
 
       infoView.topAnchor.constraint(equalTo: view.topAnchor, constant: 3),
-      infoView.bottomAnchor.constraint(equalTo: timeSlider.topAnchor, constant: -5),
+      infoView.bottomAnchor.constraint(equalTo: timeSlider.topAnchor, constant: -3),
       infoView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 0),
       infoView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
 
@@ -747,8 +749,10 @@ class MiniPlayerView: UIView {
       if hoverOverlayView == nil {
         showHoverOverlay()
       }
-    case .cancelled, .ended:
+      timeSlider.isHoverActive = true
+    case .cancelled, .ended, .failed:
       hideHoverOverlay()
+      timeSlider.isHoverActive = false
     default:
       break
     }
