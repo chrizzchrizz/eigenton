@@ -213,7 +213,7 @@ class MiniPlayerView: UIView {
   @IBAction
   func playButtonPushed(_ sender: Any) {
     playerHandler?.playButtonPushed()
-    playerHandler?.refreshPlayButton(playButton)
+    refreshPlayButton()
   }
 
   fileprivate lazy var previousButton: UIButton = {
@@ -553,7 +553,9 @@ class MiniPlayerView: UIView {
   /// `configureForiOS` (iPhone and iPad) instead of `configureForMac`.
   private var isConfiguredForiOS: Bool { playerHandler?.style == .miniPlayeriOS }
 
-  /// iPad with regular width, where the popup player covers the whole screen.
+  /// iPad with regular width, where the popup player covers the whole screen: previous, play
+  /// and next sit left of the artwork and the lyrics and queue buttons on the trailing side.
+  /// Also kept if the tab bar accessory is inline, as the mini player keeps its regular size.
   private var isPadLayout: Bool {
     traitCollection.userInterfaceIdiom == .pad &&
       traitCollection.horizontalSizeClass == .regular
@@ -570,6 +572,15 @@ class MiniPlayerView: UIView {
       let visibleButtonCount = trailingButtonsView.arrangedSubviews.filter { !$0.isHidden }.count
       trailingButtonsViewWidthConstraint?.constant = CGFloat(visibleButtonCount) * 40
     }
+  }
+
+  private func refreshPlayButton() {
+    playerHandler?.refreshPlayButton(
+      playButton,
+      miniPlayeriOSPointSize: controlsLayout == .pad
+        ? Self.padPlayButtonImagePointSize
+        : PlayerUIHandler.playAndNextiOSButtonImagePointSize
+    )
   }
 
   func refreshMoreButton() {
@@ -598,6 +609,7 @@ class MiniPlayerView: UIView {
     registerForTraitChanges(
       [UITraitUserInterfaceStyle.self, UITraitHorizontalSizeClass.self],
       handler: { (self: Self, previousTraitCollection: UITraitCollection) in
+        self.refreshControlsLayout()
         self.refreshPlayer()
       }
     )
@@ -606,7 +618,7 @@ class MiniPlayerView: UIView {
       self: Self,
       previousTraitCollection: UITraitCollection
     ) in
-      self.refreshForTabAccessoryTraitChange()
+      self.refreshControlsLayout()
       self.refreshTrailingButtons()
       self.tabAccessoryTraitChangeCB?()
     }
@@ -634,23 +646,65 @@ class MiniPlayerView: UIView {
     visibilityChangeCB?(isLoaded)
   }
 
-  private func refreshForTabAccessoryTraitChange() {
-    let isInline = traitCollection.tabAccessoryEnvironment == .inline
-    playButtonTrailingConstraint?.isActive = false
-    if isInline {
-      nextButton.isHidden = true
-      playButtonTrailingConstraint = playButton.trailingAnchor.constraint(
-        equalTo: trailingAnchor,
-        constant: -10
-      )
+  private enum ControlsLayout {
+    /// play and next on the trailing side
+    case phone
+    /// only play on the trailing side
+    case phoneInline
+    /// previous, play and next left of the artwork, see `isPadLayout`
+    case pad
+  }
+
+  private static let padPlayButtonImagePointSize: CGFloat = 24
+  private var controlsLayout: ControlsLayout?
+  private var controlsLayoutConstraints = [NSLayoutConstraint]()
+
+  /// Depends on the tab bar bottom accessory environment and on the horizontal size class.
+  private func refreshControlsLayout() {
+    guard isConfiguredForiOS else { return }
+    let layout: ControlsLayout
+    if isPadLayout {
+      layout = .pad
+    } else if traitCollection.tabAccessoryEnvironment == .inline {
+      layout = .phoneInline
     } else {
-      nextButton.isHidden = false
-      playButtonTrailingConstraint = playButton.trailingAnchor.constraint(
-        equalTo: nextButton.leadingAnchor,
-        constant: -5
-      )
+      layout = .phone
     }
-    playButtonTrailingConstraint?.isActive = true
+    guard layout != controlsLayout else { return }
+    controlsLayout = layout
+
+    NSLayoutConstraint.deactivate(controlsLayoutConstraints)
+    nextButton.isHidden = layout == .phoneInline
+    previousButton.isHidden = layout != .pad
+    // the play button is bigger on iPad
+    refreshPlayButton()
+    switch layout {
+    case .phone, .phoneInline:
+      controlsLayoutConstraints = [
+        playButton.widthAnchor.constraint(equalToConstant: 30),
+        // hidden, only positioned to keep the layout unambiguous
+        previousButton.trailingAnchor.constraint(equalTo: playButton.leadingAnchor),
+        artworkImage.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+        displayButtonsView.trailingAnchor.constraint(equalTo: playButton.leadingAnchor),
+        nextButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
+        layout == .phoneInline
+          ? playButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10)
+          : playButton.trailingAnchor.constraint(
+            equalTo: nextButton.leadingAnchor,
+            constant: -5
+          ),
+      ]
+    case .pad:
+      controlsLayoutConstraints = [
+        playButton.widthAnchor.constraint(equalToConstant: 44),
+        previousButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+        playButton.leadingAnchor.constraint(equalTo: previousButton.trailingAnchor, constant: 5),
+        nextButton.leadingAnchor.constraint(equalTo: playButton.trailingAnchor, constant: 5),
+        artworkImage.leadingAnchor.constraint(equalTo: nextButton.trailingAnchor, constant: 12),
+        displayButtonsView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
+      ]
+    }
+    NSLayoutConstraint.activate(controlsLayoutConstraints)
   }
 
   public func configureForMac() {
@@ -710,6 +764,7 @@ class MiniPlayerView: UIView {
     subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
     playButton.translatesAutoresizingMaskIntoConstraints = false
     nextButton.translatesAutoresizingMaskIntoConstraints = false
+    previousButton.translatesAutoresizingMaskIntoConstraints = false
     displayButtonsView.translatesAutoresizingMaskIntoConstraints = false
 
     addSubview(displayButtonsView)
@@ -717,6 +772,7 @@ class MiniPlayerView: UIView {
     addSubview(artworkImage)
     addSubview(titleLabel)
     addSubview(subtitleLabel)
+    addSubview(previousButton)
     addSubview(playButton)
     addSubview(nextButton)
 
@@ -732,7 +788,7 @@ class MiniPlayerView: UIView {
       artworkImage.topAnchor.constraint(equalTo: topAnchor, constant: 8),
       artworkImage.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -8),
       artworkImage.widthAnchor.constraint(equalTo: artworkImage.heightAnchor),
-      artworkImage.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+      // horizontal positions of artwork, play, next and display buttons: refreshControlsLayout
 
       titleLabel.topAnchor.constraint(equalTo: topAnchor, constant: 8),
       titleLabel.bottomAnchor.constraint(equalTo: playButton.centerYAnchor),
@@ -752,21 +808,22 @@ class MiniPlayerView: UIView {
 
       // without visible buttons the stack has no width
       displayButtonsView.centerYAnchor.constraint(equalTo: artworkImage.centerYAnchor),
-      displayButtonsView.trailingAnchor.constraint(equalTo: playButton.leadingAnchor),
 
       playButton.centerYAnchor.constraint(equalTo: artworkImage.centerYAnchor, constant: 0),
-      playButton.widthAnchor.constraint(equalToConstant: 30),
+      // playButton width: refreshControlsLayout
       playButton.heightAnchor.constraint(equalTo: playButton.widthAnchor),
-      // playButton trailing constraint is depending on tab bar bottom accessory
 
       nextButton.centerYAnchor.constraint(equalTo: artworkImage.centerYAnchor, constant: 0),
       nextButton.widthAnchor.constraint(equalToConstant: 30),
       nextButton.heightAnchor.constraint(equalTo: nextButton.widthAnchor),
-      nextButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
+
+      previousButton.centerYAnchor.constraint(equalTo: artworkImage.centerYAnchor, constant: 0),
+      previousButton.widthAnchor.constraint(equalToConstant: 30),
+      previousButton.heightAnchor.constraint(equalTo: previousButton.widthAnchor),
     ])
+    refreshControlsLayout()
     refreshPlayer()
     refreshForTraitChange(horizontalSizeClass: traitCollection.horizontalSizeClass)
-    refreshForTabAccessoryTraitChange()
   }
 
   public func refreshForTraitChange(horizontalSizeClass: UIUserInterfaceSizeClass) {
@@ -778,8 +835,6 @@ class MiniPlayerView: UIView {
       subtitleLabel.font = .systemFont(ofSize: 12.0)
     }
   }
-
-  private var playButtonTrailingConstraint: NSLayoutConstraint?
 
   @objc
   private func miniPlayerGotTouched(_ recognizer: UITapGestureRecognizer) {
@@ -922,7 +977,7 @@ class MiniPlayerView: UIView {
       artistLabel: subtitleLabel
     )
     playerHandler?.refreshArtwork(artworkImage: artworkImage)
-    playerHandler?.refreshPlayButton(playButton)
+    refreshPlayButton()
     playerHandler?.refreshPrevNextButtons(previousButton: previousButton, nextButton: nextButton)
     #if targetEnvironment(macCatalyst) // ok
       // on iPad the buttons only open the popup player and show no state

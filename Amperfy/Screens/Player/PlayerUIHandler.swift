@@ -89,7 +89,11 @@ class PlayerUIHandler: NSObject {
     appDelegate.storage.settings.user.isAutoplayEnabled.toggle()
   }
 
-  func refreshPlayButton(_ button: UIButton) {
+  /// `miniPlayeriOSPointSize`: the iPad mini player shows a bigger play button.
+  func refreshPlayButton(
+    _ button: UIButton,
+    miniPlayeriOSPointSize: CGFloat = PlayerUIHandler.playAndNextiOSButtonImagePointSize
+  ) {
     var buttonImg = UIImage()
     if player.isPlaying {
       if player.isStopInsteadOfPause {
@@ -109,7 +113,7 @@ class PlayerUIHandler: NSObject {
       buttonImg = buttonImg
         .withConfiguration(
           UIImage
-            .SymbolConfiguration(pointSize: Self.playAndNextiOSButtonImagePointSize)
+            .SymbolConfiguration(pointSize: miniPlayeriOSPointSize)
         )
     case .popupPlayer:
       break
