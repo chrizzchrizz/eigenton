@@ -125,7 +125,16 @@ public class AudioSessionHandler {
     // setCategory/setActive can block for a long time, don't call them on the main thread
     Self.sessionQueue.async {
       do {
-        try AVAudioSession.sharedInstance().setCategory(AVAudioSession.Category.playback)
+        #if targetEnvironment(macCatalyst) // ok
+          // long-form audio: lets AirPlay 2 play the sample buffer renderer output in several rooms
+          try AVAudioSession.sharedInstance().setCategory(
+            .playback,
+            mode: .default,
+            policy: .longFormAudio
+          )
+        #else
+          try AVAudioSession.sharedInstance().setCategory(AVAudioSession.Category.playback)
+        #endif
         try AVAudioSession.sharedInstance().setActive(true)
       } catch {
         Task { @MainActor in

@@ -55,8 +55,19 @@ public class AudioStreamingPlayer: AudioStreaming.AudioPlayer {
       secondsRequiredToStartPlaying: 1,
       gracePeriodAfterSeekInSeconds: 0.5,
       secondsRequiredToStartPlayingAfterBufferUnderrun: 7,
-      enableLogs: false
+      enableLogs: false,
+      outputMode: outputMode
     )
+  }
+
+  /// On macOS the output audio unit is not routed to AirPlay devices picked in the system route
+  /// picker; the sample buffer renderer takes part in AirPlay 2 (incl. multi-room).
+  static var outputMode: AudioPlayerOutputMode {
+    #if targetEnvironment(macCatalyst) // ok
+      .sampleBufferRenderer(maxBufferedSeconds: 4)
+    #else
+      .audioUnit
+    #endif
   }
 
   public func elapsedTime() -> Double {
