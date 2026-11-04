@@ -178,7 +178,8 @@ class ContinuePlaybackSheetVC: UIViewController {
 
     contentStack.setCustomSpacing(24, after: contentStack.arrangedSubviews.last ?? artistLabel)
 
-    var configuration = UIButton.Configuration.prominentGlass()
+    // filled instead of prominent glass: the glass fades its color in after the sheet appears
+    var configuration = UIButton.Configuration.filled()
     configuration.title = "Sync Play Queue"
     configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer {
       var attributes = $0
@@ -190,7 +191,8 @@ class ContinuePlaybackSheetVC: UIViewController {
     }
     configuration.cornerStyle = .capsule
     configuration.buttonSize = .large
-    configuration.baseBackgroundColor = .systemGreen
+    // theme color
+    configuration.baseBackgroundColor = .tintColor
     configuration.baseForegroundColor = .white
     let button = UIButton(
       configuration: configuration,
@@ -200,7 +202,7 @@ class ContinuePlaybackSheetVC: UIViewController {
         self?.dismiss(animated: true) { onContinue() }
       }
     )
-    // Mac would draw its own button style without the glass background
+    // Mac would draw its own button style without the filled background
     button.preferredBehavioralStyle = .pad
     // only as wide as its title
     let buttonContainer = UIView()
