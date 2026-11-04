@@ -65,6 +65,9 @@ struct DisplaySettingsView: View {
                 Button(ThemePreference.eigenton.description) {
                   setThemePreference(preference: .eigenton)
                 }
+                Button(ThemePreference.music.description) {
+                  setThemePreference(preference: .music)
+                }
                 Button(ThemePreference.blue.description) {
                   setThemePreference(preference: .blue)
                 }

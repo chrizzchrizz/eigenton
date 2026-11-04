@@ -300,6 +300,7 @@ public enum SyncCompletionStatus: Int, CaseIterable, Sendable, Codable {
 public enum ThemePreference: Int, CaseIterable, Sendable, Codable {
   // declaration order defines the order in allCases (picker and new account assignment)
   case eigenton = 6
+  case music = 7
   case blue = 0
   case green = 1
   case red = 2
@@ -313,6 +314,8 @@ public enum ThemePreference: Int, CaseIterable, Sendable, Codable {
     switch self {
     case .eigenton:
       return "Eigenton"
+    case .music:
+      return "Music"
     case .blue:
       return "Blue"
     case .green:
@@ -333,6 +336,8 @@ public enum ThemePreference: Int, CaseIterable, Sendable, Codable {
     switch self {
     case .eigenton:
       return .themeEigenton
+    case .music:
+      return .themeMusic
     case .blue:
       return .themeBlue
     case .green:
@@ -359,6 +364,8 @@ public enum ThemePreference: Int, CaseIterable, Sendable, Codable {
   public var contrastColor: UIColor {
     switch self {
     case .eigenton:
+      return .white
+    case .music:
       return .white
     case .blue:
       return .white
