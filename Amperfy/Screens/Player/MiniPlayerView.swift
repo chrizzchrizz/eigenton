@@ -361,6 +361,36 @@ class MiniPlayerView: UIView {
     playerHandler?.airplayButtonPushed(rootView: self, sourceButton: sender)
   }
 
+  /// Theme color while playing to an AirPlay device
+  private func refreshAirplayButton() {
+    #if targetEnvironment(macCatalyst) // ok
+      let isAirPlayActive = MacOutputVolume.shared.isAirPlayActive
+    #else
+      let isAirPlayActive = AVAudioSession.sharedInstance().currentRoute.outputs
+        .contains { $0.portType == .airPlay }
+    #endif
+    airplayButton.tintColor = isAirPlayActive ? .tintColor : .label
+  }
+
+  private var audioRouteObserver: NSObjectProtocol?
+
+  /// Keeps the AirPlay button color in sync with the audio route (iOS; Mac uses
+  /// MacOutputVolume's notification, Catalyst doesn't report AirPlay route changes)
+  private func observeAudioRoute() {
+    #if !targetEnvironment(macCatalyst) // ok
+      guard audioRouteObserver == nil else { return }
+      audioRouteObserver = NotificationCenter.default.addObserver(
+        forName: AVAudioSession.routeChangeNotification,
+        object: nil,
+        queue: .main
+      ) { [weak self] _ in
+        MainActor.assumeIsolated {
+          self?.refreshAirplayButton()
+        }
+      }
+    #endif
+  }
+
   #if targetEnvironment(macCatalyst) // ok
     /// System volume, or the AirPlay volume while playing to AirPlay
     fileprivate lazy var volumeButton: UIButton = {
@@ -573,6 +603,8 @@ class MiniPlayerView: UIView {
 
   public func refreshTrailingButtons() {
     guard let playerHandler else { return }
+    observeAudioRoute()
+    refreshAirplayButton()
     if isConfiguredForiOS {
       // lyrics and queue buttons only on iPad, see displayButtonsView
       lyricsButton.isHidden = !isPadLayout || !playerHandler.isLyricsButtonAllowedToDisplay

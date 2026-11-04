@@ -49,6 +49,8 @@
     private(set) var target = Target.none
     /// 0...1
     private(set) var volume: Float = 0
+    /// True while the app plays to at least one AirPlay room, also without a settable volume
+    private(set) var isAirPlayActive = false
 
     private var pollTimer: Timer?
 
@@ -59,7 +61,7 @@
       observeSystemOutput()
       // no notification from inside the initializer of `shared`: an observer reading `shared`
       // would re-enter it
-      (target, volume) = currentState()
+      (target, volume, isAirPlayActive) = currentState()
       // KVO doesn't fire for every route change (e.g. Mac → one AirPlay room): poll as fallback
       pollTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { _ in
         MainActor.assumeIsolated {
@@ -89,25 +91,27 @@
     }
 
     private func refresh() {
-      let (newTarget, newVolume) = currentState()
-      guard newTarget != target || newVolume != volume else { return }
+      let (newTarget, newVolume, newIsAirPlayActive) = currentState()
+      guard newTarget != target || newVolume != volume || newIsAirPlayActive != isAirPlayActive
+      else { return }
       target = newTarget
       volume = newVolume
+      isAirPlayActive = newIsAirPlayActive
       NotificationCenter.default.post(name: Self.didChangeNotification, object: self)
     }
 
-    private func currentState() -> (Target, Float) {
+    private func currentState() -> (Target, Float, isAirPlayActive: Bool) {
       switch currentAirPlayState() {
       case let .settable(airPlayVolume):
-        return (.airPlay, airPlayVolume)
+        return (.airPlay, airPlayVolume, true)
       case .fixed:
         // the system volume doesn't apply to AirPlay output
-        return (.none, 0)
+        return (.none, 0, true)
       case .inactive:
         if let systemVolume = currentSystemVolume() {
-          return (.system, systemVolume)
+          return (.system, systemVolume, false)
         }
-        return (.none, 0)
+        return (.none, 0, false)
       }
     }
 
