@@ -222,6 +222,8 @@ class LoginVC: UIViewController {
       // the SwiftUI button gets no clicks inside the form sheet on the Mac: use a bar button
       formModel.isModal = false
       if isModal {
+        // the invisible navigation bar would push the centered form down by its height
+        hostingController.safeAreaRegions = []
         navigationItem.rightBarButtonItem = UIBarButtonItem(
           systemItem: .close,
           primaryAction: UIAction { [weak self] _ in self?.closePressed() }

@@ -332,26 +332,43 @@ struct LoginView: View {
     .buttonStyle(.plain)
   }
 
-  private var loginButton: some View {
-    Button(action: login) {
-      ZStack {
-        Text("Log In")
-          .opacity(model.isLoggingIn ? 0 : 1)
-        if model.isLoggingIn {
-          ProgressView()
-            .tint(Color(uiColor: theme.contrastColor))
-        }
+  private var loginButtonLabel: some View {
+    ZStack {
+      Text("Log In")
+        .opacity(model.isLoggingIn ? 0 : 1)
+      if model.isLoggingIn {
+        ProgressView()
+          .tint(Color(uiColor: theme.contrastColor))
       }
-      .font(Self.loginButtonFont)
-      .foregroundStyle(Color(uiColor: theme.contrastColor))
-      .frame(maxWidth: .infinity)
     }
-    .buttonStyle(.borderedProminent)
-    .buttonBorderShape(.capsule)
-    .controlSize(.large)
-    .tint(themeColor)
-    .disabled(model.isLoggingIn)
-    .keyboardShortcut(.defaultAction)
+    .font(Self.loginButtonFont)
+    .foregroundStyle(Color(uiColor: theme.contrastColor))
+    .frame(maxWidth: .infinity)
+  }
+
+  private var loginButton: some View {
+    #if targetEnvironment(macCatalyst)
+      // a large bordered button is much lower on the Mac: as high as the fields instead
+      Button(action: login) {
+        loginButtonLabel
+          .frame(minHeight: Self.fieldHeight)
+          .background(themeColor, in: Capsule())
+          .contentShape(Capsule())
+      }
+      .buttonStyle(.plain)
+      .disabled(model.isLoggingIn)
+      .keyboardShortcut(.defaultAction)
+    #else
+      Button(action: login) {
+        loginButtonLabel
+      }
+      .buttonStyle(.borderedProminent)
+      .buttonBorderShape(.capsule)
+      .controlSize(.large)
+      .tint(themeColor)
+      .disabled(model.isLoggingIn)
+      .keyboardShortcut(.defaultAction)
+    #endif
   }
 
   private var closeButton: some View {
