@@ -361,6 +361,35 @@ class MiniPlayerView: UIView {
     playerHandler?.airplayButtonPushed(rootView: self, sourceButton: sender)
   }
 
+  #if targetEnvironment(macCatalyst) // ok
+    /// System volume, or the AirPlay volume while playing to AirPlay
+    fileprivate lazy var volumeButton: UIButton = {
+      let button = MacOutputVolume.makeButton(pointSize: PlayerUIHandler.bigButtonImagePointSize)
+      button.addTarget(self, action: #selector(Self.volumeButtonPushed), for: .touchUpInside)
+      NotificationCenter.default.addObserver(
+        self,
+        selector: #selector(Self.outputVolumeDidChange),
+        name: MacOutputVolume.didChangeNotification,
+        object: nil
+      )
+      return button
+    }()
+
+    @objc
+    func volumeButtonPushed(_ sender: UIButton) {
+      MacOutputVolume.shared.presentSlider(
+        from: sender,
+        on: AppDelegate.mainWindowHostVC as? UIViewController,
+        arrowDirection: .up
+      )
+    }
+
+    @objc
+    private func outputVolumeDidChange() {
+      refreshTrailingButtons()
+    }
+  #endif
+
   public lazy var infoView: UIView = {
     let view = UIView(frame: .zero)
 
@@ -500,7 +529,12 @@ class MiniPlayerView: UIView {
     self.playlistButton.translatesAutoresizingMaskIntoConstraints = false
     self.airplayButton.translatesAutoresizingMaskIntoConstraints = false
 
-    let buttons = [lyricsButton, playlistButton, airplayButton]
+    #if targetEnvironment(macCatalyst) // ok
+      volumeButton.translatesAutoresizingMaskIntoConstraints = false
+      let buttons = [lyricsButton, playlistButton, airplayButton, volumeButton]
+    #else
+      let buttons = [lyricsButton, playlistButton, airplayButton]
+    #endif
     let stack = UIStackView(arrangedSubviews: buttons)
     stack.axis = .horizontal
     stack.distribution = .equalSpacing
@@ -545,6 +579,12 @@ class MiniPlayerView: UIView {
       playlistButton.isHidden = !isPadLayout
     } else {
       lyricsButton.isHidden = !playerHandler.isLyricsButtonAllowedToDisplay
+      #if targetEnvironment(macCatalyst) // ok
+        MacOutputVolume.shared.update(
+          button: volumeButton,
+          pointSize: PlayerUIHandler.bigButtonImagePointSize
+        )
+      #endif
       let visibleButtonCount = trailingButtonsView.arrangedSubviews.filter { !$0.isHidden }.count
       trailingButtonsViewWidthConstraint?.constant = CGFloat(visibleButtonCount) * 40
     }

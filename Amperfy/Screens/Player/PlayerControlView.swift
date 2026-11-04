@@ -171,7 +171,14 @@ class PlayerControlView: UIView {
   @IBOutlet
   weak var optionsButton: UIButton!
 
-  #if !targetEnvironment(macCatalyst) // ok
+  #if targetEnvironment(macCatalyst) // ok
+    /// System volume, or the AirPlay volume while playing to AirPlay
+    private lazy var volumeButton: UIButton = {
+      let button = MacOutputVolume.makeButton()
+      button.addTarget(self, action: #selector(volumeButtonPushed), for: .touchUpInside)
+      return button
+    }()
+  #else
     private let systemVolumeSlider = SystemVolumeSlider(frame: .zero)
   #endif
 
@@ -191,6 +198,22 @@ class PlayerControlView: UIView {
       volumeStackView.isHidden = true
       volumeStackHeightConstraint.constant = 0
       volumeStackTopConstraint.constant = 0
+      if volumeButton.superview == nil,
+         let stack = airplayButton.superview as? UIStackView,
+         let index = stack.arrangedSubviews.firstIndex(of: airplayButton) {
+        volumeButton.translatesAutoresizingMaskIntoConstraints = false
+        stack.insertArrangedSubview(volumeButton, at: index + 1)
+        NSLayoutConstraint.activate([
+          volumeButton.widthAnchor.constraint(equalTo: airplayButton.widthAnchor),
+          volumeButton.heightAnchor.constraint(equalTo: airplayButton.heightAnchor),
+        ])
+        NotificationCenter.default.addObserver(
+          self,
+          selector: #selector(outputVolumeDidChange),
+          name: MacOutputVolume.didChangeNotification,
+          object: nil
+        )
+      }
     #else
       if systemVolumeSlider.superview == nil {
         volumeStackView.insertArrangedSubview(systemVolumeSlider, at: 1)
@@ -284,6 +307,23 @@ class PlayerControlView: UIView {
   func airplayButtonPushed(_ sender: UIButton) {
     playerHandler?.airplayButtonPushed(rootView: self, sourceButton: sender)
   }
+
+  #if targetEnvironment(macCatalyst) // ok
+    @objc
+    private func volumeButtonPushed(_ sender: UIButton) {
+      MacOutputVolume.shared.presentSlider(
+        from: sender,
+        on: rootView,
+        arrowDirection: .down
+      )
+    }
+
+    @objc
+    private func outputVolumeDidChange() {
+      MacOutputVolume.shared.update(button: volumeButton)
+      optionsStackView.layoutIfNeeded()
+    }
+  #endif
 
   @IBAction
   func displayLyricsPressed() {

@@ -62,6 +62,7 @@
 		504415C72EE865D1005E8429 /* Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504415C62EE865D1005E8429 /* Settings.swift */; };
 		504627EA2B73B44C00F481F8 /* PopupPlayerVC.xib in Resources */ = {isa = PBXBuildFile; fileRef = 504627E92B73B44C00F481F8 /* PopupPlayerVC.xib */; };
 		5047B7082E3CB90C00D5090C /* PlayerUIHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5047B7072E3CB8D400D5090C /* PlayerUIHandler.swift */; };
+		E1A1B0C0D0E0F00100000002 /* MacOutputVolume.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A1B0C0D0E0F00100000001 /* MacOutputVolume.swift */; };
 		504B441728D6EB370033982C /* ArtworkDisplaySettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504B441628D6EB370033982C /* ArtworkDisplaySettings.swift */; };
 		504B441928D6F0920033982C /* LicenseSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504B441828D6F0920033982C /* LicenseSettingsView.swift */; };
 		504B441D28D7A6330033982C /* XCallbackURLsSetttingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504B441C28D7A6330033982C /* XCallbackURLsSetttingsView.swift */; };
@@ -734,6 +735,7 @@
 		5046DAF12689B97600B3C37E /* AbstractPlayableMO+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AbstractPlayableMO+CoreDataClass.swift"; sourceTree = "<group>"; };
 		5046DAF22689B97600B3C37E /* AbstractPlayableMO+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AbstractPlayableMO+CoreDataProperties.swift"; sourceTree = "<group>"; };
 		5047B7072E3CB8D400D5090C /* PlayerUIHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerUIHandler.swift; sourceTree = "<group>"; };
+		E1A1B0C0D0E0F00100000001 /* MacOutputVolume.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacOutputVolume.swift; sourceTree = "<group>"; };
 		504AE7B127BECFDD00571BA5 /* EntityImageView.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = EntityImageView.xib; sourceTree = "<group>"; };
 		504AE7B327BECFF300571BA5 /* EntityImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntityImageView.swift; sourceTree = "<group>"; };
 		504B441628D6EB370033982C /* ArtworkDisplaySettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkDisplaySettings.swift; sourceTree = "<group>"; };
@@ -1378,6 +1380,7 @@
 		504627EB2B73C1E600F481F8 /* Player */ = {
 			isa = PBXGroup;
 			children = (
+				E1A1B0C0D0E0F00100000001 /* MacOutputVolume.swift */,
 				5047B7072E3CB8D400D5090C /* PlayerUIHandler.swift */,
 				509357512E3BF47800CD4075 /* MiniPlayerView.swift */,
 				504627E92B73B44C00F481F8 /* PopupPlayerVC.xib */,
@@ -2570,6 +2573,7 @@
 				50AC4E5328D909730091FF33 /* EventLogSettingsView.swift in Sources */,
 				50AFA1492632E83100F198DD /* GenericDetailTableHeader.swift in Sources */,
 				5047B7082E3CB90C00D5090C /* PlayerUIHandler.swift in Sources */,
+				E1A1B0C0D0E0F00100000002 /* MacOutputVolume.swift in Sources */,
 				504B442228D8EBB20033982C /* MailView.swift in Sources */,
 				5058709021DEBBCA0043896F /* PopupPlayerVC.swift in Sources */,
 				50E936DB2F100C7800C1C504 /* RatingAppEnum.swift in Sources */,
