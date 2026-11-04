@@ -19,6 +19,7 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+import os.log
 import UIKit
 
 // MARK: - AppSettings
@@ -580,6 +581,7 @@ public struct AmperfySettings: Sendable, Codable {
           storeMergedForKey: PersistentStorage.UserDefaultsKey.SettingsApp.rawValue
         )
       } catch {
+        os_log("Decoding app settings failed: %s", type: .error, String(describing: error))
         return _appSettings
       }
     }
@@ -609,6 +611,7 @@ public struct AmperfySettings: Sendable, Codable {
           storeMergedForKey: PersistentStorage.UserDefaultsKey.SettingsUser.rawValue
         )
       } catch {
+        os_log("Decoding user settings failed: %s", type: .error, String(describing: error))
         return _userSettings
       }
     }
