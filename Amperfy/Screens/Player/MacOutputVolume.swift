@@ -55,15 +55,15 @@
     private var pollTimer: Timer?
 
     override private init() {
-      airPlayContext = Self.loadAirPlayContext()
+      self.airPlayContext = Self.loadAirPlayContext()
       super.init()
       observeAirPlayContext()
       observeSystemOutput()
       // no notification from inside the initializer of `shared`: an observer reading `shared`
       // would re-enter it
-      (target, volume, isAirPlayActive) = currentState()
+      (self.target, self.volume, self.isAirPlayActive) = currentState()
       // KVO doesn't fire for every route change (e.g. Mac → one AirPlay room): poll as fallback
-      pollTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { _ in
+      self.pollTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { _ in
         MainActor.assumeIsolated {
           // also while visible but not frontmost (inactive) on Mac
           guard UIApplication.shared.applicationState != .background else { return }
