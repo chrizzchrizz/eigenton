@@ -243,8 +243,22 @@ struct PlayerSettingsView: View {
                 }
               }
             }
+            SettingsRow(title: "Bitrate Limit") {
+              Menu(
+                settings.cacheTranscodingFormatPreference == .raw
+                  ? "Not applicable"
+                  : settings.cacheTranscodingMaxBitratePreference.description
+              ) {
+                ForEach(StreamingMaxBitratePreference.allCases, id: \.self) { bitrate in
+                  Button(bitrate.description) {
+                    settings.cacheTranscodingMaxBitratePreference = bitrate
+                  }
+                }
+              }
+              .disabled(settings.cacheTranscodingFormatPreference == .raw)
+            }
           },
-          footer: "AAC needs a server with an AAC transcoder, e.g. Navidrome; Ampache downloads MP3 instead. Changes do not apply to songs that are already downloaded. Remove the download and redownload if needed.",
+          footer: "AAC needs a server with an AAC transcoder, e.g. Navidrome; Ampache downloads MP3 instead. “Original” downloads the file unchanged, so the bitrate limit does not apply. Ampache ignores the bitrate limit for downloads. Changes do not apply to songs that are already downloaded. Remove the download and redownload if needed.",
           header: "Download"
         )
       }

@@ -202,6 +202,13 @@ class SettingsHostVC: UIViewController {
       self.appDelegate.storage.settings.user.cacheTranscodingFormatPreference = newValue
     }))
 
+    settings.cacheTranscodingMaxBitratePreference = appDelegate.storage.settings.user
+      .cacheTranscodingMaxBitratePreference
+    changesAgent
+      .append(settings.$cacheTranscodingMaxBitratePreference.sink(receiveValue: { newValue in
+        self.appDelegate.storage.settings.user.cacheTranscodingMaxBitratePreference = newValue
+      }))
+
     settings.isPlayerAutoCachePlayedItems = appDelegate.player.isAutoCachePlayedItems
     changesAgent.append(settings.$isPlayerAutoCachePlayedItems.sink(receiveValue: { newValue in
       self.appDelegate.player.isAutoCachePlayedItems = newValue

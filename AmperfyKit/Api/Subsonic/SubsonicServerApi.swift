@@ -339,31 +339,37 @@ final class SubsonicServerApi: URLCleanser, Sendable {
     let version = try await determineApiVersionToUse()
     // If transcoding is selected for caching the subsonic API method 'stream' must be used
     // For raw format subsonic API method 'download' can be used
+    let format: String?
     switch settings.user.cacheTranscodingFormatPreference {
-    case .mp3:
-      var urlComp = try createAuthApiUrlComponent(version: version, forAction: "stream", id: apiId)
-      urlComp.addQueryItem(name: "format", value: "mp3")
-      let url = try createUrl(from: urlComp)
-      return url
-    case .aac:
-      var urlComp = try createAuthApiUrlComponent(version: version, forAction: "stream", id: apiId)
-      urlComp.addQueryItem(name: "format", value: "aac")
-      let url = try createUrl(from: urlComp)
-      return url
-    case .serverConfig:
-      let urlComp = try createAuthApiUrlComponent(version: version, forAction: "stream", id: apiId)
-      // let the server decide which format to use
-      let url = try createUrl(from: urlComp)
-      return url
     case .raw:
       let urlComp = try createAuthApiUrlComponent(
         version: version,
         forAction: "download",
         id: apiId
       )
-      let url = try createUrl(from: urlComp)
-      return url
+      return try createUrl(from: urlComp)
+    case .mp3:
+      format = "mp3"
+    case .aac:
+      format = "aac"
+    case .serverConfig:
+      // let the server decide which format to use
+      format = nil
     }
+    var urlComp = try createAuthApiUrlComponent(version: version, forAction: "stream", id: apiId)
+    if let format {
+      urlComp.addQueryItem(name: "format", value: format)
+    }
+    Self.addMaxBitRate(settings.user.cacheTranscodingMaxBitratePreference, to: &urlComp)
+    return try createUrl(from: urlComp)
+  }
+
+  private static func addMaxBitRate(
+    _ maxBitrate: StreamingMaxBitratePreference,
+    to urlComp: inout URLComponents
+  ) {
+    guard maxBitrate != .noLimit else { return }
+    urlComp.addQueryItem(name: "maxBitRate", value: maxBitrate.rawValue)
   }
 
   public func generateUrl(
@@ -380,14 +386,9 @@ final class SubsonicServerApi: URLCleanser, Sendable {
     if let format = formatPreference.formatQueryValue {
       urlComp.addQueryItem(name: "format", value: format)
     }
-    switch maxBitrate {
-    case .noLimit:
-      break
-    default:
-      // the original file is sent unchanged, a bitrate limit does not apply
-      if formatPreference != .raw {
-        urlComp.addQueryItem(name: "maxBitRate", value: maxBitrate.rawValue)
-      }
+    // the original file is sent unchanged, a bitrate limit does not apply
+    if formatPreference != .raw {
+      Self.addMaxBitRate(maxBitrate, to: &urlComp)
     }
     if timeOffset > 0 {
       urlComp.addQueryItem(name: "timeOffset", value: timeOffset)

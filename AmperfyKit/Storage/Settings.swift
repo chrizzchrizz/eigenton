@@ -77,6 +77,12 @@ public struct UserSettings: Sendable, Codable {
     set { _cacheTranscodingFormatPreference = newValue }
   }
 
+  private var _cacheTranscodingMaxBitratePreference: StreamingMaxBitratePreference = .defaultValue
+  public var cacheTranscodingMaxBitratePreference: StreamingMaxBitratePreference {
+    get { _cacheTranscodingMaxBitratePreference }
+    set { _cacheTranscodingMaxBitratePreference = newValue }
+  }
+
   private var _isShowDetailedInfo: Bool = false
   public var isShowDetailedInfo: Bool {
     get { _isShowDetailedInfo }
