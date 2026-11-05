@@ -67,22 +67,7 @@ extension AppDelegate {
             attributes: !isMainOrMiniPlayerPlayerOpen ? .disabled : []
           ),
         ]),
-        UIMenu(options: .displayInline, children: [
-          UIAction(
-            title: "Switch Library/Mini Player",
-            image: AmperfyImage.switchPlayerWindow.asUIImage
-          ) { _ in
-            if self.isShowingMiniPlayer {
-              self.closeMiniPlayer()
-              // mini player close will automatically (in scene disconnect) open Main again
-            } else {
-              self.closeMainWindow()
-              self.showMiniPlayer()
-            }
-          },
-        ]),
       ]
-      builder.insertChild(fileMenus[1], atStartOfMenu: .file)
       builder.insertChild(fileMenus[0], atStartOfMenu: .file)
       let openSettingsMenu = UIMenu(options: .displayInline, children: [
         UIKeyCommand(
@@ -94,6 +79,16 @@ extension AppDelegate {
         ),
       ])
       builder.insertSibling(openSettingsMenu, afterMenu: .about)
+      let switchPlayerMenu = UIMenu(options: .displayInline, children: [
+        UIKeyCommand(
+          title: "Switch Library/Mini Player",
+          image: AmperfyImage.switchPlayerWindow.asUIImage,
+          action: #selector(keyCommandSwitchLibraryMiniPlayer),
+          input: "F",
+          modifierFlags: [.shift, .command]
+        ),
+      ])
+      builder.insertSibling(switchPlayerMenu, afterMenu: .minimizeAndZoom)
     #endif
 
     // Add media controls
@@ -157,6 +152,17 @@ extension AppDelegate {
       songToScrollTo: playable?.asSong
     )
     displayInLibraryTab(vc: albumDetailVC)
+  }
+
+  @objc
+  private func keyCommandSwitchLibraryMiniPlayer() {
+    if isShowingMiniPlayer {
+      closeMiniPlayer()
+      // mini player close will automatically (in scene disconnect) open Main again
+    } else {
+      closeMainWindow()
+      showMiniPlayer()
+    }
   }
 
   @objc
