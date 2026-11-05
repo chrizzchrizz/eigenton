@@ -38,6 +38,13 @@ public class CoreDataCompanion {
     library.saveContext()
   }
 
+  /// Newly created objects only have a temporary object ID, which other contexts can't resolve
+  public func getPermanentObjectIDs(of songs: [Song]) throws -> [NSManagedObjectID] {
+    let managedObjects = songs.map { $0.managedObject }
+    try context.obtainPermanentIDs(for: managedObjects)
+    return managedObjects.map { $0.objectID }
+  }
+
   /// Only for the main context: it lives on the main queue, so running on the main actor is
   /// already the context's queue. `performAndWait` would be a blocking sync dispatch from
   /// a Swift concurrency context (unsafeForcedSync).
