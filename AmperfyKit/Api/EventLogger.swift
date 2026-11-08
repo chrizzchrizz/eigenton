@@ -211,12 +211,25 @@ public class EventLogger {
   /// Transport level failures (server unreachable, connection lost, timeout), not errors returned by the server
   static func isNetworkError(_ error: Error) -> Bool {
     if let afError = error.asAFError {
-      if afError.isSessionTaskError { return true }
       guard let underlyingError = afError.underlyingError else { return false }
       return isNetworkError(underlyingError)
     }
-    return (error as NSError).domain == NSURLErrorDomain
+    guard let urlError = error as? URLError else { return false }
+    return connectionErrorCodes.contains(urlError.code)
   }
+
+  /// Not included: cancellation, invalid URLs, ATS and certificate errors.
+  private static let connectionErrorCodes: Set<URLError.Code> = [
+    .notConnectedToInternet,
+    .networkConnectionLost,
+    .cannotConnectToHost,
+    .cannotFindHost,
+    .dnsLookupFailed,
+    .timedOut,
+    .internationalRoamingOff,
+    .dataNotAllowed,
+    .callIsActive,
+  ]
 
   public func report(topic: String, error: ResponseError, displayPopup: Bool) {
     var alertMessage = ""

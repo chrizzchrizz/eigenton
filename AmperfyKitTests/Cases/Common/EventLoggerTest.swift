@@ -32,6 +32,11 @@ class EventLoggerTest: XCTestCase {
     XCTAssertTrue(EventLogger.isNetworkError(URLError(.timedOut)))
   }
 
+  func testCertificateAndCancelAreNoNetworkError() {
+    XCTAssertFalse(EventLogger.isNetworkError(URLError(.serverCertificateUntrusted)))
+    XCTAssertFalse(EventLogger.isNetworkError(URLError(.cancelled)))
+  }
+
   func testOtherErrorIsNoNetworkError() {
     let error = NSError(domain: "Amperfy", code: 1)
     XCTAssertFalse(EventLogger.isNetworkError(error))

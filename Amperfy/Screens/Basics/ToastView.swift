@@ -42,8 +42,12 @@ enum Toast {
   /// Distance between the toast and the edge it floats above.
   private static let bottomSpacing: CGFloat = 16
 
+  /// Distance between the toast and the leading and trailing window edges.
+  private static let sideSpacing: CGFloat = 16
+
   private static var host: UIHostingController<ToastView>?
-  static var isVisible: Bool { host != nil }
+  /// A toast whose window was closed before it finished does not count.
+  static var isVisible: Bool { host?.view.window != nil }
 
   static func show(
     title: String,
@@ -53,17 +57,20 @@ enum Toast {
     placement: ToastPlacement,
     onTap: (() -> ())? = nil
   ) {
-    guard host == nil else { return }
+    guard !isVisible else { return }
+    Self.host?.view.removeFromSuperview()
     let host = UIHostingController(rootView: ToastView(
       title: title,
       subtitle: subtitle,
       color: style.toastColor,
       onTap: onTap,
-      onFinished: {
-        Self.host?.view.removeFromSuperview()
-        Self.host = nil
-      }
+      onFinished: {}
     ))
+    // only clear the toast that finished, not a newer one
+    host.rootView.onFinished = { [weak host] in
+      host?.view.removeFromSuperview()
+      if Self.host === host { Self.host = nil }
+    }
     Self.host = host
     host.view.backgroundColor = .clear
     host.sizingOptions = [.intrinsicContentSize]
@@ -73,8 +80,16 @@ enum Toast {
     window.addSubview(view)
     let widthFill = view.widthAnchor.constraint(equalToConstant: maxWidth)
     widthFill.priority = .defaultHigh
+    // centered on the mini player as long as it fits into the window
+    let centered = view.centerXAnchor.constraint(
+      equalTo: window.leftAnchor,
+      constant: placement.centerX
+    )
+    centered.priority = .defaultHigh + 1
     NSLayoutConstraint.activate([
-      view.centerXAnchor.constraint(equalTo: window.leftAnchor, constant: placement.centerX),
+      centered,
+      view.leftAnchor.constraint(greaterThanOrEqualTo: window.leftAnchor, constant: sideSpacing),
+      view.rightAnchor.constraint(lessThanOrEqualTo: window.rightAnchor, constant: -sideSpacing),
       view.bottomAnchor.constraint(
         equalTo: window.topAnchor,
         constant: placement.bottomEdge - bottomSpacing
@@ -94,16 +109,12 @@ struct ToastView: View {
   private static let displayDuration: Duration = .seconds(5)
   private static let openAnimation: Animation = .spring(duration: 0.5, bounce: 0.2)
   private static let closeAnimation: Animation = .easeIn(duration: 0.30)
-  private static let transition: AnyTransition = .asymmetric(
-    insertion: AnyTransition(.blurReplace),
-    removal: AnyTransition(.blurReplace)
-  )
 
   let title: String
   let subtitle: String
   let color: Color
   let onTap: (() -> ())?
-  let onFinished: () -> ()
+  var onFinished: () -> ()
 
   @State
   private var isShown = false
@@ -123,7 +134,7 @@ struct ToastView: View {
           .contentShape(.capsule)
           .onTapGesture(perform: handleTap)
           .accessibilityElement(children: .combine)
-          .transition(Self.transition)
+          .transition(.blurReplace)
       }
     }
     .onAppear {

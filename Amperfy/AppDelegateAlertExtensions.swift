@@ -119,6 +119,8 @@ extension AppDelegate: AlertDisplayable {
     guard !Toast.isVisible,
           let topView = Self.topViewController(),
           topView.presentedViewController == nil,
+          // no key window: the app is in the background
+          UIApplication.shared.mainWindow != nil,
           let window = Self.window
     else { return }
 

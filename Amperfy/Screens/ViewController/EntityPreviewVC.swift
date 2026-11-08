@@ -512,7 +512,10 @@ class EntityPreviewActionBuilder {
         topic: "Instant Mix",
         message: "Playing instant mix with \(allSongs.count) songs",
         displayPopup: true,
-        toast: AlertToastText(title: "Instant Mix", subtitle: "\(allSongs.count) songs")
+        toast: AlertToastText(
+          title: "Instant Mix",
+          subtitle: allSongs.count == 1 ? "1 song" : "\(allSongs.count) songs"
+        )
       )
 
     } catch {
