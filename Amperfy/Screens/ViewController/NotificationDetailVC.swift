@@ -29,6 +29,8 @@ class NotificationDetailVC: UIViewController {
   weak var titleLabel: UILabel!
   @IBOutlet
   weak var descriptionTextView: UITextView!
+  @IBOutlet
+  weak var closeButton: UIButton!
 
   var topic = ""
   var message = ""
@@ -37,6 +39,13 @@ class NotificationDetailVC: UIViewController {
   override func viewDidLoad() {
     super.viewDidLoad()
     view.setBackgroundBlur(style: .prominent)
+    #if targetEnvironment(macCatalyst)
+      // the close button type draws no xmark on the Mac when it has a configuration
+      closeButton.configuration?.image = UIImage(
+        systemName: "xmark",
+        withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .bold)
+      )
+    #endif
 
     if let presentationController = presentationController as? UISheetPresentationController {
       presentationController.detents = [

@@ -11,6 +11,7 @@
     <objects>
         <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner" customClass="NotificationDetailVC" customModule="Amperfy" customModuleProvider="target">
             <connections>
+                <outlet property="closeButton" destination="JHZ-kb-Qyt" id="cB7-xm-Mac"/>
                 <outlet property="descriptionTextView" destination="Xq9-7l-e3O" id="Qo0-Qm-fYT"/>
                 <outlet property="titleLabel" destination="uHP-qw-pjW" id="LoN-MW-arI"/>
                 <outlet property="view" destination="iN0-l3-epB" id="jnP-Cl-vBL"/>
