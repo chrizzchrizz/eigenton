@@ -826,8 +826,8 @@ public class LibraryStorage: PlayableFileCachable {
   }
 
   /// Removes the files in the artwork cache of `account` that no artwork points to, e.g. left by
-  /// a deleted album or artist (the artwork relationship cascades). Only call this while no sync or
-  /// download runs.
+  /// a deleted album or artist (before model v53 the artwork was deleted with it, its file was
+  /// kept). Only call this while no sync or download runs.
   /// - Returns: The number of removed files.
   @discardableResult
   func removeArtworkFilesWithoutArtwork(account: Account) -> Int {

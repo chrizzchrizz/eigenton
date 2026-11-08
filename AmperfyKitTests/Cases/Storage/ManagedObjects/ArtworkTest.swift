@@ -20,6 +20,7 @@
 //
 
 @testable import AmperfyKit
+import CoreData
 import XCTest
 
 @MainActor
@@ -237,5 +238,44 @@ class ArtworkTest: XCTestCase {
 
     XCTAssertFalse(FileManager.default.fileExists(atPath: strayFile.path))
     XCTAssertTrue(FileManager.default.fileExists(atPath: ownedFile.path))
+  }
+
+  func testDeletedEntityKeepsSharedArtwork() {
+    let artist1 = seededArtist(0)
+    let artist2 = seededArtist(1)
+    let shared = createArtwork(id: "shared")
+    artist1.artwork = shared
+    artist2.artwork = shared
+    library.saveContext()
+
+    library.deleteArtist(artist: artist1)
+    library.saveContext()
+
+    XCTAssertTrue(exists(id: "shared"))
+    XCTAssertEqual(artist2.artwork, shared)
+    XCTAssertFalse(unreferencedIds().contains("shared"))
+
+    library.deleteArtist(artist: artist2)
+    library.saveContext()
+
+    // the last owner is gone, the artwork is left for the cleanup at app start
+    XCTAssertTrue(unreferencedIds().contains("shared"))
+  }
+
+  func testMigrationToV53() {
+    let v52 = NSManagedObjectModel
+      .managedObjectModel(forResource: CoreDataMigrationVersion.v52.rawValue)
+    let v53 = NSManagedObjectModel
+      .managedObjectModel(forResource: CoreDataMigrationVersion.v53.rawValue)
+    let artworkRelationship = v53.entitiesByName["AbstractLibraryEntity"]?
+      .relationshipsByName["artwork"]
+    XCTAssertEqual(artworkRelationship?.deleteRule, .nullifyDeleteRule)
+    // a delete rule alone doesn't change the hash, without the version hash modifier a v53 store
+    // would also match v52 and be migrated again on every launch
+    XCTAssertNotEqual(v52.entityVersionHashesByName, v53.entityVersionHashesByName)
+    XCTAssertNotNil(try? NSMappingModel.inferredMappingModel(
+      forSourceModel: v52,
+      destinationModel: v53
+    ))
   }
 }
