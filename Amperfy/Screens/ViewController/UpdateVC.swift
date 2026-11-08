@@ -21,29 +21,54 @@
 
 import AmperfyKit
 import Foundation
+import SwiftUI
 import UIKit
 
 // MARK: - UpdateVC
 
+/// Shown once after an app update that needs a longer library update, looks like the initial sync
 class UpdateVC: UIViewController {
   var tickCount: Int = 0
   var oprationPercent: Float = 0.0
   var totalTickCount: Int = 1
 
-  @IBOutlet
-  weak var progressBar: UIProgressView!
-  @IBOutlet
-  weak var progressLabel: UILabel!
-  @IBOutlet
-  weak var progressInfo: UILabel!
-  @IBOutlet
-  weak var activitySpinner: UIActivityIndicatorView!
+  private let progressModel = SyncProgressModel()
+
+  private lazy var hostingController: UIHostingController<SyncView> = {
+    let theme = appDelegate.storage.settings.accounts.active.map {
+      appDelegate.storage.settings.accounts.getSetting($0).read.themePreference
+    } ?? .defaultValue
+    let rootView = SyncView(
+      model: progressModel,
+      theme: theme,
+      title: "Updating your Library",
+      footnote: "This only happens once after an app update.",
+      onSkip: nil
+    )
+    return UIHostingController(rootView: rootView)
+  }()
 
   override func viewDidLoad() {
     super.viewDidLoad()
-    progressBar.setProgress(0.0, animated: true)
-    progressInfo.text = ""
-    progressLabel.text = String(format: "%.1f", 0.0) + "%"
+    if let accountInfo = appDelegate.storage.settings.accounts.active,
+       let credentials = appDelegate.storage.settings.accounts.getSetting(accountInfo).read
+       .loginCredentials {
+      progressModel.serverUrl = credentials.displayServerUrl
+      progressModel.username = credentials.username
+    }
+
+    addChild(hostingController)
+    hostingController.view.translatesAutoresizingMaskIntoConstraints = false
+    hostingController.view.backgroundColor = .clear
+    view.addSubview(hostingController.view)
+    NSLayoutConstraint.activate([
+      hostingController.view.topAnchor.constraint(equalTo: view.topAnchor),
+      hostingController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+      hostingController.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+      hostingController.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+    ])
+    hostingController.didMove(toParent: self)
+
     appDelegate.isKeepScreenAlive = true
   }
 
@@ -56,10 +81,7 @@ class UpdateVC: UIViewController {
       } catch {
         // cancle and do nothing
       }
-      self.progressInfo.text = "Done"
-      self.activitySpinner.stopAnimating()
-      self.activitySpinner.isHidden = true
-      self.progressLabel.isHidden = true
+      self.progressModel.finish()
 
       self.appDelegate.isKeepScreenAlive = false
       self.appDelegate.eventLogger.supressAlerts = false
@@ -75,14 +97,6 @@ class UpdateVC: UIViewController {
       }
     }
   }
-
-  private func updateSyncInfo(infoText: String? = nil, percentParsed: Float = 0.0) {
-    if let infoText = infoText {
-      progressInfo.text = infoText
-    }
-    progressBar.setProgress(percentParsed, animated: percentParsed != 0.0)
-    progressLabel.text = String(format: "%.1f", percentParsed * 100) + "%"
-  }
 }
 
 // MARK: LibraryUpdaterCallbacks
@@ -93,17 +107,7 @@ extension UpdateVC: LibraryUpdaterCallbacks {
       self.tickCount = 0
       self.oprationPercent = 0.0
       self.totalTickCount = totalCount > 0 ? totalCount : 1
-
-      if totalCount > 0 {
-        self.activitySpinner.stopAnimating()
-        self.activitySpinner.isHidden = true
-      } else {
-        self.activitySpinner.startAnimating()
-        self.activitySpinner.isHidden = false
-      }
-      self.progressLabel.isHidden = totalCount <= 0
-
-      self.updateSyncInfo(infoText: name, percentParsed: 0.0)
+      self.progressModel.start(step: name, totalCount: totalCount)
     }
   }
 
@@ -115,8 +119,9 @@ extension UpdateVC: LibraryUpdaterCallbacks {
         parsePercent = min(Float(self.tickCount) / Float(self.totalTickCount), 1.0)
       }
       let percentDiff = Int(parsePercent * 1000) - Int(self.oprationPercent * 1000)
-      if percentDiff > 0 {
-        self.updateSyncInfo(percentParsed: parsePercent)
+      // Steps without a known total count keep showing the spinner only
+      if percentDiff > 0, self.progressModel.progress != nil {
+        self.progressModel.progress = parsePercent
       }
       self.oprationPercent = parsePercent
     }

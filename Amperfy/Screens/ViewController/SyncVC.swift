@@ -34,7 +34,7 @@ class SyncVC: UIViewController {
   var syncFinished = false
   var account: Account!
 
-  private let progressModel = SyncProgressModel()
+  private let progressModel = SyncProgressModel(steps: SyncProgressModel.initialSyncSteps)
 
   private lazy var hostingController: UIHostingController<SyncView> = {
     let rootView = SyncView(
@@ -170,7 +170,12 @@ extension SyncVC: SyncCallbacks {
       self.parsedObjectPercent = 0.0
       self.state = parsedObjectType
       self.libObjectsToParseCount = totalCount > 0 ? totalCount : 1
-      self.progressModel.start(step: parsedObjectType, totalCount: totalCount)
+      // Only runs (as first step) if files of this account are already cached on the device
+      self.progressModel.start(
+        step: parsedObjectType.syncStepTitle,
+        totalCount: totalCount,
+        isUnknownStepFirst: true
+      )
     }
   }
 }

@@ -33,9 +33,9 @@ final class SyncProgressModel {
     case pending
   }
 
-  /// Order in which the backends run the initial sync
-  private(set) var steps: [ParsedObjectType] = [.genre, .artist, .album, .playlist, .podcast]
-  private(set) var currentStep: ParsedObjectType?
+  /// Step titles in the order they run
+  private(set) var steps: [String]
+  private(set) var currentStep: String?
   /// nil while the total count of the current step is unknown
   var progress: Float?
   private(set) var isFinished = false
@@ -43,13 +43,35 @@ final class SyncProgressModel {
   var serverUrl = ""
   var username = ""
 
-  func start(step: ParsedObjectType, totalCount: Int) {
-    // Only runs (as first step) if files of this account are already cached on the device
-    if !steps.contains(step) {
-      steps.insert(step, at: 0)
+  /// - Parameter steps: The steps known in advance. Others are added when they start.
+  init(steps: [String] = []) {
+    self.steps = steps
+  }
+
+  /// Order in which the backends run the initial sync
+  static let initialSyncSteps = [ParsedObjectType]([.genre, .artist, .album, .playlist, .podcast])
+    .map { $0.syncStepTitle }
+
+  /// - Parameter isUnknownStepFirst: Add a step that is not known yet in front of the others
+  ///   instead of after them.
+  func start(step: String, totalCount: Int, isUnknownStepFirst: Bool = false) {
+    guard !steps.contains(step) else {
+      currentStep = step
+      progress = totalCount > 0 ? 0 : nil
+      return
     }
-    currentStep = step
-    progress = totalCount > 0 ? 0 : nil
+    // A new row appears without animation, the card would grow from a smaller frame otherwise
+    var transaction = Transaction()
+    transaction.disablesAnimations = true
+    withTransaction(transaction) {
+      if isUnknownStepFirst {
+        steps.insert(step, at: 0)
+      } else {
+        steps.append(step)
+      }
+      currentStep = step
+      progress = totalCount > 0 ? 0 : nil
+    }
   }
 
   func finish() {
@@ -58,7 +80,7 @@ final class SyncProgressModel {
     progress = nil
   }
 
-  func status(of step: ParsedObjectType) -> StepStatus {
+  func status(of step: String) -> StepStatus {
     if isFinished { return .done }
     guard let currentStep,
           let currentIndex = steps.firstIndex(of: currentStep),
@@ -88,7 +110,10 @@ struct SyncView: View {
 
   var model: SyncProgressModel
   let theme: ThemePreference
-  let onSkip: () -> ()
+  var title = "Setting up your Library"
+  var footnote = "Large libraries can take a few minutes to sync."
+  /// Hides the skip button if nil
+  var onSkip: (() -> ())?
 
   private var themeColor: Color {
     theme.asSwiftUIColor
@@ -99,8 +124,15 @@ struct SyncView: View {
       VStack(spacing: 0) {
         header
           .padding(.bottom, 32)
-        stepsGroup
-        Text("Large libraries can take a few minutes to sync.")
+        if model.steps.isEmpty, !model.isFinished {
+          // Before the first step starts, e.g. while the update fetches what it has to do
+          ProgressView()
+            .tint(themeColor)
+            .frame(height: Self.rowHeight)
+        } else {
+          stepsGroup
+        }
+        Text(footnote)
           .font(.footnote)
           .foregroundStyle(.secondary)
           .multilineTextAlignment(.center)
@@ -115,11 +147,13 @@ struct SyncView: View {
     .defaultScrollAnchor(Self.formAlignment, for: .alignment)
     .scrollBounceBehavior(.basedOnSize)
     .safeAreaInset(edge: .bottom) {
-      skipButton
-        .frame(maxWidth: Self.maxFormWidth)
-        .padding(.horizontal, 20)
-        .padding(.bottom, 20)
-        .frame(maxWidth: .infinity)
+      if let onSkip {
+        skipButton(action: onSkip)
+          .frame(maxWidth: Self.maxFormWidth)
+          .padding(.horizontal, 20)
+          .padding(.bottom, 20)
+          .frame(maxWidth: .infinity)
+      }
     }
     .background { background }
   }
@@ -139,7 +173,7 @@ struct SyncView: View {
         .foregroundStyle(themeColor)
         .accessibilityHidden(true)
       VStack(spacing: 6) {
-        Text("Setting up your Library")
+        Text(title)
           .font(Self.titleFont)
           .fontWeight(.semibold)
           .multilineTextAlignment(.center)
@@ -171,14 +205,14 @@ struct SyncView: View {
     .animation(.default, value: model.isFinished)
   }
 
-  private func stepRow(_ step: ParsedObjectType) -> some View {
+  private func stepRow(_ step: String) -> some View {
     let status = model.status(of: step)
     let progress = status == .current ? model.progress : nil
     return VStack(alignment: .leading, spacing: 0) {
       HStack(spacing: Self.statusIconSpacing) {
         statusIcon(status)
           .frame(width: Self.statusIconWidth)
-        Text(Self.title(of: step))
+        Text(step)
           .foregroundStyle(status == .pending ? .secondary : .primary)
         Spacer()
         if let progress {
@@ -218,8 +252,8 @@ struct SyncView: View {
     }
   }
 
-  private var skipButton: some View {
-    Button(action: onSkip) {
+  private func skipButton(action: @escaping () -> ()) -> some View {
+    Button(action: action) {
       Text("Skip Sync")
         .font(Self.skipButtonFont)
         .fontWeight(.semibold)
@@ -232,9 +266,12 @@ struct SyncView: View {
     .buttonStyle(.plain)
     .disabled(model.isFinished)
   }
+}
 
-  private static func title(of step: ParsedObjectType) -> String {
-    switch step {
+extension ParsedObjectType {
+  /// Title of the initial sync step
+  var syncStepTitle: String {
+    switch self {
     case .artist: "Artists"
     case .album: "Albums"
     case .song: "Songs"
@@ -247,10 +284,10 @@ struct SyncView: View {
 }
 
 #Preview {
-  let model = SyncProgressModel()
+  let model = SyncProgressModel(steps: SyncProgressModel.initialSyncSteps)
   model.serverUrl = "music.example.com"
   model.username = "user"
-  model.start(step: .album, totalCount: 100)
+  model.start(step: ParsedObjectType.album.syncStepTitle, totalCount: 100)
   model.progress = 0.42
   return SyncView(model: model, theme: .eigenton, onSkip: {})
 }
