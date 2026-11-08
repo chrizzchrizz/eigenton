@@ -97,6 +97,8 @@ enum Toast {
       view.widthAnchor.constraint(lessThanOrEqualToConstant: maxWidth),
       widthFill,
     ])
+    // the toast is outside the focus order and gone after a few seconds: read it out
+    UIAccessibility.post(notification: .announcement, argument: "\(title), \(subtitle)")
   }
 }
 
