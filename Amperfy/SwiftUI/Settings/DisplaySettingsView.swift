@@ -128,17 +128,6 @@ struct DisplaySettingsView: View {
         SettingsSection(
           content: {
             SettingsCheckBoxRow(
-              title: "Hide Network Error Banners",
-              isOn: $settings.isHideNetworkErrorBanners
-            )
-          },
-          footer:
-          "Do not display a banner when a request fails because the server is unreachable or the connection is lost. Errors are still written to the event log."
-        )
-
-        SettingsSection(
-          content: {
-            SettingsCheckBoxRow(
               title: "Music Player Skip Buttons",
               isOn: $settings.isShowMusicPlayerSkipButtons
             )

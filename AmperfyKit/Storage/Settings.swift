@@ -205,12 +205,6 @@ public struct UserSettings: Sendable, Codable {
     set { _isArtworkBackgroundEnabled = newValue }
   }
 
-  private var _isHideNetworkErrorBanners: Bool = false
-  public var isHideNetworkErrorBanners: Bool {
-    get { _isHideNetworkErrorBanners }
-    set { _isHideNetworkErrorBanners = newValue }
-  }
-
   private var _isEqualizerEnabled: Bool = false
   public var isEqualizerEnabled: Bool {
     get { _isEqualizerEnabled }

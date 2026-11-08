@@ -80,8 +80,6 @@ final class Settings: ObservableObject {
   var isHapticsEnabled = true
   @Published
   var isArtworkBackgroundEnabled = true
-  @Published
-  var isHideNetworkErrorBanners = false
 
   @Published
   var activeAccountInfo: AccountInfo?

@@ -190,15 +190,13 @@ public class EventLogger {
     if let apiError = error as? ResponseError {
       return report(topic: topic, error: apiError, displayPopup: displayPopup)
     }
-    let isHiddenNetworkError = Self.isNetworkError(error) && storage.settings.user
-      .isHideNetworkErrorBanners
     saveAndDisplay(
       topic: topic,
       logType: .error,
       errorType: .commonError,
       statusCode: 0,
       logMessage: topic + ": " + error.localizedDescription,
-      displayPopup: displayPopup && !isHiddenNetworkError,
+      displayPopup: displayPopup,
       popupMessage: error.localizedDescription,
       detailMessage: error.localizedDescription,
       toast: AlertToastText(
