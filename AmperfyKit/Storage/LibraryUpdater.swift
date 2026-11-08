@@ -236,6 +236,22 @@ public class LibraryUpdater {
         type: .info
       )
     }
+    if storage.settings.app.librarySyncVersion < .v22 {
+      storage
+        .settings.app.librarySyncVersion =
+        .v22 // if App crashes don't do this step again -> This step is only for convenience
+      os_log(
+        "Perform blocking library update (START): Remove unreferenced artworks",
+        log: self.log,
+        type: .info
+      )
+      try await deleteUnreferencedArtworks(notifier: notifier)
+      os_log(
+        "Perform blocking library update (DONE): Remove unreferenced artworks",
+        log: self.log,
+        type: .info
+      )
+    }
   }
 
   @MainActor
@@ -274,6 +290,51 @@ public class LibraryUpdater {
       $0.updateArtworkItems()
     }
     storage.main.saveContext()
+  }
+
+  /// One-time cleanup of the leftovers from before #896: unreferenced artworks and files in the
+  /// artwork cache without an artwork. Only accounts from the settings: obsolete accounts are
+  /// deleted in parallel at app start.
+  @MainActor
+  private func deleteUnreferencedArtworks(notifier: LibraryUpdaterCallbacks) async throws {
+    let log = log
+    let accountInfos = Set(storage.settings.accounts.allAccounts)
+    try await storage.async.perform { asyncCompanion in
+      let library = asyncCompanion.library
+      let accounts = library.getAllAccounts().filter { accountInfos.contains($0.info) }
+      let artworkMOs = accounts.flatMap { library.getUnreferencedArtworks(account: $0) }
+      os_log("Unreferenced artworks to delete: %d", log: log, type: .info, artworkMOs.count)
+      notifier.startOperation(name: "Artwork Cleanup", totalCount: artworkMOs.count)
+      for chunk in artworkMOs.chunked(intoSubarraySize: 500) {
+        library.deleteArtworksWithCachedFiles(chunk)
+        chunk.forEach { _ in notifier.tickOperation() }
+      }
+      for account in accounts {
+        let removedCount = library.removeArtworkFilesWithoutArtwork(account: account)
+        os_log("Artwork files without artwork removed: %d", log: log, type: .info, removedCount)
+      }
+    }
+  }
+
+  /// Deletes the artworks that lost their last reference since the last app start, see
+  /// `LibraryStorage.getUnreferencedArtworks`. Must run before syncs and downloads are started,
+  /// another context could still use these artworks otherwise.
+  @MainActor
+  public func deleteUnreferencedArtworksBeforeManagersStart() {
+    let library = storage.main.library
+    let accountInfos = Set(storage.settings.accounts.allAccounts)
+    for account in library.getAllAccounts() where accountInfos.contains(account.info) {
+      let artworkMOs = library.getUnreferencedArtworks(account: account)
+      guard !artworkMOs.isEmpty else { continue }
+      os_log(
+        "Delete unreferenced artworks: %d (%s)",
+        log: log,
+        type: .info,
+        artworkMOs.count,
+        account.info.ident
+      )
+      library.deleteArtworksWithCachedFiles(artworkMOs)
+    }
   }
 
   @MainActor

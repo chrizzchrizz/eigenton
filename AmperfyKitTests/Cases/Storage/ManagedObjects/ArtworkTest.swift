@@ -104,4 +104,138 @@ class ArtworkTest: XCTestCase {
     artist2.managedObject.artwork = testArtwork.managedObject
     XCTAssertEqual(testArtwork.owners.count, 2)
   }
+
+  /// Writes a file at the artwork's real cache path, like a finished download does
+  @discardableResult
+  private func writeArtworkFile(for artwork: Artwork) -> URL {
+    let relFilePath = CacheFileManager.shared.createRelPath(
+      for: artwork.remoteInfo,
+      account: account.info
+    )!
+    let absFilePath = writeFile(relFilePath: relFilePath)
+    artwork.relFilePath = relFilePath
+    artwork.status = .CustomImage
+    return absFilePath
+  }
+
+  private func writeFile(relFilePath: URL) -> URL {
+    let absFilePath = CacheFileManager.shared.getAbsoluteAmperfyPath(relFilePath: relFilePath)!
+    try! CacheFileManager.shared.writeDataExcludedFromBackup(
+      data: Data(base64Encoded: "Test", options: .ignoreUnknownCharacters)!,
+      to: absFilePath,
+      accountInfo: account.info
+    )
+    addTeardownBlock { try? FileManager.default.removeItem(at: absFilePath) }
+    return absFilePath
+  }
+
+  private func createArtwork(id: String, type: String = "") -> Artwork {
+    library.getOrCreateArtwork(account: account, remoteInfo: ArtworkRemoteInfo(id: id, type: type))
+  }
+
+  private func seededArtist(_ index: Int) -> Artist {
+    library.getArtist(for: account, id: cdHelper.seeder.artists[index].id)!
+  }
+
+  /// Checks by id, a deleted artwork's attributes are empty after the save
+  private func exists(id: String, type: String = "") -> Bool {
+    library.getArtwork(for: account, remoteInfo: ArtworkRemoteInfo(id: id, type: type)) != nil
+  }
+
+  private func unreferencedIds() -> Set<String> {
+    Set(library.getUnreferencedArtworks(account: account).map { $0.id })
+  }
+
+  func testReplacedArtworkIsUnreferenced() {
+    let artist = seededArtist(0)
+    artist.artwork = createArtwork(id: "old")
+    library.saveContext()
+    XCTAssertFalse(unreferencedIds().contains("old"))
+
+    artist.artwork = createArtwork(id: "new")
+    library.saveContext()
+
+    XCTAssertTrue(unreferencedIds().contains("old"))
+    XCTAssertFalse(unreferencedIds().contains("new"))
+    // not deleted on save, another context could still use it
+    XCTAssertTrue(exists(id: "old"))
+  }
+
+  func testArtworkStillOwnedByOtherEntityIsReferenced() {
+    let shared = createArtwork(id: "shared")
+    seededArtist(0).artwork = shared
+    seededArtist(1).artwork = shared
+    library.saveContext()
+
+    seededArtist(0).artwork = nil
+    library.saveContext()
+
+    XCTAssertFalse(unreferencedIds().contains("shared"))
+  }
+
+  func testArtworkOfDeletedPlaylistIsUnreferenced() {
+    guard let playlist = library.getPlaylist(for: account, id: cdHelper.seeder.playlists[0].id)
+    else { XCTFail(); return }
+    playlist.artwork = createArtwork(id: "pl-cover")
+    library.saveContext()
+    XCTAssertFalse(unreferencedIds().contains("pl-cover"))
+
+    library.deletePlaylist(playlist)
+    library.saveContext()
+
+    XCTAssertTrue(unreferencedIds().contains("pl-cover"))
+  }
+
+  func testDeleteArtworksWithCachedFiles() {
+    let orphan = createArtwork(id: "orphan")
+    let orphanFile = writeArtworkFile(for: orphan)
+    orphan.managedObject.download = library.createDownload(account: account, id: "dl-orphan")
+      .managedObject
+    let owned = createArtwork(id: "owned")
+    let ownedFile = writeArtworkFile(for: owned)
+    seededArtist(0).artwork = owned
+    library.saveContext()
+
+    library.deleteArtworksWithCachedFiles(library.getUnreferencedArtworks(account: account))
+
+    XCTAssertFalse(exists(id: "orphan"))
+    XCTAssertFalse(FileManager.default.fileExists(atPath: orphanFile.path))
+    XCTAssertNil(library.getDownload(account: account, id: "dl-orphan"))
+    XCTAssertTrue(exists(id: "owned"))
+    XCTAssertTrue(FileManager.default.fileExists(atPath: ownedFile.path))
+  }
+
+  func testDeleteArtworksKeepsFileSharedWithRemainingArtwork() {
+    let used = createArtwork(id: "shared", type: "a")
+    let sharedFile = writeArtworkFile(for: used)
+    seededArtist(0).artwork = used
+    let orphan = createArtwork(id: "shared", type: "b")
+    orphan.relFilePath = used.relFilePath
+    library.saveContext()
+
+    library.deleteArtworksWithCachedFiles([orphan.managedObject])
+
+    XCTAssertFalse(exists(id: "shared", type: "b"))
+    XCTAssertTrue(exists(id: "shared", type: "a"))
+    XCTAssertTrue(FileManager.default.fileExists(atPath: sharedFile.path))
+  }
+
+  func testRemoveArtworkFilesWithoutArtwork() {
+    let owned = createArtwork(id: "owned")
+    let ownedFile = writeArtworkFile(for: owned)
+    seededArtist(0).artwork = owned
+    library.saveContext()
+    // only the test account's artwork directory is swept, remove leftovers of earlier runs
+    library.removeArtworkFilesWithoutArtwork(account: account)
+    let strayRelFilePath = CacheFileManager.shared.createRelPath(
+      for: ArtworkRemoteInfo(id: "stray", type: ""),
+      account: account.info
+    )!
+    let strayFile = writeFile(relFilePath: strayRelFilePath)
+
+    XCTAssertEqual(library.removeArtworkFilesWithoutArtwork(account: account), 1)
+
+    XCTAssertFalse(FileManager.default.fileExists(atPath: strayFile.path))
+    XCTAssertTrue(FileManager.default.fileExists(atPath: ownedFile.path))
+  }
 }

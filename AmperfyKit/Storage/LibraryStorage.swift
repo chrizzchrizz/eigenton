@@ -774,6 +774,125 @@ public class LibraryStorage: PlayableFileCachable {
     context.delete(artwork.managedObject)
   }
 
+  // MARK: Unreferenced artworks
+
+  // Parsers only replace an entity's artwork reference (e.g. when the server's cover art id
+  // changes), so the old artwork and its cached file would stay forever (#896).
+  // They are not deleted on save: another context could still use them at that moment, e.g. to
+  // queue their download. Instead they are deleted at app start, before syncs and downloads run.
+
+  /// The artworks of `account` that no library entity or playlist references.
+  func getUnreferencedArtworks(account: Account) -> [ArtworkMO] {
+    let fetchRequest = ArtworkMO.fetchRequest()
+    fetchRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+      getFetchPredicate(forAccount: account),
+      NSPredicate(format: "%K.@count == 0", #keyPath(ArtworkMO.owners)),
+      NSPredicate(format: "%K.@count == 0", #keyPath(ArtworkMO.playlistOwners)),
+    ])
+    fetchRequest.relationshipKeyPathsForPrefetching = [#keyPath(ArtworkMO.download)]
+    return (try? context.fetch(fetchRequest)) ?? []
+  }
+
+  /// Deletes the given artworks with their download entries, saves, and then removes their
+  /// cached files. Only call this while no sync or download runs, e.g. at app start.
+  func deleteArtworksWithCachedFiles(_ artworkMOs: [ArtworkMO]) {
+    guard !artworkMOs.isEmpty else { return }
+    // save other pending changes first, a failed save below must only roll back the deletions
+    saveContext()
+    var relFilePaths = [String]()
+    for artworkMO in artworkMOs {
+      if let relFilePath = artworkMO.relFilePath {
+        relFilePaths.append(relFilePath)
+      }
+      if let downloadMO = artworkMO.download {
+        context.delete(downloadMO)
+      }
+      context.delete(artworkMO)
+    }
+    let filesToRemove = filterFilesUsedByOtherArtworks(relFilePaths)
+    do {
+      try context.save()
+    } catch {
+      os_log(
+        "Unreferenced artworks could not be deleted: %s",
+        log: log,
+        type: .error,
+        error.localizedDescription
+      )
+      context.rollback()
+      return
+    }
+    filesToRemove.forEach { removeArtworkFile(relFilePath: $0) }
+  }
+
+  /// Removes the files in the artwork cache of `account` that no artwork points to, e.g. left by
+  /// a deleted album or artist (the artwork relationship cascades). Only call this while no sync or
+  /// download runs.
+  /// - Returns: The number of removed files.
+  @discardableResult
+  func removeArtworkFilesWithoutArtwork(account: Account) -> Int {
+    let request = NSFetchRequest<NSDictionary>(entityName: ArtworkMO.entity().name!)
+    request.resultType = .dictionaryResultType
+    request.propertiesToFetch = [#keyPath(ArtworkMO.relFilePath)]
+    request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+      getFetchPredicate(forAccount: account),
+      NSPredicate(format: "%K != nil", #keyPath(ArtworkMO.relFilePath)),
+    ])
+    guard let results = try? context.fetch(request) else { return 0 }
+    let usedRelFilePaths = Set(results.compactMap {
+      $0[#keyPath(ArtworkMO.relFilePath)] as? String
+    })
+    var removedCount = 0
+    for file in fileManager.getCachedArtworks(for: account.info) {
+      guard let relFilePath = file.relFilePath?.path,
+            !usedRelFilePaths.contains(relFilePath)
+      else { continue }
+      removeArtworkFile(relFilePath: relFilePath)
+      removedCount += 1
+    }
+    return removedCount
+  }
+
+  /// The file path is derived from the artwork id, so keep files a remaining artwork points to.
+  /// If that can't be checked, no file is removed.
+  private func filterFilesUsedByOtherArtworks(_ relFilePaths: [String]) -> [String] {
+    guard !relFilePaths.isEmpty else { return [] }
+    var usedRelFilePaths = Set<String>()
+    for chunk in Array(Set(relFilePaths)).chunked(intoSubarraySize: 500) {
+      let request = ArtworkMO.fetchRequest()
+      request.predicate = NSPredicate(format: "%K IN %@", #keyPath(ArtworkMO.relFilePath), chunk)
+      do {
+        let usedMOs = try context.fetch(request)
+        usedRelFilePaths.formUnion(usedMOs.filter { !$0.isDeleted }.compactMap { $0.relFilePath })
+      } catch {
+        os_log(
+          "Artwork files are kept, check for shared files failed: %s",
+          log: log,
+          type: .error,
+          error.localizedDescription
+        )
+        return []
+      }
+    }
+    return relFilePaths.filter { !usedRelFilePaths.contains($0) }
+  }
+
+  private func removeArtworkFile(relFilePath: String) {
+    guard let absFilePath = fileManager.getAbsoluteAmperfyPath(relFilePathString: relFilePath),
+          FileManager.default.fileExists(atPath: absFilePath.path)
+    else { return }
+    do {
+      try FileManager.default.removeItem(at: absFilePath)
+    } catch {
+      os_log(
+        "Artwork file could not be removed at <%s>",
+        log: log,
+        type: .info,
+        absFilePath.path
+      )
+    }
+  }
+
   public func createPlaylist(account: Account) -> Playlist {
     let playlist = Playlist(library: self, managedObject: PlaylistMO(context: context))
     playlist.account = account

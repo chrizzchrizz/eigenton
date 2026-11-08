@@ -805,6 +805,12 @@ final public class CacheFileManager: Sendable {
     return amperfyDir.appendingPathComponent(relFilePath.path)
   }
 
+  /// Like `getAbsoluteAmperfyPath(relFilePath:)` for a stored path string, which doesn't need to
+  /// be a valid URL (e.g. contains spaces).
+  public func getAbsoluteAmperfyPath(relFilePathString: String) -> URL? {
+    amperfyLibraryDirectory?.appendingPathComponent(relFilePathString)
+  }
+
   public func fileExits(relFilePath: URL) -> Bool {
     guard let absFilePath = amperfyLibraryDirectory?.appendingPathComponent(relFilePath.path)
     else { return false }

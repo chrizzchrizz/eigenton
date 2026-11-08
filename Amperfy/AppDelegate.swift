@@ -294,6 +294,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     libraryUpdater.performSmallBlockingLibraryUpdatesIfNeeded()
     // start manager only if no visual indicated updates are needed
     if !libraryUpdater.isVisualUpadateNeeded {
+      libraryUpdater.deleteUnreferencedArtworksBeforeManagersStart()
       startManagerForNormalOperation()
     }
     userStatistics.sessionStarted()
