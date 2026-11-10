@@ -2372,10 +2372,7 @@ public class LibraryStorage: PlayableFileCachable {
   // MARK: PlayerData
 
   private func createPlayerMO() -> PlayerMO {
-    let playerMO = PlayerMO(context: context)
-    // Auto-cache is opt-in; the Core Data model default is 1 (enabled).
-    playerMO.autoCachePlayedItemSetting = 0
-    return playerMO
+    PlayerMO(context: context)
   }
 
   func getPlayerData() -> PlayerData {

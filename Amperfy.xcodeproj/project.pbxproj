@@ -433,7 +433,6 @@
 		50C9D6C9284FAB0C007F18D0 /* EventNotificationHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50ED2B9027B7AE8500331BF7 /* EventNotificationHandler.swift */; };
 		50C9D6D2284FAB0C007F18D0 /* StringHasher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5086F87822397B2900546F5A /* StringHasher.swift */; };
 		50C9D6D3284FAB0C007F18D0 /* JSONConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5029288826564F3600DA3A8F /* JSONConverter.swift */; };
-		50C9D6D4284FAB88007F18D0 /* PlayerDownloadPreparationHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50048F9427590FAD0087EDFB /* PlayerDownloadPreparationHandler.swift */; };
 		50C9D6D5284FAB88007F18D0 /* NowPlayingInfoCenterHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 501171352756A8E100B7C08D /* NowPlayingInfoCenterHandler.swift */; };
 		50C9D6D6284FAB88007F18D0 /* PlayerFacade.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5011712F27565B2A00B7C08D /* PlayerFacade.swift */; };
 		50C9D6D7284FAB88007F18D0 /* PlayerNotificationAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 509D55E8280FDAE100E0E0B5 /* PlayerNotificationAdapter.swift */; };
@@ -617,7 +616,6 @@
 		5002565625E69DC700674CE1 /* SpinnerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpinnerViewController.swift; sourceTree = "<group>"; };
 		5003D8F62678DD39006946BF /* SsAlbumParserPreCreatedArtistsTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SsAlbumParserPreCreatedArtistsTest.swift; sourceTree = "<group>"; };
 		5003D8FA267B3390006946BF /* LibrarySyncPopupVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrarySyncPopupVC.swift; sourceTree = "<group>"; };
-		50048F9427590FAD0087EDFB /* PlayerDownloadPreparationHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerDownloadPreparationHandler.swift; sourceTree = "<group>"; };
 		50048F962759186A0087EDFB /* EmbeddedArtworkExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbeddedArtworkExtractor.swift; sourceTree = "<group>"; };
 		50048F9A275A4B560087EDFB /* podcast_episodes_example_2.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = podcast_episodes_example_2.xml; sourceTree = "<group>"; };
 		50048F9C275A4BA10087EDFB /* PodcastEpisodesExample2ParserTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PodcastEpisodesExample2ParserTest.swift; sourceTree = "<group>"; };
@@ -2202,7 +2200,6 @@
 				501171312756778300B7C08D /* RemoteCommandCenterHandler.swift */,
 				501171352756A8E100B7C08D /* NowPlayingInfoCenterHandler.swift */,
 				501171332756A73000B7C08D /* AudioSessionHandler.swift */,
-				50048F9427590FAD0087EDFB /* PlayerDownloadPreparationHandler.swift */,
 				50048F962759186A0087EDFB /* EmbeddedArtworkExtractor.swift */,
 				509D55E8280FDAE100E0E0B5 /* PlayerNotificationAdapter.swift */,
 				5086F8822239A2B700546F5A /* ScrobbleSyncer.swift */,
@@ -2763,7 +2760,6 @@
 				5084F7122ED9E47100D8D3DA /* Account.swift in Sources */,
 				50C9D6BF284FAACE007F18D0 /* DownloadError.swift in Sources */,
 				50C9D65F284FAA0B007F18D0 /* AmpacheLibrarySyncer.swift in Sources */,
-				50C9D6D4284FAB88007F18D0 /* PlayerDownloadPreparationHandler.swift in Sources */,
 				50C9D673284FAA4D007F18D0 /* LibraryUpdater.swift in Sources */,
 				50C9D64B284FAA02007F18D0 /* SubsonicServerApi.swift in Sources */,
 				50C9D65C284FAA0B007F18D0 /* GenreParserDelegate.swift in Sources */,

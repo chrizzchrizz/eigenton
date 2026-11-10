@@ -87,17 +87,6 @@ struct PlayerSettingsView: View {
           footer: "Automatically normalize track volume based on replay gain information for consistent loudness."
         )
 
-        // General Settings
-        SettingsSection(
-          content: {
-            SettingsCheckBoxRow(
-              title: "Auto-cache played tracks and download upcoming ones",
-              isOn: $settings.isPlayerAutoCachePlayedItems
-            )
-          },
-          footer: "Played tracks (songs and podcast episodes) are cached automatically. The next \(PlayerDownloadPreparationHandler.preDownloadCount) tracks are downloaded in advance."
-        )
-
         // the setting belongs to the active account
         SettingsSection(
           content: {

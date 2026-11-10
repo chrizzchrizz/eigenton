@@ -199,7 +199,6 @@ public protocol PlayerFacade {
   func setRepeatMode(_: RepeatMode)
   var isOfflineMode: Bool { get set }
   var isShouldPauseAfterFinishedPlaying: Bool { get set }
-  var isAutoCachePlayedItems: Bool { get set }
   var isPopupBarAllowedToHide: Bool { get }
   var musicItemCount: Int { get }
   var podcastItemCount: Int { get }
@@ -491,11 +490,6 @@ class PlayerFacadeImpl: PlayerFacade {
   var isShouldPauseAfterFinishedPlaying: Bool {
     get { musicPlayer.isShouldPauseAfterFinishedPlaying }
     set { musicPlayer.isShouldPauseAfterFinishedPlaying = newValue }
-  }
-
-  var isAutoCachePlayedItems: Bool {
-    get { playerStatus.isAutoCachePlayedItems }
-    set { playerStatus.setAutoCachePlayedItems(newValue) }
   }
 
   var isPopupBarAllowedToHide: Bool {

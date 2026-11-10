@@ -111,7 +111,6 @@ public class AmperKit {
   }()
 
   // internal player helper classes that interact only via player callbacks
-  private var playerDownloadPreparationHandler: PlayerDownloadPreparationHandler?
   private var playerAudioSessionHandler: AudioSessionHandler?
   private var playerNowPlayingInfoCenterHandler: NowPlayingInfoCenterHandler?
   private var playerRemoteCommandCenterHandler: RemoteCommandCenterHandler?
@@ -174,16 +173,6 @@ public class AmperKit {
     #else
       backendAudioPlayer.volume = storage.settings.user.playerVolume
     #endif
-
-    playerDownloadPreparationHandler = PlayerDownloadPreparationHandler(
-      playerStatus: playerData,
-      queueHandler: queueHandler,
-      notificationHandler: notificationHandler,
-      getPlayableDownloaderCB: { accountInfo in
-        self.getMeta(accountInfo).playableDownloadManager
-      }
-    )
-    curPlayer.addNotifier(notifier: playerDownloadPreparationHandler!)
 
     let facadeImpl = PlayerFacadeImpl(
       playerStatus: playerData,
