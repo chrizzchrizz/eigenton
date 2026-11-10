@@ -24,206 +24,188 @@ import CarPlay
 import CoreData
 import Foundation
 
+// The home tab shows one list item per home section; its content opens as a plain list.
+// Image rows (CPListImageRowItem) are not used: on iOS 27.2.1 CarPlayTemplateUIHost lays out the
+// home tab endlessly as soon as its image rows are updated, until the watchdog kills it, which
+// ends CarPlay for the app.
 extension CarPlaySceneDelegate {
   func updateHomeSections() {
     guard let sharedHome else { return }
-    let alreadyCreatedData = homeRowData
     let requestedData = sharedHome.data
-    guard alreadyCreatedData !=
-      requestedData else {
-      return
+    guard homeShownData != requestedData else { return }
+    let previousData = homeShownData
+    homeShownData = requestedData
+    homeTab.updateSections([CPListSection(items: createHomeSectionItems())])
+    // a shown section list follows its section (e.g. after a refresh), but only if its own data
+    // changed: a rebuild decodes all its images again
+    if let homeSectionTemplate, let homeSectionTemplateSection,
+       previousData[homeSectionTemplateSection] != requestedData[homeSectionTemplateSection],
+       interfaceController?.templates.contains(homeSectionTemplate) == true {
+      homeSectionTemplate.updateSections(createHomeSectionListSections(
+        section: homeSectionTemplateSection
+      ))
     }
-    let homeRows = createHomeImageRows()
-    let homeSection = CPListSection(items: homeRows, header: nil, sectionIndexTitle: nil)
-    homeTab.updateSections([homeSection])
   }
 
-  func createHomeImageRows() -> [CPListImageRowItem] {
+  private func createHomeSectionItems() -> [CPListItem] {
     guard let sharedHome else { return [] }
-    var imageRows = [CPListImageRowItem]()
-    // decade and genre sections are hidden as long as they have no albums (like in the app home)
-    for section in sharedHome.orderedVisibleSections
-      where !section.isFixedDecadeOrGenre || !(sharedHome.data[section] ?? []).isEmpty {
-      if let row = homeImageRows[section] {
-        let alreadyCreatedData = homeRowData[section]
-        let requestedData = sharedHome.data[section]
-        if alreadyCreatedData !=
-          requestedData {
-          let imageRowElements = createHomeRowImageElements(section: section, isDetail: false)
-          row.elements = imageRowElements
-        }
-        imageRows.append(row)
-      } else if let row = createHomeRow(section: section, isDetailTemplate: false) {
-        homeImageRows[section] = row
-        imageRows.append(row)
-      }
-    }
-    return imageRows
-  }
-
-  func createHomeRow(section: HomeSection, isDetailTemplate: Bool) -> CPListImageRowItem? {
-    guard let sharedHome else { return nil }
-    let alreadyCreatedData = homeRowData[section]
-    let requestedData = sharedHome.data[section]
-    if !isDetailTemplate,
-       alreadyCreatedData ==
-       requestedData {
-      return homeImageRows[section]
-    }
-
-    let imageRowElements = createHomeRowImageElements(section: section, isDetail: isDetailTemplate)
-    let isRandomSection = section.isRandomSection
-
-    var title: String?
-    if !isDetailTemplate {
-      title = section.headerTitle
-    } else if isRandomSection {
-      title = "Refresh"
-    }
-
-    let row = CPListImageRowItem(
-      text: title,
-      elements: imageRowElements,
-      allowsMultipleLines: isDetailTemplate
-    )
-    // handler CB is called when user pressed the section title
-    row.handler = { [weak self] selectedRow, completion in
-      guard let self else { completion(); return }
-      if !isDetailTemplate {
-        Task { @MainActor in
-          let detailSectionRow = createHomeRow(section: section, isDetailTemplate: true)
-          let detailListTemplate = CPListTemplate(title: section.headerTitle, sections: [
-            CPListSection(items: detailSectionRow != nil ? [detailSectionRow!] : []),
-          ])
-          let _ = try? await interfaceController?
-            .pushTemplate(detailListTemplate, animated: true)
-          completion()
-        }
-      } else if isRandomSection {
-        Task { @MainActor in
-          switch section {
-          case .randomAlbums:
-            await sharedHome.updateRandomAlbums(isOfflineMode: isOfflineMode)
-          case .compilations:
-            await sharedHome.updateCompilations(isOfflineMode: isOfflineMode)
-          case .randomArtists:
-            await sharedHome.updateRandomArtists(isOfflineMode: isOfflineMode)
-          case .favoriteAlbums:
-            await sharedHome.updateFavoriteAlbums(isOfflineMode: isOfflineMode)
-          case .favoriteArtists:
-            await sharedHome.updateFavoriteArtists(isOfflineMode: isOfflineMode)
-          case .randomGenres:
-            await sharedHome.updateRandomGenres()
-          case .randomSongs:
-            await sharedHome.updateRandomSongs(isOfflineMode: isOfflineMode)
-          case .lastTimePlayedPlaylists, .latestReleasedAlbums,
-               .newestAlbums, .newestPodcastEpisodes, .podcasts,
-               .radios, .recentlyPlayedAlbums:
-            // do nothing
-            break
-          default:
-            // fixed decade and genre sections have no refresh
-            break
-          }
-          if section.isRandomSection {
-            row.elements = createHomeRowImageElements(section: section, isDetail: true)
-          }
-          completion()
-        }
-      } else {
-        completion()
-      }
-    }
-    // listImageRowHandler CB is called when user pressed on a image inside the row
-    row.listImageRowHandler = { [weak self] item, index, completion in
-      guard let self,
-            let selectedPlayable = sharedHome.data[section]?[index].playableContainable
-      else { completion(); return }
-      Task { @MainActor in
-        if !isOfflineMode {
-          do {
-            try await selectedPlayable.fetch(
-              storage: self.appDelegate.storage,
-              librarySyncer: self.appDelegate.getMeta(activeAccountInfo).librarySyncer,
-              playableDownloadManager: self.appDelegate.getMeta(activeAccountInfo)
-                .playableDownloadManager
-            )
-          } catch {
-            // ignore online fetch in CarPlay
-          }
-        }
-        if let album = selectedPlayable as? Album {
-          let albumTemplate = createAlbumSongListTemplate(for: album, onlyCached: isOfflineMode)
-          let _ = try? await interfaceController?.pushTemplate(albumTemplate, animated: true)
-          completion()
-        } else if let playlist = selectedPlayable as? Playlist {
-          let playlistDetailTemplate = CPListTemplate(title: playlist.name, sections: [
-            CPListSection(items: [CPListTemplateItem]()),
-          ])
-          playlistDetailSection = playlistDetailTemplate
-          createPlaylistDetailFetchController(playlist: playlist)
-          interfaceController?.pushTemplate(playlistDetailTemplate, animated: true, completion: nil)
-          completion()
-        } else {
-          self.appDelegate.player.play(context: PlayContext(containable: selectedPlayable))
-          displayNowPlaying {
+    // like in the app home, decade and genre sections are hidden as long as they have no albums
+    // (other sections stay, e.g. to refresh an empty random section)
+    return sharedHome.orderedVisibleSections
+      .filter { !$0.isFixedDecadeOrGenre || !(sharedHome.data[$0] ?? []).isEmpty }
+      .map { section in
+        let item = CPListItem(text: section.headerTitle, detailText: nil)
+        item.accessoryType = .disclosureIndicator
+        item.handler = { [weak self] _, completion in
+          guard let self else { completion(); return }
+          let template = CPListTemplate(
+            title: section.headerTitle,
+            sections: createHomeSectionListSections(section: section)
+          )
+          homeSectionTemplate = template
+          homeSectionTemplateSection = section
+          Task { @MainActor in
+            let _ = try? await interfaceController?.pushTemplate(template, animated: true)
             completion()
           }
         }
+        return item
       }
-    }
-    return row
   }
 
-  func createHomeRowImageElements(
-    section: HomeSection,
-    isDetail: Bool
-  )
-    -> [CPListImageRowItemRowElement] {
+  private func createHomeSectionListSections(section: HomeSection) -> [CPListSection] {
     guard let sharedHome else { return [] }
+    var items = [CPListItem]()
+    if section.isRandomSection {
+      items.append(createHomeRefreshItem(section: section))
+    }
+    let homeItems = (sharedHome.data[section] ?? [])
+      .prefix(CPListTemplate.maximumItemCount - items.count)
+    items.append(contentsOf: homeItems.map { createHomeListItem(for: $0.playableContainable) })
+    return [CPListSection(items: items)]
+  }
 
-    let alreadyCreatedData = homeRowData[section]
-    let requestedData = sharedHome.data[section]
-    if !isDetail,
-       alreadyCreatedData ==
-       requestedData {
-      return homeImageRows[section]?.elements as? [CPListImageRowItemRowElement] ?? []
-    }
-    if !isDetail {
-      homeRowData[section] = requestedData
-    }
-    // drop the targets of the elements which are replaced now
-    for artworkID in Array(homeArtworkUpdate.keys) {
-      homeArtworkUpdate[artworkID]?.removeAll { $0.section == section && $0.isDetail == isDetail }
-      if homeArtworkUpdate[artworkID]?.isEmpty == true {
-        homeArtworkUpdate[artworkID] = nil
-      }
-    }
-
-    var imageRowElements = [CPListImageRowItemRowElement]()
-    let items = requestedData ?? []
-    for item in items {
-      let containable = item.playableContainable
-      let element = CPListImageRowItemRowElement(
-        image: getImage(for: containable),
-        title: containable.name,
-        subtitle: containable.subtitle
-      )
-      for artwork in containable.getArtworkCollection(theme: getPreference(activeAccountInfo).theme)
-        .artworks {
-        // trigger download only once
-        if homeArtworkUpdate[artwork.uniqueID] == nil, let accountInfo = artwork.account?.info {
-          appDelegate.getMeta(accountInfo).artworkDownloadManager.download(object: artwork)
+  private func createHomeRefreshItem(section: HomeSection) -> CPListItem {
+    let image = UIImage.createArtwork(
+      with: UIImage.shuffle,
+      iconSizeType: .small,
+      theme: getPreference(activeAccountInfo).theme,
+      lightDarkMode: traits.userInterfaceStyle.asModeType,
+      switchColors: true
+    ).carPlayImage(carTraitCollection: traits)
+    let item = CPListItem(text: "Refresh", detailText: nil, image: image)
+    item.handler = { [weak self] _, completion in
+      guard let self, let sharedHome else { completion(); return }
+      Task { @MainActor in
+        switch section {
+        case .randomAlbums:
+          await sharedHome.updateRandomAlbums(isOfflineMode: isOfflineMode)
+        case .compilations:
+          await sharedHome.updateCompilations(isOfflineMode: isOfflineMode)
+        case .randomArtists:
+          await sharedHome.updateRandomArtists(isOfflineMode: isOfflineMode)
+        case .favoriteAlbums:
+          await sharedHome.updateFavoriteAlbums(isOfflineMode: isOfflineMode)
+        case .favoriteArtists:
+          await sharedHome.updateFavoriteArtists(isOfflineMode: isOfflineMode)
+        case .randomGenres:
+          await sharedHome.updateRandomGenres()
+        case .randomSongs:
+          await sharedHome.updateRandomSongs(isOfflineMode: isOfflineMode)
+        default:
+          // only random sections have a refresh
+          break
         }
-        homeArtworkUpdate[artwork.uniqueID, default: []].append(HomeArtworkTarget(
-          section: section,
-          item: item,
-          isDetail: isDetail,
-          element: element
-        ))
+        // the new content arrives via updateHomeSections
+        completion()
       }
-      imageRowElements.append(element)
     }
-    return imageRowElements
+    return item
+  }
+
+  private func createHomeListItem(for containable: PlayableContainable) -> CPListItem {
+    let collection = containable.getArtworkCollection(theme: getPreference(activeAccountInfo).theme)
+    let item = CPListItem(
+      text: containable.name,
+      detailText: containable.subtitle,
+      image: getImage(for: collection),
+      accessoryImage: nil,
+      accessoryType: containable is Album || containable is Playlist ? .disclosureIndicator : .none
+    )
+    for artwork in collection.artworks {
+      if let accountInfo = artwork.account?.info {
+        appDelegate.getMeta(accountInfo).artworkDownloadManager.download(object: artwork)
+      }
+    }
+    // lets downloadFinishedSuccessful refresh the image once an artwork is downloaded
+    if let playlist = containable as? Playlist {
+      item.userInfo = [
+        CarPlayListUserInfoKeys.artworkDownloadIDs.rawValue: collection.artworks
+          .map { $0.uniqueID },
+        CarPlayListUserInfoKeys.containableObjectID.rawValue: playlist.managedObject.objectID,
+      ]
+    } else if let entity = containable as? AbstractLibraryEntity,
+              let ownerType = homeArtworkOwnerType(of: entity) {
+      item.userInfo = [
+        CarPlayListUserInfoKeys.artworkDownloadID.rawValue: entity.artwork?.uniqueID as Any,
+        CarPlayListUserInfoKeys.artworkOwnerObjectID.rawValue: entity.objectID,
+        CarPlayListUserInfoKeys.artworkOwnerType.rawValue: ownerType,
+      ]
+    }
+    item.handler = { [weak self] _, completion in
+      guard let self else { completion(); return }
+      Task { @MainActor in
+        await selectHomeItem(containable)
+        completion()
+      }
+    }
+    return item
+  }
+
+  /// The owner types downloadFinishedSuccessful can refresh
+  private func homeArtworkOwnerType(of entity: AbstractLibraryEntity) -> ArtworkType? {
+    switch entity {
+    case is Song: return .song
+    case is Album: return .album
+    case is Artist: return .artist
+    case is Podcast: return .podcast
+    case is PodcastEpisode: return .podcastEpisode
+    case is Radio: return .radio
+    case is Genre: return .genre
+    default: return nil
+    }
+  }
+
+  private func selectHomeItem(_ containable: PlayableContainable) async {
+    if !isOfflineMode {
+      do {
+        try await containable.fetch(
+          storage: appDelegate.storage,
+          librarySyncer: appDelegate.getMeta(activeAccountInfo).librarySyncer,
+          playableDownloadManager: appDelegate.getMeta(activeAccountInfo)
+            .playableDownloadManager
+        )
+      } catch {
+        // ignore online fetch in CarPlay
+      }
+    }
+    if let album = containable as? Album {
+      let albumTemplate = createAlbumSongListTemplate(for: album, onlyCached: isOfflineMode)
+      let _ = try? await interfaceController?.pushTemplate(albumTemplate, animated: true)
+    } else if let playlist = containable as? Playlist {
+      let playlistDetailTemplate = CPListTemplate(title: playlist.name, sections: [
+        CPListSection(items: [CPListTemplateItem]()),
+      ])
+      playlistDetailSection = playlistDetailTemplate
+      createPlaylistDetailFetchController(playlist: playlist)
+      let _ = try? await interfaceController?.pushTemplate(playlistDetailTemplate, animated: true)
+    } else {
+      appDelegate.player.play(context: PlayContext(containable: containable))
+      await withCheckedContinuation { continuation in
+        displayNowPlaying {
+          continuation.resume()
+        }
+      }
+    }
   }
 }

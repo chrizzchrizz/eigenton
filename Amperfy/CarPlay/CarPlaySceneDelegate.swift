@@ -250,17 +250,11 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
     return homeTab
   }()
 
-  /// A home row element whose image has to be refreshed after an artwork download.
-  struct HomeArtworkTarget {
-    let section: HomeSection
-    let item: HomeItem
-    let isDetail: Bool
-    var element: CPListImageRowItemRowElement
-  }
-
-  var homeImageRows: [HomeSection: CPListImageRowItem] = [:]
-  var homeRowData: [HomeSection: [HomeItem]] = [:]
-  var homeArtworkUpdate: [String: [HomeArtworkTarget]] = [:] // String is Artwork.uniqueID
+  /// Home data the home tab shows
+  var homeShownData: [HomeSection: [HomeItem]] = [:]
+  /// The pushed list of a home section and its section
+  weak var homeSectionTemplate: CPListTemplate?
+  var homeSectionTemplateSection: HomeSection?
 
   lazy var cachedTab = {
     let cachedTab = CPListTemplate(title: "Cached", sections: createCachedSections())
@@ -491,44 +485,6 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
     else { return }
     guard let templates = interfaceController?.templates else { return }
 
-    // refresh Home image rows
-    if let targets = homeArtworkUpdate[downloadNotification.id] {
-      for target in targets where !target.isDetail {
-        target.element.image = getImage(for: target.item.playableContainable)
-      }
-    }
-
-    // refresh Home Detail rows
-    if templates.count == 2,
-       let tabBarTemplate = templates.first as? CPTabBarTemplate,
-       homeTab == tabBarTemplate.selectedTemplate,
-       let listTemplate = templates.last as? CPListTemplate,
-       listTemplate.sections.count == 1,
-       let detailRow = listTemplate.sections.first?.items.first as? CPListImageRowItem,
-       let targets = homeArtworkUpdate[downloadNotification.id] {
-      for target in targets where target.isDetail {
-        guard let elementIndex = detailRow.elements.firstIndex(where: { $0 == target.element })
-        else { continue }
-        let containable = target.item.playableContainable
-        let newElement = CPListImageRowItemRowElement(
-          image: getImage(for: containable),
-          title: containable.name,
-          subtitle: containable.subtitle
-        )
-        detailRow.elements[elementIndex] = newElement
-        // an item can be registered for several artworks (e.g. a playlist cover grid)
-        for (artworkID, artworkTargets) in homeArtworkUpdate {
-          homeArtworkUpdate[artworkID] = artworkTargets.map { artworkTarget in
-            var updated = artworkTarget
-            if artworkTarget.isDetail, artworkTarget.element == target.element {
-              updated.element = newElement
-            }
-            return updated
-          }
-        }
-      }
-    }
-
     // refresh List items
     for template in templates {
       var sections: [CPListSection]?
@@ -609,6 +565,11 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
                 let mo = appDelegate.storage.main.context.object(with: managedObjectID) as? RadioMO
                 if let mo = mo {
                   playable = Radio(managedObject: mo)
+                }
+              case .genre:
+                let mo = appDelegate.storage.main.context.object(with: managedObjectID) as? GenreMO
+                if let mo = mo {
+                  entity = Genre(managedObject: mo)
                 }
               default: break
               }
