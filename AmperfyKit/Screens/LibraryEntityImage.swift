@@ -29,7 +29,8 @@ extension LibraryEntityImage {
     libraryEntity: AbstractLibraryEntity,
     themePreference: ThemePreference,
     artworkDisplayPreference: ArtworkDisplayPreference,
-    useCache: Bool
+    useCache: Bool,
+    maxPixelSize: Int? = nil
   )
     -> UIImage {
     if let artworkImagePath = libraryEntity.imagePath(
@@ -40,7 +41,10 @@ extension LibraryEntityImage {
         minPixelSize: 0
       )?.image {
         return cachedImg
-      } else if let directlyLoadedImage = UIImage(named: artworkImagePath) {
+      } else if let directlyLoadedImage = loadImage(
+        imagePath: artworkImagePath,
+        maxPixelSize: maxPixelSize
+      ) {
         return directlyLoadedImage
       }
     }
@@ -50,12 +54,20 @@ extension LibraryEntityImage {
     )
   }
 
+  /// `UIImage(named:)` at full size, or decoded scaled down to `maxPixelSize` without being kept in
+  /// the system image cache (e.g. for the many small CarPlay list images).
+  private static func loadImage(imagePath: String, maxPixelSize: Int?) -> UIImage? {
+    guard let maxPixelSize else { return UIImage(named: imagePath) }
+    return decodeArtwork(imagePath: imagePath, maxPixelSize: maxPixelSize)
+  }
+
   /// Same selection as `EntityImageView`, rendered into a single image (e.g. for CarPlay).
   static public func getImageToDisplayImmediately(
     collection: ArtworkCollection,
     themePreference: ThemePreference,
     artworkDisplayPreference: ArtworkDisplayPreference,
-    useCache: Bool
+    useCache: Bool,
+    maxPixelSize: Int? = nil
   )
     -> UIImage {
     switch collection.display {
@@ -64,10 +76,12 @@ extension LibraryEntityImage {
         libraryEntity: entity,
         themePreference: themePreference,
         artworkDisplayPreference: artworkDisplayPreference,
-        useCache: useCache
+        useCache: useCache,
+        maxPixelSize: maxPixelSize
       )
     case let .standalone(artwork):
-      if let imagePath = artwork.imagePath, let image = UIImage(named: imagePath) {
+      if let imagePath = artwork.imagePath,
+         let image = loadImage(imagePath: imagePath, maxPixelSize: maxPixelSize) {
         return image
       }
     case let .quad(entities):
@@ -75,7 +89,8 @@ extension LibraryEntityImage {
         entities: entities,
         themePreference: themePreference,
         artworkDisplayPreference: artworkDisplayPreference,
-        useCache: useCache
+        useCache: useCache,
+        maxPixelSize: maxPixelSize
       )
     case .placeholder:
       break
@@ -86,21 +101,25 @@ extension LibraryEntityImage {
     )
   }
 
-  private static let quadImageSize = CGSize(width: 400, height: 400)
+  private static let quadImagePixelSize = 400
 
   private static func quadImage(
     entities: [AbstractLibraryEntity],
     themePreference: ThemePreference,
     artworkDisplayPreference: ArtworkDisplayPreference,
-    useCache: Bool
+    useCache: Bool,
+    maxPixelSize: Int?
   )
     -> UIImage {
     let format = UIGraphicsImageRendererFormat()
     format.scale = 1
     format.opaque = true
-    let tile = CGSize(width: quadImageSize.width / 2, height: quadImageSize.height / 2)
+    // never larger than the caller can show
+    let side = CGFloat(min(maxPixelSize ?? quadImagePixelSize, quadImagePixelSize))
+    let imageSize = CGSize(width: side, height: side)
+    let tile = CGSize(width: side / 2, height: side / 2)
     let placeholder = UIImage.getGeneratedArtwork(theme: themePreference, artworkType: .song)
-    return UIGraphicsImageRenderer(size: quadImageSize, format: format).image { context in
+    return UIGraphicsImageRenderer(size: imageSize, format: format).image { context in
       for index in 0 ..< 4 {
         let rect = CGRect(
           x: CGFloat(index % 2) * tile.width,
@@ -112,7 +131,12 @@ extension LibraryEntityImage {
           libraryEntity: entities[index],
           themePreference: themePreference,
           artworkDisplayPreference: artworkDisplayPreference,
-          useCache: useCache
+          useCache: useCache,
+          maxPixelSize: tileDecodePixelSize(
+            entity: entities[index],
+            artworkDisplayPreference: artworkDisplayPreference,
+            tileSide: tile.width
+          )
         ) : placeholder
         context.cgContext.saveGState()
         UIBezierPath(rect: rect).addClip()
@@ -123,6 +147,22 @@ extension LibraryEntityImage {
         context.cgContext.restoreGState()
       }
     }
+  }
+
+  /// Longest side to decode an artwork with so that its short side still fills the tile
+  /// (the tile is drawn aspect fill)
+  private static func tileDecodePixelSize(
+    entity: AbstractLibraryEntity,
+    artworkDisplayPreference: ArtworkDisplayPreference,
+    tileSide: CGFloat
+  )
+    -> Int {
+    guard let imagePath = entity.imagePath(setting: artworkDisplayPreference),
+          let size = pixelSize(ofArtworkAt: imagePath),
+          min(size.width, size.height) > 0
+    else { return Int(tileSide.rounded(.up)) }
+    let aspect = max(size.width, size.height) / min(size.width, size.height)
+    return Int((tileSide * aspect).rounded(.up))
   }
 
   private static func drawAspectFill(_ image: UIImage, in rect: CGRect) {
