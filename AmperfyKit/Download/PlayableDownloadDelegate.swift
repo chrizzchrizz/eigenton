@@ -132,18 +132,19 @@ final class PlayableDownloadDelegate: DownloadManagerDelegate {
     fileMimeType: String?,
     storage: AsyncCoreDataAccessWrapper
   ) async throws {
-    try await storage.perform { asyncCompanion in
+    let cachedFile = try await storage.performAndGet { asyncCompanion -> CachedFile? in
       let playableAsync = AbstractPlayable(
         managedObject: asyncCompanion.context
           .object(with: playableInfo.objectID) as! AbstractPlayableMO
       )
       playableAsync.contentTypeTranscoded = fileMimeType
+      playableAsync.bitrateCached = 0
       // transcoding info needs to available to generate a correct file extension
       guard let relFilePath = CacheFileManager.shared.createRelPath(for: playableAsync),
             let absFilePath = CacheFileManager.shared
             .getAbsoluteAmperfyPath(relFilePath: relFilePath),
             let accountInfo = playableAsync.account?.info
-      else { return }
+      else { return nil }
       do {
         try CacheFileManager.shared.moveExcludedFromBackupItem(
           at: fileURL,
@@ -151,10 +152,41 @@ final class PlayableDownloadDelegate: DownloadManagerDelegate {
           accountInfo: accountInfo
         )
         playableAsync.relFilePath = relFilePath
+        guard let storedRelFilePath = playableAsync.playableManagedObject.relFilePath
+        else { return nil }
+        return CachedFile(
+          storedRelFilePath: storedRelFilePath,
+          absFilePath: absFilePath,
+          durationInSec: playableAsync.duration
+        )
       } catch {
         playableAsync.relFilePath = nil
+        return nil
       }
     }
+    // the file can be transcoded with a lower bitrate than the original
+    guard let cachedFile,
+          let bitrate = await CacheFileManager.estimateBitrate(
+            fileURL: cachedFile.absFilePath,
+            durationInSec: cachedFile.durationInSec
+          )
+    else { return }
+    try await storage.perform { asyncCompanion in
+      let playableAsync = AbstractPlayable(
+        managedObject: asyncCompanion.context
+          .object(with: playableInfo.objectID) as! AbstractPlayableMO
+      )
+      // the cache can be deleted or replaced meanwhile
+      guard playableAsync.playableManagedObject.relFilePath == cachedFile.storedRelFilePath
+      else { return }
+      playableAsync.bitrateCached = bitrate
+    }
+  }
+
+  private struct CachedFile: Sendable {
+    let storedRelFilePath: String
+    let absFilePath: URL
+    let durationInSec: Int
   }
 
   func failedDownload(downloadInfo: DownloadElementInfo, storage: AsyncCoreDataAccessWrapper) {}

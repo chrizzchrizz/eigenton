@@ -211,4 +211,43 @@ class SongTest: XCTestCase {
     XCTAssertFalse(playlist1.isCached)
     XCTAssertFalse(playlist2.isCached)
   }
+
+  func testFileBitrate_CachedTranscodedFile() {
+    testSong.bitrate = 912_000
+    XCTAssertEqual(testSong.fileBitrate, 912_000)
+    testSong.bitrateCached = 192_000
+    // not cached: the original is streamed
+    XCTAssertEqual(testSong.fileBitrate, 912_000)
+    testSong.relFilePath = URL(string: "blub")
+    XCTAssertEqual(testSong.fileBitrate, 192_000)
+    library.deleteCache(ofPlayable: testSong)
+    XCTAssertEqual(testSong.bitrateCached, 0)
+    XCTAssertEqual(testSong.fileBitrate, 912_000)
+  }
+
+  func testFileBitrate_CappedAtOriginalBitrate() {
+    testSong.bitrate = 320_000
+    testSong.bitrateCached = 350_000
+    testSong.relFilePath = URL(string: "blub")
+    XCTAssertEqual(testSong.fileBitrate, 320_000)
+    testSong.bitrate = 0
+    XCTAssertEqual(testSong.fileBitrate, 350_000)
+  }
+
+  func testFileBitrate_CachedWithoutStoredBitrate() {
+    testSong.bitrate = 912_000
+    testSong.relFilePath = URL(string: "blub")
+    XCTAssertEqual(testSong.fileBitrate, 912_000)
+  }
+
+  func testEstimateBitrate_NoAudioTrack_FallsBackToFileSize() async throws {
+    let fileURL = FileManager.default.temporaryDirectory
+      .appendingPathComponent(UUID().uuidString + ".bin")
+    try Data(count: 24_000).write(to: fileURL)
+    defer { try? FileManager.default.removeItem(at: fileURL) }
+    let bitrate = await CacheFileManager.estimateBitrate(fileURL: fileURL, durationInSec: 2)
+    XCTAssertEqual(bitrate, 96_000)
+    let noDuration = await CacheFileManager.estimateBitrate(fileURL: fileURL, durationInSec: 0)
+    XCTAssertNil(noDuration)
+  }
 }

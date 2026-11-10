@@ -31,6 +31,8 @@ extension AbstractPlayableMO {
   @NSManaged
   public var bitrate: Int32
   @NSManaged
+  public var bitrateCached: Int32
+  @NSManaged
   public var contentType: String?
   @NSManaged
   public var contentTypeTranscoded: String?

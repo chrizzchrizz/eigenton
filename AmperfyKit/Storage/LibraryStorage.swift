@@ -27,6 +27,7 @@ import os.log
 
 protocol PlayableFileCachable {
   func getFileURL(forPlayable playable: AbstractPlayable) -> URL?
+  func saveContext()
 }
 
 // MARK: - PlaylistSearchCategory
@@ -699,6 +700,7 @@ public class LibraryStorage: PlayableFileCachable {
 
   private func deleteCacheFinalStep(playable: AbstractPlayable) {
     playable.contentTypeTranscoded = nil
+    playable.bitrateCached = 0
     playable.relFilePath = nil
     if let download = playable.playableManagedObject.download {
       context.delete(download)

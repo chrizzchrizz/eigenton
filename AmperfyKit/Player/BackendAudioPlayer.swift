@@ -713,6 +713,25 @@ class BackendAudioPlayer: NSObject {
     }
     if playable.isSong { userStatistics.playedSong(isPlayedFromCache: true) }
     insert(playable: playable, withUrl: fileURL, queueType: queueType)
+    determineCachedBitrateIfMissing(playable: playable, fileURL: fileURL)
+  }
+
+  /// Files cached before model v54 have no stored bitrate yet: determine it once
+  private func determineCachedBitrateIfMissing(playable: AbstractPlayable, fileURL: URL) {
+    guard playable.bitrateCached == 0 else { return }
+    let durationInSec = playable.duration
+    Task {
+      guard let bitrate = await CacheFileManager.estimateBitrate(
+        fileURL: fileURL,
+        durationInSec: durationInSec
+      ),
+        playable.bitrateCached == 0,
+        // the cache can be deleted or replaced meanwhile
+        cacheProxy.getFileURL(forPlayable: playable) == fileURL
+      else { return }
+      playable.bitrateCached = bitrate
+      cacheProxy.saveContext()
+    }
   }
 
   @MainActor

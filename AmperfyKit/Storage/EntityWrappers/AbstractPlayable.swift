@@ -229,6 +229,25 @@ public class AbstractPlayable: AbstractLibraryEntity, Downloadable {
     }
   }
 
+  /// Bitrate of the cached file in bits per second, 0 if not determined yet.
+  /// Differs from `bitrate` (original file on the server) when the file was transcoded.
+  public var bitrateCached: Int {
+    get { Int(playableManagedObject.bitrateCached) }
+    set {
+      guard Int32.isValid(value: newValue),
+            playableManagedObject.bitrateCached != Int32(newValue) else { return }
+      playableManagedObject.bitrateCached = Int32(newValue)
+    }
+  }
+
+  /// Bitrate of the file that is played: the cached file if it is cached, otherwise the original.
+  /// Capped at the original bitrate: a file that is not transcoded has the original bitrate, and
+  /// an estimate from the file size is too high because it includes tags like embedded artwork.
+  public var fileBitrate: Int {
+    guard isCached, bitrateCached > 0 else { return bitrate }
+    return bitrate > 0 ? min(bitrateCached, bitrate) : bitrateCached
+  }
+
   public var contentType: String? {
     get { playableManagedObject.contentType }
     set {
@@ -393,6 +412,9 @@ public class AbstractPlayable: AbstractLibraryEntity, Downloadable {
             infoContent.append("Cache MIME Type: \(contentType)")
           } else if let fileContentType = fileContentType {
             infoContent.append("Cache MIME Type: \(fileContentType)")
+          }
+          if bitrateCached > 0 {
+            infoContent.append("Cache Bitrate \(bitrateCached)")
           }
         }
       }

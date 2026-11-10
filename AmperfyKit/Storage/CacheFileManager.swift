@@ -19,6 +19,7 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+import AVFoundation
 import Foundation
 import UniformTypeIdentifiers
 
@@ -898,5 +899,27 @@ final public class CacheFileManager: Sendable {
           fileSize < maxFileSize
     else { return nil }
     return try? Data(contentsOf: fileURL)
+  }
+}
+
+// MARK: - Bitrate of cached files
+
+extension CacheFileManager {
+  /// Bitrate of a cached audio file in bits per second.
+  /// Uses the data rate of the audio track, falls back to file size / duration for formats
+  /// AVFoundation can not read (the file size includes tags like embedded artwork).
+  public static func estimateBitrate(fileURL: URL, durationInSec: Int) async -> Int? {
+    let asset = AVURLAsset(url: fileURL)
+    if let track = try? await asset.loadTracks(withMediaType: .audio).first,
+       let dataRate = try? await track.load(.estimatedDataRate),
+       dataRate > 0 {
+      return Int(dataRate)
+    }
+    guard durationInSec > 0,
+          let fileSize = (try? FileManager.default.attributesOfItem(atPath: fileURL.path))?[.size]
+          as? Int,
+          fileSize > 0
+    else { return nil }
+    return fileSize * 8 / durationInSec
   }
 }

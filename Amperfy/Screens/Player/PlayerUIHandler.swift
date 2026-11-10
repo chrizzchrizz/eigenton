@@ -569,7 +569,8 @@ class PlayerUIHandler: NSObject {
 
     if playType == .cache {
       playTypeIcon.image = UIImage.cache
-      displayBitrateInKbps = currentlyPlaying.bitrate / 1000
+      // a transcoded file has a different bitrate than the original
+      displayBitrateInKbps = currentlyPlaying.fileBitrate / 1000
       formatText = getFormat(contentType: currentlyPlaying.fileContentType)
     } else {
       playTypeIcon.image = UIImage.antenna
