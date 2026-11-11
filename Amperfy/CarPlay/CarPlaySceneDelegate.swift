@@ -597,7 +597,10 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
 
           if isThisRelatedToTheDownload {
             if let playable = playable {
-              item.setImage(getImage(for: playable, isTrackDisplayed: isTrackDisplayed))
+              // a track number image doesn't change with a download
+              if !isTrackDisplayed {
+                item.setImage(getImage(for: playable, isTrackDisplayed: false))
+              }
             } else if let entity = entity {
               item.setImage(
                 LibraryEntityImage.getImageToDisplayImmediately(

@@ -800,7 +800,8 @@ extension CarPlaySceneDelegate {
     -> CPListItem {
     let accessoryType: CPListItemAccessoryType = playable.isCached ? .cloud : .none
     let image = getImage(for: playable, isTrackDisplayed: isTrackDisplayed)
-    if let artwork = playable.artwork, let accountInfo = artwork.account?.info {
+    // rows with the track number (album page) show no song cover, don't download it
+    if !isTrackDisplayed, let artwork = playable.artwork, let accountInfo = artwork.account?.info {
       appDelegate.getMeta(accountInfo).artworkDownloadManager.download(object: artwork)
     }
     let listItem = CPListItem(
