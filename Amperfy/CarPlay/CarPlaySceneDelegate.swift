@@ -619,18 +619,37 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
     }
   }
 
-  /// Album page header: replace the placeholder cover once the artwork is downloaded
+  /// Album, artist or playlist page header: replace the placeholder cover once the artwork is
+  /// downloaded
   @available(iOS 26.4, *)
   private func refreshDetailsHeaderArtwork(of template: CPListTemplate, downloadID: String) {
     guard let header = template.listHeader,
-          let userInfo = template.userInfo as? [String: Any],
-          let artworkID = userInfo[CarPlayListUserInfoKeys.artworkDownloadID.rawValue] as? String,
+          let userInfo = template.userInfo as? [String: Any]
+    else { return }
+    // playlist: cover made of several artworks
+    if let artworkIDs = userInfo[CarPlayListUserInfoKeys.artworkDownloadIDs.rawValue] as? [String] {
+      guard artworkIDs.contains(downloadID),
+            let objectID = userInfo[CarPlayListUserInfoKeys.containableObjectID.rawValue]
+            as? NSManagedObjectID,
+            let playlistMO = appDelegate.storage.main.context.object(with: objectID) as? PlaylistMO
+      else { return }
+      let playlist = Playlist(library: appDelegate.storage.main.library, managedObject: playlistMO)
+      header.thumbnail = CPThumbnailImage(image: getHeaderImage(for: playlist))
+      template.listHeader = header
+      return
+    }
+    guard let artworkID = userInfo[CarPlayListUserInfoKeys.artworkDownloadID.rawValue] as? String,
           artworkID == downloadID,
           let objectID = userInfo[CarPlayListUserInfoKeys.artworkOwnerObjectID.rawValue]
-          as? NSManagedObjectID,
-          let albumMO = appDelegate.storage.main.context.object(with: objectID) as? AlbumMO
+          as? NSManagedObjectID
     else { return }
-    header.thumbnail = CPThumbnailImage(image: getHeaderImage(for: Album(managedObject: albumMO)))
+    let entity: AbstractLibraryEntity
+    switch appDelegate.storage.main.context.object(with: objectID) {
+    case let albumMO as AlbumMO: entity = Album(managedObject: albumMO)
+    case let artistMO as ArtistMO: entity = Artist(managedObject: artistMO)
+    default: return
+    }
+    header.thumbnail = CPThumbnailImage(image: getHeaderImage(for: entity))
     // only assigning the header is documented to update the template
     template.listHeader = header
   }
@@ -850,10 +869,7 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
        let playlistDetailFetchController = playlistDetailFetchController {
       os_log("CarPlay: OfflineModeChanged: playlistDetailSection", log: self.log, type: .info)
       playlistDetailFetchController.search(onlyCachedSongs: isOfflineMode)
-      playlistDetailSection
-        .updateSections(
-          [CPListSection(items: createPlaylistDetailItems(from: playlistDetailFetchController))]
-        )
+      updatePlaylistDetailTemplate()
     }
     if let podcastDetailSection = podcastDetailSection, templates.contains(podcastDetailSection),
        let podcastDetailFetchController = podcastDetailFetchController {
@@ -1104,10 +1120,7 @@ extension CarPlaySceneDelegate: @preconcurrency NSFetchedResultsControllerDelega
          let playlistDetailFetchController = playlistDetailFetchController,
          controller == playlistDetailFetchController.fetchResultsController {
         os_log("CarPlay: FetchedResults: playlistDetailSection", log: self.log, type: .info)
-        playlistDetailSection
-          .updateSections(
-            [CPListSection(items: createPlaylistDetailItems(from: playlistDetailFetchController))]
-          )
+        updatePlaylistDetailTemplate()
       }
       if let podcastDetailSection = podcastDetailSection, templates.contains(podcastDetailSection),
          let podcastDetailFetchController = podcastDetailFetchController,
@@ -1336,10 +1349,7 @@ extension CarPlaySceneDelegate: CPInterfaceControllerDelegate {
         } catch {
           self.appDelegate.eventLogger.report(topic: "Playlist Sync", error: error)
         }}
-        playlistDetailSection?
-          .updateSections(
-            [CPListSection(items: createPlaylistDetailItems(from: playlistDetailFetchController))]
-          )
+        updatePlaylistDetailTemplate()
       } else if aTemplate == podcastDetailSection,
                 let podcastDetailFetchController = podcastDetailFetchController {
         os_log("CarPlay: templateWillAppear podcastDetailSection", log: self.log, type: .info)

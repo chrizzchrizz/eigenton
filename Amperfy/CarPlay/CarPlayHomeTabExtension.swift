@@ -199,11 +199,7 @@ extension CarPlaySceneDelegate {
       let albumTemplate = createAlbumSongListTemplate(for: album, onlyCached: isOfflineMode)
       let _ = try? await interfaceController?.pushTemplate(albumTemplate, animated: true)
     } else if let playlist = containable as? Playlist {
-      let playlistDetailTemplate = CPListTemplate(title: playlist.name, sections: [
-        CPListSection(items: [CPListTemplateItem]()),
-      ])
-      playlistDetailSection = playlistDetailTemplate
-      createPlaylistDetailFetchController(playlist: playlist)
+      let playlistDetailTemplate = createPlaylistDetailTemplate(for: playlist)
       let _ = try? await interfaceController?.pushTemplate(playlistDetailTemplate, animated: true)
     } else {
       appDelegate.player.play(context: PlayContext(containable: containable))
