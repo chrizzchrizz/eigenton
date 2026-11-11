@@ -80,6 +80,20 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
     return Int((imageSize * max(traits.displayScale, 1)).rounded(.up))
   }
 
+  /// Pixel size the cover of a list details header (album page) is decoded with
+  @available(iOS 26.4, *)
+  var headerImagePixelSize: Int {
+    var imageSize: CGFloat = 0
+    if #available(iOS 27.0, *) {
+      let maxSize = CPThumbnailImage.maximumImageSize(forAspectRatio: 1)
+      imageSize = max(maxSize.width, maxSize.height)
+    }
+    // fallback for iOS 26.4 or in case CarPlay reports no size
+    if imageSize <= 0 { imageSize = 200 }
+    // a single image, but keep the CarPlayTemplateUIHost memory low anyway
+    return min(Int((imageSize * max(traits.displayScale, 1)).rounded(.up)), 1024)
+  }
+
   /// CarPlay connected
   nonisolated func templateApplicationScene(
     _ templateApplicationScene: CPTemplateApplicationScene,
@@ -491,6 +505,9 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
 
       if let listTemplate = template as? CPListTemplate {
         sections = listTemplate.sections
+        if #available(iOS 26.4, *) {
+          refreshDetailsHeaderArtwork(of: listTemplate, downloadID: downloadNotification.id)
+        }
       } else if let tabBarTemplate = template as? CPTabBarTemplate,
                 let selectedTemplate = tabBarTemplate.selectedTemplate as? CPListTemplate {
         sections = selectedTemplate.sections
@@ -597,6 +614,22 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         }
       }
     }
+  }
+
+  /// Album page header: replace the placeholder cover once the artwork is downloaded
+  @available(iOS 26.4, *)
+  private func refreshDetailsHeaderArtwork(of template: CPListTemplate, downloadID: String) {
+    guard let header = template.listHeader,
+          let userInfo = template.userInfo as? [String: Any],
+          let artworkID = userInfo[CarPlayListUserInfoKeys.artworkDownloadID.rawValue] as? String,
+          artworkID == downloadID,
+          let objectID = userInfo[CarPlayListUserInfoKeys.artworkOwnerObjectID.rawValue]
+          as? NSManagedObjectID,
+          let albumMO = appDelegate.storage.main.context.object(with: objectID) as? AlbumMO
+    else { return }
+    header.thumbnail = CPThumbnailImage(image: getHeaderImage(for: Album(managedObject: albumMO)))
+    // only assigning the header is documented to update the template
+    template.listHeader = header
   }
 
   @objc

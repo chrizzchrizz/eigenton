@@ -353,24 +353,97 @@ extension CarPlaySceneDelegate {
   }
 
   func createAlbumSongListTemplate(for album: Album, onlyCached: Bool) -> CPListTemplate {
-    var songItems = [CPListItem]()
-    songItems.append(createPlayShuffledListItem(playContext: PlayContext(
-      containable: album,
-      playables: album.playables.filterCached(dependigOn: onlyCached || isOfflineMode)
-    )))
-    let albumSongs = album.playables.filterCached(dependigOn: onlyCached || isOfflineMode)
-      .prefix(LibraryStorage.carPlayMaxElements)
-    for (index, song) in albumSongs.enumerated() {
-      let listItem = createDetailTemplate(
-        for: song,
-        playContext: PlayContext(containable: album, index: index, playables: Array(albumSongs)),
-        isTrackDisplayed: true
-      )
-      songItems.append(listItem)
+    let playables = album.playables.filterCached(dependigOn: onlyCached || isOfflineMode)
+    let albumSongs = Array(playables.prefix(LibraryStorage.carPlayMaxElements))
+    func createSongItems(hiddenCreatorName: String?) -> [CPListItem] {
+      albumSongs.enumerated().map { index, song in
+        createDetailTemplate(
+          for: song,
+          playContext: PlayContext(containable: album, index: index, playables: albumSongs),
+          isTrackDisplayed: true,
+          hiddenCreatorName: hiddenCreatorName
+        )
+      }
     }
-    return CPListTemplate(title: album.name, sections: [
-      CPListSection(items: songItems),
-    ])
+
+    if #available(iOS 26.4, *) {
+      // the album page is also opened from Now Playing and Home, without the album row that
+      // usually starts the artwork download
+      if let artwork = album.artwork, let accountInfo = artwork.account?.info {
+        appDelegate.getMeta(accountInfo).artworkDownloadManager.download(object: artwork)
+      }
+      let template = CPListTemplate(
+        title: album.name,
+        listHeader: createAlbumDetailsHeader(for: album, playables: playables),
+        // the header shows the album artist, rows only show a differing artist
+        sections: [CPListSection(items: createSongItems(hiddenCreatorName: album.artist?.name))],
+        assistantCellConfiguration: nil
+      )
+      template.userInfo = [
+        CarPlayListUserInfoKeys.artworkDownloadID.rawValue: album.artwork?.uniqueID as Any,
+        CarPlayListUserInfoKeys.artworkOwnerObjectID.rawValue: album.managedObject.objectID,
+      ]
+      return template
+    } else {
+      let shuffleItem = createPlayShuffledListItem(playContext: PlayContext(
+        containable: album,
+        playables: playables
+      ))
+      return CPListTemplate(title: album.name, sections: [
+        CPListSection(items: [shuffleItem] + createSongItems(hiddenCreatorName: nil)),
+      ])
+    }
+  }
+
+  /// Album header like Apple Music: cover, title, "artist · genre · year", play and shuffle
+  @available(iOS 26.4, *)
+  private func createAlbumDetailsHeader(
+    for album: Album,
+    playables: [AbstractPlayable]
+  )
+    -> CPListTemplateDetailsHeader {
+    let playButton = CPButton(image: UIImage.play) { [weak self] _ in
+      guard let self else { return }
+      appDelegate.player.play(context: PlayContext(containable: album, playables: playables))
+      displayNowPlaying {}
+    }
+    playButton.title = "Play"
+    let shuffleButton = CPButton(image: UIImage.shuffle) { [weak self] _ in
+      guard let self else { return }
+      appDelegate.player.playShuffled(context: PlayContext(
+        containable: album,
+        playables: playables
+      ))
+      displayNowPlaying {}
+    }
+    playButton.isEnabled = !playables.isEmpty
+    shuffleButton.isEnabled = !playables.isEmpty
+
+    var subtitleParts = [String]()
+    if let artistName = album.subtitle, !artistName.isEmpty { subtitleParts.append(artistName) }
+    if let genreName = album.genre?.name, !genreName.isEmpty { subtitleParts.append(genreName) }
+    if album.year > 0 { subtitleParts.append("\(album.year)") }
+
+    let header = CPListTemplateDetailsHeader(
+      thumbnail: CPThumbnailImage(image: getHeaderImage(for: album)),
+      title: album.name,
+      subtitle: subtitleParts.isEmpty ? nil : subtitleParts.joined(separator: " · "),
+      actionButtons: [playButton, shuffleButton]
+    )
+    // background color derived from the cover, like the artwork background in the app
+    header.wantsAdaptiveBackgroundStyle = true
+    return header
+  }
+
+  @available(iOS 26.4, *)
+  func getHeaderImage(for entity: AbstractLibraryEntity) -> UIImage {
+    LibraryEntityImage.getImageToDisplayImmediately(
+      libraryEntity: entity,
+      themePreference: getPreference(activeAccountInfo).theme,
+      artworkDisplayPreference: getPreference(activeAccountInfo).artworkDisplayPreference,
+      useCache: false,
+      maxPixelSize: headerImagePixelSize
+    ).carPlayImage(carTraitCollection: traits)
   }
 
   func createPlaylistsSections() -> [CPListSection] {
@@ -721,7 +794,8 @@ extension CarPlaySceneDelegate {
   func createDetailTemplate(
     for playable: AbstractPlayable,
     playContext: PlayContext,
-    isTrackDisplayed: Bool = false
+    isTrackDisplayed: Bool = false,
+    hiddenCreatorName: String? = nil
   )
     -> CPListItem {
     let accessoryType: CPListItemAccessoryType = playable.isCached ? .cloud : .none
@@ -731,7 +805,9 @@ extension CarPlaySceneDelegate {
     }
     let listItem = CPListItem(
       text: playable.title,
-      detailText: playable.subtitle,
+      // e.g. on the album page the album artist is already in the header, like in the app
+      detailText: hiddenCreatorName != nil && playable.creatorName == hiddenCreatorName ?
+        nil : playable.subtitle,
       image: image.carPlayImage(carTraitCollection: traits),
       accessoryImage: nil,
       accessoryType: accessoryType
