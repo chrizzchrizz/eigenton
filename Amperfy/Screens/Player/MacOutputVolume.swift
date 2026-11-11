@@ -288,7 +288,12 @@
     // MARK: Button
 
     static func makeButton(pointSize: CGFloat? = nil) -> UIButton {
-      let button = UIButton(configuration: .plain())
+      var config = UIButton.Configuration.plain()
+      // same color as the AirPlay button next to it, the configuration ignores the tint color
+      config.baseForegroundColor = .label
+      let button = UIButton(configuration: config)
+      // like the AirPlay button: the Mac style draws the symbol differently
+      button.preferredBehavioralStyle = .pad
       button.tintColor = .label
       button.accessibilityLabel = "Volume"
       button.toolTip = "Volume"
