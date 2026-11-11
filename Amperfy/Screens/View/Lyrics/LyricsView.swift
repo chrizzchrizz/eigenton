@@ -30,6 +30,15 @@ class LyricsView: UITableView, UITableViewDataSource, UITableViewDataSourcePrefe
   private var lyricModels: [LyricTableCellModel] = []
   private var lastIndex: Int?
   private var lineSpacing: CGFloat = 16
+
+  /// Size of the lyrics text; the line spacing scales with it.
+  var fontSize: CGFloat = LyricTableCellModel.defaultFontSize {
+    didSet {
+      guard oldValue != fontSize else { return }
+      lineSpacing = 16 * fontSize / LyricTableCellModel.defaultFontSize
+      reloadViewModels()
+    }
+  }
   /// A gap before the first line longer than this is shown as pause.
   private let introPauseThreshold = CMTime(value: 5, timescale: 1)
   /// A seek to the start of a line can end a few milliseconds before it, the line still has to be active.
@@ -215,14 +224,14 @@ class LyricsView: UITableView, UITableViewDataSource, UITableViewDataSourcePrefe
        firstStart > introPauseThreshold {
       var intro = LyricsLine()
       intro.start = 0
-      let model = LyricTableCellModel(lyric: intro, isPause: true)
+      let model = LyricTableCellModel(lyric: intro, isPause: true, fontSize: fontSize)
       model.isActiveLine = false
       lyricModels.append(model)
     }
     for lyric in lyrics.line {
       // synced lyrics mark pauses with empty lines; unsynced ones use them as paragraph breaks
       let isPause = lyrics.synced && lyric.value.trimmingCharacters(in: .whitespaces).isEmpty
-      let model = LyricTableCellModel(lyric: lyric, isPause: isPause)
+      let model = LyricTableCellModel(lyric: lyric, isPause: isPause, fontSize: fontSize)
       // without timing there is no current line, so nothing may be blurred
       model.isActiveLine = !lyrics.synced
       lyricModels.append(model)

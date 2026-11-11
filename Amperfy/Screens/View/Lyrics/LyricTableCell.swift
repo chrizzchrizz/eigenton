@@ -42,7 +42,7 @@ class LyricTableCellModel {
   }
 
   /// Active and inactive lines share the font, so a line keeps its height when it becomes active.
-  static let font = UIFont.systemFont(ofSize: 34, weight: .bold)
+  static let defaultFontSize: CGFloat = 34
 
   private var attributedString: NSAttributedString?
   private var highlightedAttributedString: NSAttributedString?
@@ -64,12 +64,12 @@ class LyricTableCellModel {
   /// Pauses (intro, empty lines) only show dots and cannot be selected.
   let isPause: Bool
 
-  init(lyric: LyricsLine, isPause: Bool = false) {
+  init(lyric: LyricsLine, isPause: Bool = false, fontSize: CGFloat = defaultFontSize) {
     self.lyric = lyric
     self.isPause = isPause
     self.isActiveLine = false
     let text = isPause ? Self.pauseText : lyric.value
-    let font = isPause ? Self.pauseFont : Self.font
+    let font = isPause ? Self.pauseFont : UIFont.systemFont(ofSize: fontSize, weight: .bold)
     self.attributedString = NSAttributedString(
       string: text,
       attributes:

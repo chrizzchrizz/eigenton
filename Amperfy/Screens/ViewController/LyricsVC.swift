@@ -43,6 +43,8 @@ class LyricsVC: UIViewController {
 
     let lyricsView = LyricsView()
     lyricsView.translatesAutoresizingMaskIntoConstraints = false
+    // the inspector column is narrow, the popup player's large text would wrap almost every line
+    lyricsView.fontSize = 22
 
     view.addSubview(lyricsView)
 
