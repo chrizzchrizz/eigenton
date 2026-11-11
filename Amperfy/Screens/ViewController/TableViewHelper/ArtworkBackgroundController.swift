@@ -125,14 +125,18 @@ final class ArtworkBackgroundController: NSObject {
       header.applyContentColor(contentColor)
       header.enableCoverShadow()
     }
-    applySearchBarColors(contentColor: contentColor, prefersDarkContent: prefersDarkContent)
     for case let cell as PlayableTableCell in tableView.visibleCells {
       cell.contentColorOverride = contentColor
       cell.refresh()
       cell.setNeedsLayout() // cells drawing their own separators pick up the new separatorColor
     }
-    navigationBarStyle = prefersDarkContent ? .light : .dark
-    applyNavigationBarStyle()
+    #if !targetEnvironment(macCatalyst)
+      // on Mac the title bar glass stays light/dark independent of the artwork background,
+      // so the bar and its search field keep the system style there
+      applySearchBarColors(contentColor: contentColor, prefersDarkContent: prefersDarkContent)
+      navigationBarStyle = prefersDarkContent ? .light : .dark
+      applyNavigationBarStyle()
+    #endif
     didApplyBackground?()
     let update = { tableView.backgroundColor = backgroundColor }
     if animated {
