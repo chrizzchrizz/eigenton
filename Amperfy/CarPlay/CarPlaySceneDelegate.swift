@@ -266,6 +266,8 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
 
   /// Home data the home tab shows
   var homeShownData: [HomeSection: [HomeItem]] = [:]
+  /// Detail pages have to be left after an offline mode change, see popOfflineModeStaleTemplates
+  var isOfflineModeStalePopPending = false
   /// The pushed list of a home section and its section
   weak var homeSectionTemplate: CPListTemplate?
   var homeSectionTemplateSection: HomeSection?
@@ -756,6 +758,9 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
     os_log("CarPlay: OfflineModeChanged", log: self.log, type: .info)
     guard let templates = interfaceController?.templates else { return }
 
+    // lists that aren't shown get a new fetch controller in the current mode once they appear
+    resetOfflineModeDependentFetchControllers(except: templates)
+    popOfflineModeStaleTemplates()
     sharedHome?.createFetchController()
 
     if let root = interfaceController?.rootTemplate as? CPTabBarTemplate,
@@ -879,6 +884,94 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         .updateSections(
           [CPListSection(items: createPodcastDetailItems(from: podcastDetailFetchController))]
         )
+    }
+  }
+}
+
+// MARK: - Offline mode change
+
+extension CarPlaySceneDelegate {
+  /// Drops the fetch controllers that filter by the offline mode, except the ones of the shown
+  /// lists (refreshOfflineMode recreates those). templateWillAppear creates a dropped one again,
+  /// otherwise a list opened later would still show the content of the previous mode.
+  fileprivate func resetOfflineModeDependentFetchControllers(except templates: [CPTemplate]) {
+    func isShown(_ template: CPTemplate) -> Bool {
+      templates.contains(template) || (interfaceController?.rootTemplate as? CPTabBarTemplate)?
+        .selectedTemplate == template
+    }
+    func reset<ResultType, Controller: BasicFetchedResultsController<ResultType>>(
+      _ keyPath: ReferenceWritableKeyPath<CarPlaySceneDelegate, Controller?>,
+      unless template: CPTemplate
+    ) {
+      guard !isShown(template) else { return }
+      self[keyPath: keyPath]?.delegate = nil
+      self[keyPath: keyPath] = nil
+    }
+    reset(\.playlistFetchController, unless: playlistTab)
+    reset(\.podcastFetchController, unless: podcastSection)
+    reset(\.genresFetchController, unless: genresSection)
+    reset(\.artistsFetchController, unless: artistsSection)
+    reset(\.artistsFavoritesFetchController, unless: artistsFavoriteSection)
+    reset(\.albumsFetchController, unless: albumsSection)
+    reset(\.albumsFavoritesFetchController, unless: albumsFavoriteSection)
+    reset(\.albumsNewestFetchController, unless: albumsNewestSection)
+    reset(\.albumsRecentFetchController, unless: albumsRecentSection)
+    reset(\.songsFavoritesFetchController, unless: songsFavoriteSection)
+  }
+
+  /// Templates that follow an offline mode change by themselves: refreshOfflineMode updates
+  /// them, they only show cached content anyway, or they don't depend on the mode
+  private func isOfflineModeAware(_ template: CPTemplate) -> Bool {
+    if template is CPNowPlayingTemplate || template is CPTabBarTemplate { return true }
+    if template == playlistDetailSection || template == podcastDetailSection ||
+      template == homeSectionTemplate {
+      return true
+    }
+    let awareTemplates: [CPTemplate] = [
+      homeTab, libraryTab, playlistTab, cachedTab, playerQueueSection, accountSection,
+      podcastSection, podcastCachedSection, genresSection, genresCachedSection,
+      artistsSection, artistsCachedSection, artistsFavoriteSection, artistsFavoriteCachedSection,
+      albumsSection, albumsCachedSection, albumsFavoriteSection, albumsFavoriteCachedSection,
+      albumsNewestSection, albumsNewestCachedSection, albumsRecentSection,
+      albumsRecentCachedSection, songsFavoriteSection, songsFavoriteCachedSection, radioSection,
+    ]
+    return awareTemplates.contains(template)
+  }
+
+  /// Detail pages (album, artist, A–Z, letter lists, all songs …) are built once with the songs of
+  /// the mode at that time. After a mode change go back to the deepest list that follows the
+  /// change. While Now Playing is shown above them, this waits until it is left.
+  func popOfflineModeStaleTemplates() {
+    guard let interfaceController else { return }
+    let templates = interfaceController.templates
+    guard let firstStaleIndex = templates.indices.first(where: {
+      $0 > 0 && !isOfflineModeAware(templates[$0])
+    }) else {
+      isOfflineModeStalePopPending = false
+      return
+    }
+    // Now Playing above a stale page: wait until it is left (templates pushed on top of Now
+    // Playing, e.g. its album page, keep it on the stack and don't trigger the pop)
+    if templates[firstStaleIndex...].contains(where: { $0 is CPNowPlayingTemplate }) {
+      isOfflineModeStalePopPending = true
+      return
+    }
+    os_log("CarPlay: OfflineModeChanged: pop stale detail pages", log: self.log, type: .info)
+    let target = templates[firstStaleIndex - 1]
+    isOfflineModeStalePopPending = false
+    Task { @MainActor in
+      do {
+        _ = try await interfaceController.pop(to: target, animated: true)
+      } catch {
+        // e.g. during another transition: retry with the next template that appears
+        os_log(
+          "CarPlay: pop stale detail pages failed: %s",
+          log: self.log,
+          type: .error,
+          error.localizedDescription
+        )
+        isOfflineModeStalePopPending = true
+      }
     }
   }
 }
@@ -1371,7 +1464,16 @@ extension CarPlaySceneDelegate: CPInterfaceControllerDelegate {
     }
   }
 
-  nonisolated func templateDidAppear(_ aTemplate: CPTemplate, animated: Bool) {}
+  nonisolated func templateDidAppear(_ aTemplate: CPTemplate, animated: Bool) {
+    Task { @MainActor in
+      // the offline mode changed while Now Playing was shown, or the pop failed: after the
+      // transition, the stack is final
+      if isOfflineModeStalePopPending {
+        popOfflineModeStaleTemplates()
+      }
+    }
+  }
+
   nonisolated func templateWillDisappear(_ aTemplate: CPTemplate, animated: Bool) {}
 
   nonisolated func templateDidDisappear(_ aTemplate: CPTemplate, animated: Bool) {
