@@ -192,6 +192,14 @@ class BasicTableViewController: KeyCommandTableViewController {
   override func viewDidLoad() {
     super.viewDidLoad()
     tableView.keyboardDismissMode = .onDrag
+    #if targetEnvironment(macCatalyst)
+      if #available(macCatalyst 27.0, *) {
+        // the default hard edge on Mac draws an opaque band behind the title bar buttons;
+        // soft lets the content run visibly under the glass buttons like on Home and Library.
+        // Before macOS 27 the soft glass is too big (see SideBarVC), so keep the default there.
+        tableView.topEdgeEffect.style = .soft
+      }
+    #endif
   }
 
   override func viewIsAppearing(_ animated: Bool) {
