@@ -99,7 +99,7 @@ struct DisplaySettingsView: View {
             )
           },
           footer:
-          "Color the background of the player and of album, artist and playlist screens with the main color of the artwork."
+          "Color the background of album, artist and playlist screens with the main color of the artwork. The player always uses the artwork color."
         )
 
         #if !targetEnvironment(macCatalyst)

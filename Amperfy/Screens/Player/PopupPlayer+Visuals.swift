@@ -149,10 +149,8 @@ extension PopupPlayerVC {
     // self overrides its own style, so ask the window for the system style
     let isDarkMode = (view.window?.traitCollection ?? UITraitCollection.current)
       .userInterfaceStyle == .dark
-    let backgroundColor = appDelegate.storage.settings.user.isArtworkBackgroundEnabled ?
-      artwork.mainColor(forDarkBackground: isDarkMode) :
-      (isDarkMode ? UIColor.secondarySystemBackground : UIColor.systemBackground)
-      .resolvedColor(with: UITraitCollection(userInterfaceStyle: isDarkMode ? .dark : .light))
+    // the player always uses the artwork color, the setting only affects the library screens
+    let backgroundColor = artwork.mainColor(forDarkBackground: isDarkMode)
     backgroundColorView.backgroundColor = backgroundColor
     // light style renders labels and icons dark, dark style renders them white
     overrideUserInterfaceStyle = backgroundColor.prefersDarkContent ? .light : .dark
