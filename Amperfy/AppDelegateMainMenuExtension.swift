@@ -31,7 +31,8 @@ extension AppDelegate {
     config.findingPreference = .included
     config.findingConfiguration.style = .search
     config.toolbarPreference = .included
-    config.sidebarPreference = .included
+    // the sidebar can't be hidden (SplitVC)
+    config.sidebarPreference = .removed
     config.inspectorPreference = .included
     config.textFormattingPreference = .removed
 

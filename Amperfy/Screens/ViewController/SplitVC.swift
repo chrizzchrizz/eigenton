@@ -70,6 +70,11 @@ class SplitVC: UISplitViewController {
     setViewController(defaultSecondaryVC, for: .secondary)
     primaryEdge = .leading
     primaryBackgroundStyle = .sidebar
+    // the sidebar always stays visible: no sidebar button, no swipe or overlay
+    preferredDisplayMode = .oneBesideSecondary
+    preferredSplitBehavior = .tile
+    presentsWithGesture = false
+    displayModeButtonVisibility = .never
 
     if appDelegate.storage.settings.user.isOfflineMode {
       appDelegate.eventLogger.info(topic: "Reminder", message: "Offline Mode is active.")
@@ -292,7 +297,6 @@ class SplitVC: UISplitViewController {
       let navController = (columnVC as? UINavigationController) ?? columnVC?.navigationController
       navController?.setNavigationBarHidden(isShown, animated: false)
     }
-    displayModeButtonVisibility = isShown ? .never : .automatic
 
     if isShown {
       guard popupPlayerTitlebarVC == nil,
