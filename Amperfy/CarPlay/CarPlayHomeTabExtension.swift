@@ -97,6 +97,12 @@ extension CarPlaySceneDelegate {
     item.handler = { [weak self] _, completion in
       guard let self, let sharedHome else { completion(); return }
       Task { @MainActor in
+        // decade and genre sections ("Albums from the 90s", "Rock") are random sections too
+        if section.isFixedDecadeOrGenre {
+          await sharedHome.updateFixedDecadeOrGenreAlbums(section, isOfflineMode: isOfflineMode)
+          completion()
+          return
+        }
         switch section {
         case .randomAlbums:
           await sharedHome.updateRandomAlbums(isOfflineMode: isOfflineMode)
