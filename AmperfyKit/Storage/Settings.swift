@@ -229,6 +229,20 @@ public struct UserSettings: Sendable, Codable {
     set { _isReplayGainEnabled = newValue }
   }
 
+  private var _macSidebarWidth: Double = 0.0
+  /// Mac: width of the sidebar as last dragged by the user, 0 for the default width
+  public var macSidebarWidth: Double {
+    get { _macSidebarWidth }
+    set { _macSidebarWidth = newValue }
+  }
+
+  private var _macInspectorWidth: Double = 0.0
+  /// Mac: width of the inspector as last dragged by the user, 0 for the default width
+  public var macInspectorWidth: Double {
+    get { _macInspectorWidth }
+    set { _macInspectorWidth = newValue }
+  }
+
   private var _playerVolume: Float = 1.0
   public var playerVolume: Float {
     get {

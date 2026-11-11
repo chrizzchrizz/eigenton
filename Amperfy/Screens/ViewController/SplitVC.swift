@@ -27,8 +27,14 @@ import SwiftUI
 // MARK: - SplitVC
 
 class SplitVC: UISplitViewController {
-  public static let sidebarWidth: CGFloat = 250
-  public static let inspectorWidth: CGFloat = 300
+  /// Sidebar and inspector can be resized by dragging their divider, the width is remembered
+  static let sidebarWidthRange: ClosedRange<CGFloat> = 200 ... 350
+  static let sidebarDefaultWidth: CGFloat = 250
+  static let inspectorWidthRange: ClosedRange<CGFloat> = 250 ... 450
+  static let inspectorDefaultWidth: CGFloat = 300
+  private var savedSidebarWidth: CGFloat = 0
+  private var savedInspectorWidth: CGFloat = 0
+  private var columnWidthsSaveTask: Task<(), Never>?
 
   var miniPlayer: MiniPlayerView?
   static let miniPlayerMaxWidth: CGFloat = 800
@@ -137,13 +143,69 @@ class SplitVC: UISplitViewController {
   override func viewIsAppearing(_ animated: Bool) {
     super.viewIsAppearing(animated)
 
-    // set min and max sidebar width
-    minimumPrimaryColumnWidth = Self.sidebarWidth
-    maximumPrimaryColumnWidth = Self.sidebarWidth
-    minimumInspectorColumnWidth = Self.sidebarWidth
-    maximumInspectorColumnWidth = Self.sidebarWidth
+    applyColumnWidths()
     appDelegate.localNotificationManager.requestAuthorization()
     miniPlayer?.refreshPlayer()
+  }
+
+  override func viewDidLayoutSubviews() {
+    super.viewDidLayoutSubviews()
+    saveColumnWidthsIfChanged()
+  }
+
+  // MARK: - Column widths
+
+  private func applyColumnWidths() {
+    let settings = appDelegate.storage.settings.user
+    savedSidebarWidth = Self.width(settings.macSidebarWidth, in: Self.sidebarWidthRange)
+      ?? Self.sidebarDefaultWidth
+    savedInspectorWidth = Self.width(settings.macInspectorWidth, in: Self.inspectorWidthRange)
+      ?? Self.inspectorDefaultWidth
+
+    minimumPrimaryColumnWidth = Self.sidebarWidthRange.lowerBound
+    maximumPrimaryColumnWidth = Self.sidebarWidthRange.upperBound
+    preferredPrimaryColumnWidth = savedSidebarWidth
+    minimumInspectorColumnWidth = Self.inspectorWidthRange.lowerBound
+    maximumInspectorColumnWidth = Self.inspectorWidthRange.upperBound
+    preferredInspectorColumnWidth = savedInspectorWidth
+  }
+
+  /// A stored width inside the allowed range, nil for none (0) or an invalid one
+  private static func width(_ storedWidth: Double, in range: ClosedRange<CGFloat>) -> CGFloat? {
+    let width = CGFloat(storedWidth)
+    return range.contains(width) ? width : nil
+  }
+
+  /// Remembers widths changed by dragging a divider. Saved with a delay: a drag changes the width
+  /// with every layout pass.
+  private func saveColumnWidthsIfChanged() {
+    guard savedSidebarWidth > 0 else { return } // not applied yet
+    let sidebarWidth = primaryColumnWidth
+    let inspectorVC = viewController(for: .inspector)
+    let inspectorWidth = (inspectorVC?.view.window != nil) ? inspectorVC?.view.bounds.width : nil
+
+    var hasChanged = false
+    if Self.sidebarWidthRange.contains(sidebarWidth), abs(sidebarWidth - savedSidebarWidth) >= 1 {
+      savedSidebarWidth = sidebarWidth
+      hasChanged = true
+    }
+    if let inspectorWidth, Self.inspectorWidthRange.contains(inspectorWidth),
+       abs(inspectorWidth - savedInspectorWidth) >= 1 {
+      savedInspectorWidth = inspectorWidth
+      hasChanged = true
+    }
+    guard hasChanged else { return }
+
+    // new windows and a shown inspector start with the dragged width
+    preferredPrimaryColumnWidth = savedSidebarWidth
+    preferredInspectorColumnWidth = savedInspectorWidth
+    columnWidthsSaveTask?.cancel()
+    columnWidthsSaveTask = Task { @MainActor [weak self] in
+      try? await Task.sleep(nanoseconds: 500_000_000)
+      guard let self, !Task.isCancelled else { return }
+      appDelegate.storage.settings.user.macSidebarWidth = Double(savedSidebarWidth)
+      appDelegate.storage.settings.user.macInspectorWidth = Double(savedInspectorWidth)
+    }
   }
 
   func displayOrHideInspector() {
