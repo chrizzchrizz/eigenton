@@ -27,10 +27,8 @@ import os.log
 @preconcurrency import UIKit
 
 let windowSettingsTitle = "Settings"
-let windowMiniPlayerTitle = "MiniPlayer"
 
 let settingsWindowActivityType = "amperfy.settings"
-let miniPlayerWindowActivityType = "amperfy.miniplayer"
 let defaultWindowActivityType = "amperfy.main"
 
 // MARK: - AppDelegate
@@ -124,7 +122,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
   }()
 
   var settingsSceneSession: UISceneSession?
-  var miniPlayerSceneSession: UISceneSession?
 
   var sleepTimer: Timer?
 
@@ -255,6 +252,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   )
     -> Bool {
+    #if targetEnvironment(macCatalyst)
+      // the mini player window was removed: discard its sessions restored from an earlier version
+      for session in application.openSessions where session.configuration.name == "MiniPlayer" {
+        application.requestSceneSessionDestruction(session, options: nil, errorHandler: nil)
+      }
+    #endif
     if let options = launchOptions {
       os_log("application launch with options:", log: self.log, type: .info)
       options
@@ -447,13 +450,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       .first != nil {
       let config = UISceneConfiguration(name: "Settings", sessionRole: .windowApplication)
       config.delegateClass = SettingsSceneDelegate.self
-      return config
-    }
-
-    if options.userActivities.filter({ $0.activityType == miniPlayerWindowActivityType })
-      .first != nil {
-      let config = UISceneConfiguration(name: "MiniPlayer", sessionRole: .windowApplication)
-      config.delegateClass = MiniPlayerSceneDelegate.self
       return config
     }
 

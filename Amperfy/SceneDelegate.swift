@@ -52,6 +52,30 @@ extension MainSceneHostingViewController {
           let hostVC = AppDelegate.mainWindowHostVC
     else { return }
 
+    if let splitVC = hostVC as? SplitVC {
+      // Mac: the popup player is a child overlay, not presented
+      let changePopupPlayer = {
+        switch direction {
+        case .open:
+          splitVC.openPopupPlayer(animated: animated, completion: completionBlock)
+        case .close:
+          splitVC.closePopupPlayer(animated: animated, completion: completionBlock)
+        case .toggle:
+          if splitVC.isPopupPlayerOpen {
+            splitVC.closePopupPlayer(animated: animated, completion: completionBlock)
+          } else {
+            splitVC.openPopupPlayer(animated: animated, completion: completionBlock)
+          }
+        }
+      }
+      if let presentedViewController = topView.presentedViewController {
+        presentedViewController.dismiss(animated: animated, completion: changePopupPlayer)
+      } else {
+        changePopupPlayer()
+      }
+      return
+    }
+
     if let presentedViewController = topView.presentedViewController {
       presentedViewController.dismiss(animated: animated) {
         if direction == .open {
@@ -133,7 +157,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
   #if targetEnvironment(macCatalyst)
     private static let minimumWindowSize = CGSize(width: 400, height: 300)
     /// Frame of the last main window that was closed in this app run. Closing the window
-    /// (e.g. Cmd+W or switching to the mini player) discards its scene session, so macOS
+    /// (e.g. Cmd+W) discards its scene session, so macOS
     /// cannot restore the frame and the next main window would open in the default size.
     private static var lastClosedFrame: CGRect?
 
@@ -191,7 +215,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     #if targetEnvironment(macCatalyst)
       rememberMainWindowFrame(of: scene)
     #endif
-    appDelegate.rebuildMainMenu()
+    // the scene is still listed as connected during this call
+    DispatchQueue.main.async {
+      self.appDelegate.rebuildMainMenu()
+    }
   }
 
   func sceneDidBecomeActive(_ scene: UIScene) {
@@ -248,6 +275,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     // Save changes in the application's managed object context when the application transitions to the background.
     os_log("sceneDidEnterBackground", log: self.log, type: .info)
     AmperKit.shared.threadPerformanceMonitor.isInForeground = false
+    // a closed main window enters the background first: the window menu items depend on it
+    appDelegate.rebuildMainMenu()
     guard appDelegate.isNormalInteraction else {
       return
     }

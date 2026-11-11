@@ -99,9 +99,6 @@ final class Settings: ObservableObject {
   var isReplayGainEnabled = true
 
   @Published
-  var isMiniPlayerAlwaysOnTop = false
-
-  @Published
   var isAutoplayEnabled = false
 
   @Published

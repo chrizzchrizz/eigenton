@@ -54,7 +54,7 @@ extension AppDelegate {
           UIAction(
             title: "Open Player Window",
             image: AmperfyImage.openPlayerWindow.asUIImage,
-            attributes: isMainOrMiniPlayerPlayerOpen ? .disabled : []
+            attributes: isMainWindowOpen ? .disabled : []
           ) { _ in
             self.openMainWindow()
           },
@@ -64,7 +64,7 @@ extension AppDelegate {
             action: #selector(closePlayerWindow),
             input: "W",
             modifierFlags: .command,
-            attributes: !isMainOrMiniPlayerPlayerOpen ? .disabled : []
+            attributes: !isMainWindowOpen ? .disabled : []
           ),
         ]),
       ]
@@ -81,11 +81,13 @@ extension AppDelegate {
       builder.insertSibling(openSettingsMenu, afterMenu: .about)
       let switchPlayerMenu = UIMenu(options: .displayInline, children: [
         UIKeyCommand(
-          title: "Switch Library/Mini Player",
+          title: isPopupPlayerOpen ? "Hide Player" : "Show Player",
           image: AmperfyImage.switchPlayerWindow.asUIImage,
-          action: #selector(keyCommandSwitchLibraryMiniPlayer),
+          action: #selector(keyCommandShowHidePlayer),
           input: "F",
-          modifierFlags: [.shift, .command]
+          modifierFlags: [.shift, .command],
+          // the player is shown in the main window
+          attributes: isMainWindowOpen ? [] : .disabled
         ),
       ])
       builder.insertSibling(switchPlayerMenu, afterMenu: .minimizeAndZoom)
@@ -155,14 +157,8 @@ extension AppDelegate {
   }
 
   @objc
-  private func keyCommandSwitchLibraryMiniPlayer() {
-    if isShowingMiniPlayer {
-      closeMiniPlayer()
-      // mini player close will automatically (in scene disconnect) open Main again
-    } else {
-      closeMainWindow()
-      showMiniPlayer()
-    }
+  private func keyCommandShowHidePlayer() {
+    visualizePopupPlayer(direction: .toggle, animated: true)
   }
 
   @objc
@@ -312,8 +308,6 @@ extension AppDelegate {
   func closePlayerWindow(sender: Any) {
     if isMainWindowOpen {
       closeMainWindow()
-    } else if isShowingMiniPlayer {
-      closeMiniPlayer()
     }
     rebuildMainMenu()
   }
@@ -327,44 +321,6 @@ extension AppDelegate {
       options: nil,
       errorHandler: nil
     )
-  }
-
-  var isShowingMiniPlayer: Bool {
-    UIApplication.shared.connectedScenes.contains(where: { $0.session == miniPlayerSceneSession })
-  }
-
-  @objc
-  func showMiniPlayer(sender: Any? = nil) {
-    let miniPlayerActivity = NSUserActivity(activityType: miniPlayerWindowActivityType)
-    UIApplication.shared.requestSceneSessionActivation(
-      miniPlayerSceneSession,
-      userActivity: miniPlayerActivity,
-      options: nil,
-      errorHandler: nil
-    )
-  }
-
-  func closeMiniPlayer() {
-    UIApplication.shared.connectedScenes
-      .filter { $0.session == miniPlayerSceneSession }
-      .forEach {
-        let options = UIWindowSceneDestructionRequestOptions()
-        options.windowDismissalAnimation = .standard
-        UIApplication.shared.requestSceneSessionDestruction(
-          $0.session,
-          options: options,
-          errorHandler: nil
-        )
-      }
-  }
-
-  func updateMiniPlayerAlwaysOnTop() {
-    #if targetEnvironment(macCatalyst)
-      MacWindowHelper.setAlwaysOnTop(
-        storage.settings.user.isMiniPlayerAlwaysOnTop,
-        sceneTitle: MiniPlayerSceneDelegate.sceneTitle
-      )
-    #endif
   }
 
   func createSleepTimerMenu(refreshCB: VoidFunctionCallback?) -> UIMenuElement {
@@ -464,15 +420,26 @@ extension AppDelegate {
       }
   }
 
-  var isMainOrMiniPlayerPlayerOpen: Bool {
-    isMainWindowOpen || isShowingMiniPlayer
+  /// Mac: the popup player overlay of the main window is shown
+  var isPopupPlayerOpen: Bool {
+    (Self.mainWindowHostVC as? SplitVC)?.isPopupPlayerOpen ?? false
   }
 
+  /// A main window is shown. A closed window's scene can stay connected in the background for a
+  /// while, it doesn't count.
   var isMainWindowOpen: Bool {
-    !UIApplication.shared.connectedScenes
-      .flatMap { ($0 as? UIWindowScene)?.windows ?? [] }
-      .filter { ($0.rootViewController as? MainSceneHostingViewController) != nil }
-      .isEmpty
+    mainWindowScenes.contains {
+      $0.activationState == .foregroundActive || $0.activationState == .foregroundInactive
+    }
+  }
+
+  /// Connected scenes of main windows, also in the background
+  private var mainWindowScenes: [UIWindowScene] {
+    UIApplication.shared.connectedScenes
+      .compactMap { $0 as? UIWindowScene }
+      .filter { scene in
+        scene.windows.contains { $0.rootViewController is MainSceneHostingViewController }
+      }
   }
 
   func closeMainWindow() {
@@ -494,8 +461,9 @@ extension AppDelegate {
 
   func openMainWindow() {
     let defaultActivity = NSUserActivity(activityType: defaultWindowActivityType)
+    // a main window scene that is still connected in the background comes back instead of a new one
     UIApplication.shared.requestSceneSessionActivation(
-      nil,
+      mainWindowScenes.first?.session,
       userActivity: defaultActivity,
       options: nil,
       errorHandler: nil

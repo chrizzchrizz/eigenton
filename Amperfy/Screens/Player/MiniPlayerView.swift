@@ -129,8 +129,7 @@ class MiniPlayerView: UIView {
   func artworkClicked(_ sender: UITapGestureRecognizer) {
     switch sender.state {
     case .ended:
-      appDelegate.closeMainWindow()
-      appDelegate.showMiniPlayer()
+      openPlayerView()
     default:
       break
     }
@@ -891,6 +890,11 @@ class MiniPlayerView: UIView {
 
   public func openPlayerView(completion: (() -> ())? = nil) {
     guard let hostVC = AppDelegate.mainWindowHostVC as? UIViewController else { return }
+    if let splitVC = hostVC as? SplitVC {
+      // Mac: shown as an overlay over the whole window
+      splitVC.openPopupPlayer(animated: true, completion: completion)
+      return
+    }
     let popupPlayer = PopupPlayerVC()
     #if !targetEnvironment(macCatalyst)
       if hostVC.traitCollection.horizontalSizeClass == .regular {

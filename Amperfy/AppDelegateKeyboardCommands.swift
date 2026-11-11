@@ -59,7 +59,7 @@ enum KeyboardCommands: CaseIterable {
     case .musicPodcastMode:
       return "Switch between Music and Podcast mode"
     case .openClosePlayer:
-      return "Open/Close Player"
+      return "Show/Hide Player"
     }
   }
 
@@ -80,11 +80,11 @@ enum KeyboardCommands: CaseIterable {
     case .musicPodcastMode:
       return KeyboardCommand(input: "m", modifierFlags: [])
     case .openClosePlayer:
-      return KeyboardCommand(input: "p", modifierFlags: [])
+      return KeyboardCommand(input: "F", modifierFlags: [.shift, .command])
     }
   }
 
-  /// The popup player can't be reached or dismissed on Mac (the mini player is not tappable there)
+  /// Mac: the menu item "Show/Hide Player" already has this shortcut
   var isAvailable: Bool {
     #if targetEnvironment(macCatalyst)
       return self != .openClosePlayer

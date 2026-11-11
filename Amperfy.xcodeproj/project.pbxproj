@@ -526,7 +526,6 @@
 		632F51242C83A7970032860D /* QueueVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632F51232C83A7970032860D /* QueueVC.swift */; };
 		632F51262C83A8400032860D /* LyricsVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 632F51252C83A8400032860D /* LyricsVC.swift */; };
 		6333C8E12C6FDB5200CCA50A /* SecondaryText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6333C8E02C6FDB5200CCA50A /* SecondaryText.swift */; };
-		637A28B52C79409C0082FACC /* MiniPlayerSceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637A28B42C79409B0082FACC /* MiniPlayerSceneDelegate.swift */; };
 		638920F02C8C8E9000932EE8 /* SettingsList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 638920EF2C8C8E9000932EE8 /* SettingsList.swift */; };
 		63DCDB7A2C674B5D00522F68 /* SettingsSceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63DCDB792C674B5D00522F68 /* SettingsSceneDelegate.swift */; };
 		641708592C13BF5100BA2619 /* Haptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 641708582C13BF5100BA2619 /* Haptics.swift */; };
@@ -537,7 +536,6 @@
 		A7C3D1E22F00000300A0B0C1 /* LibraryDisplaySettingsTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7C3D1E22F00000400A0B0C1 /* LibraryDisplaySettingsTest.swift */; };
 		B5A5CE010000000000000001 /* ShareSongActionTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5A5CE010000000000000002 /* ShareSongActionTest.swift */; };
 		B5A5CE010000000000000003 /* EventLoggerTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5A5CE010000000000000004 /* EventLoggerTest.swift */; };
-		C0A1B0032EEE000000000003 /* MacWindowHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A1B0022EEE000000000002 /* MacWindowHelper.swift */; };
 		C6A1E0022F0A000100ABCDEF /* ReorderableListEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6A1E0012F0A000100ABCDEF /* ReorderableListEditor.swift */; };
 		C6A1E0042F0B000100ABCDEF /* ImageCropViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6A1E0032F0B000100ABCDEF /* ImageCropViewController.swift */; };
 		C6A1E0062F0B000100ABCDEF /* CoverImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6A1E0052F0B000100ABCDEF /* CoverImagePicker.swift */; };
@@ -1166,7 +1164,6 @@
 		632F51232C83A7970032860D /* QueueVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueVC.swift; sourceTree = "<group>"; };
 		632F51252C83A8400032860D /* LyricsVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsVC.swift; sourceTree = "<group>"; };
 		6333C8E02C6FDB5200CCA50A /* SecondaryText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecondaryText.swift; sourceTree = "<group>"; };
-		637A28B42C79409B0082FACC /* MiniPlayerSceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniPlayerSceneDelegate.swift; sourceTree = "<group>"; };
 		638920EF2C8C8E9000932EE8 /* SettingsList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsList.swift; sourceTree = "<group>"; };
 		63DCDB792C674B5D00522F68 /* SettingsSceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSceneDelegate.swift; sourceTree = "<group>"; };
 		641708582C13BF5100BA2619 /* Haptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Haptics.swift; sourceTree = "<group>"; };
@@ -1181,7 +1178,6 @@
 		AB890C7F92FDC39784593C50 /* DownloadTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadTest.swift; sourceTree = "<group>"; };
 		B5A5CE010000000000000002 /* ShareSongActionTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSongActionTest.swift; sourceTree = "<group>"; };
 		B5A5CE010000000000000004 /* EventLoggerTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLoggerTest.swift; sourceTree = "<group>"; };
-		C0A1B0022EEE000000000002 /* MacWindowHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacWindowHelper.swift; sourceTree = "<group>"; };
 		C6A1E0012F0A000100ABCDEF /* ReorderableListEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReorderableListEditor.swift; sourceTree = "<group>"; };
 		C6A1E0032F0B000100ABCDEF /* ImageCropViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCropViewController.swift; sourceTree = "<group>"; };
 		C6A1E0052F0B000100ABCDEF /* CoverImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverImagePicker.swift; sourceTree = "<group>"; };
@@ -1511,8 +1507,6 @@
 				508385E721C5965B00C4BB32 /* AppDelegate.swift */,
 				5059A31B28A9ED680068E4D2 /* SceneDelegate.swift */,
 				63DCDB792C674B5D00522F68 /* SettingsSceneDelegate.swift */,
-				637A28B42C79409B0082FACC /* MiniPlayerSceneDelegate.swift */,
-				C0A1B0022EEE000000000002 /* MacWindowHelper.swift */,
 				50CFBC532E464EDE00EAA7BC /* AppDelegateMainMenuExtension.swift */,
 				509001B72716C8F400A8056D /* AppDelegateNotificationExtensions.swift */,
 				509001B52716C7F600A8056D /* AppDelegateAlertExtensions.swift */,
@@ -2532,8 +2526,6 @@
 				632F51262C83A8400032860D /* LyricsVC.swift in Sources */,
 				509001B82716C8F400A8056D /* AppDelegateNotificationExtensions.swift in Sources */,
 				50A30E5C2B7556FB00722894 /* PopupPlayer+TableViewExtension.swift in Sources */,
-				637A28B52C79409C0082FACC /* MiniPlayerSceneDelegate.swift in Sources */,
-				C0A1B0032EEE000000000003 /* MacWindowHelper.swift in Sources */,
 				505CA2112B88ECC700AA81CD /* SingleFetchedResultsTableViewController.swift in Sources */,
 				50C9D717285075E3007F18D0 /* UtilitiesExtensions.swift in Sources */,
 				505CA2142B88ED6100AA81CD /* SingleSnapshotFetchedResultsTableViewController.swift in Sources */,

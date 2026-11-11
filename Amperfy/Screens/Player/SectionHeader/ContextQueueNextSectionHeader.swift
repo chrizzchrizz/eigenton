@@ -76,42 +76,40 @@ class ContextQueueNextSectionHeader: UIView {
     playerHandler?.refreshAutoplayButton(autoplayButton: autoplayButton)
   }
 
+  /// Mac: the queue in the split view's inspector, not in the popup player
+  private var isInInspector: Bool {
+    #if targetEnvironment(macCatalyst)
+      rootView == nil
+    #else
+      false
+    #endif
+  }
+
   func configureAutoplayButtonPosition() {
     autoplayTrailingConstraint.isActive = false
-    #if targetEnvironment(macCatalyst)
-      if appDelegate.isShowingMiniPlayer {
-        autoplayTrailingConstraint = autoplayButton.trailingAnchor.constraint(
-          equalTo: shuffleButton.leadingAnchor,
-          constant: -8.0
-        )
-      } else {
-        autoplayTrailingConstraint = autoplayButton.trailingAnchor.constraint(
-          equalTo: safeAreaLayoutGuide.trailingAnchor,
-          constant: -8.0
-        )
-      }
-    #else
+    if isInInspector {
+      autoplayTrailingConstraint = autoplayButton.trailingAnchor.constraint(
+        equalTo: safeAreaLayoutGuide.trailingAnchor,
+        constant: -8.0
+      )
+    } else {
       autoplayTrailingConstraint = autoplayButton.trailingAnchor.constraint(
         equalTo: shuffleButton.leadingAnchor,
         constant: -8.0
       )
-    #endif
+    }
     NSLayoutConstraint.activate([
       autoplayTrailingConstraint,
     ])
   }
 
+  /// Visibility of the buttons is only set here
   func refreshCurrentlyPlayingInfo() {
-    switch player.playerMode {
-    case .music:
-      repeatButton.isHidden = false
-      shuffleButton.isHidden = false
-      autoplayButton.isHidden = false
-    case .podcast:
-      repeatButton.isHidden = true
-      shuffleButton.isHidden = true
-      autoplayButton.isHidden = true
-    }
+    let isMusic = player.playerMode == .music
+    // the queue in the inspector: the mini player bar already has repeat and shuffle
+    repeatButton.isHidden = !isMusic || isInInspector
+    shuffleButton.isHidden = !isMusic || isInInspector
+    autoplayButton.isHidden = !isMusic
   }
 
   @IBAction

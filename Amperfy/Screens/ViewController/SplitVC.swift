@@ -38,6 +38,14 @@ class SplitVC: UISplitViewController {
   var miniPlayerTrailingConstraint: NSLayoutConstraint?
   var miniPlayerBottomConstraint: NSLayoutConstraint?
   var miniPlayerHeightConstraint: NSLayoutConstraint?
+  /// The popup player is shown as a child over the whole window, like the popup player on iOS.
+  private(set) var popupPlayer: PopupPlayerVC?
+  /// Pushed onto the detail navigation while the popup player is shown: its navigation bar, which
+  /// the split view places in the window's title bar, only has the close button.
+  private var popupPlayerTitlebarVC: UIViewController?
+  private var isPopupPlayerAnimating = false
+  /// Open/close requests that came in during an animation, run once it has finished
+  private var afterPopupPlayerAnimation = [() -> ()]()
   private let account: Account!
 
   init(style: UISplitViewController.Style, account: Account) {
@@ -134,17 +142,182 @@ class SplitVC: UISplitViewController {
   }
 
   func displayOrHideInspector() {
+    // keep the shown lyrics or queue (scroll position, no reload) if they stay
+    let inspectorVC = viewController(for: .inspector)
+    let shownVC = (inspectorVC as? UINavigationController)?.topViewController ?? inspectorVC
     if appDelegate.storage.settings.user.isPlayerLyricsDisplayed {
+      guard !(shownVC is LyricsVC) else { return }
       let lyricsVC = LyricsVC()
       setViewController(lyricsVC, for: .inspector)
       show(.inspector)
     } else if appDelegate.storage.settings.user.playerDisplayStyle == .compact {
+      guard !(shownVC is QueueVC) else { return }
       let queueVC = QueueVC()
       setViewController(queueVC, for: .inspector)
       show(.inspector)
     } else {
       hide(.inspector)
       setViewController(nil, for: .inspector)
+    }
+  }
+
+  // MARK: - Popup player overlay
+
+  var isPopupPlayerOpen: Bool {
+    popupPlayer != nil
+  }
+
+  func openPopupPlayer(animated: Bool, completion: (() -> ())? = nil) {
+    guard !isPopupPlayerAnimating else {
+      afterPopupPlayerAnimation.append { [weak self] in
+        self?.openPopupPlayer(animated: animated, completion: completion)
+      }
+      return
+    }
+    guard popupPlayer == nil else {
+      completion?()
+      return
+    }
+    // the title bar changes first: the player's safe area must not change while it slides in,
+    // it would lay out (and resize the artwork) again
+    setTitlebarForPopupPlayer(isShown: true)
+    view.layoutIfNeeded()
+
+    let popupPlayer = PopupPlayerVC()
+    popupPlayer.isOverlay = true
+    self.popupPlayer = popupPlayer
+
+    addChild(popupPlayer)
+    popupPlayer.view.frame = view.bounds
+    popupPlayer.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    // above the mini player bar
+    view.addSubview(popupPlayer.view)
+    popupPlayer.didMove(toParent: self)
+    popupPlayer.view.layoutIfNeeded()
+    appDelegate.rebuildMainMenu()
+
+    guard animated else {
+      completion?()
+      return
+    }
+    isPopupPlayerAnimating = true
+    popupPlayer.view.transform = CGAffineTransform(translationX: 0, y: view.bounds.height)
+    UIView.animate(
+      withDuration: 0.4,
+      delay: 0,
+      usingSpringWithDamping: 0.9,
+      initialSpringVelocity: 0,
+      options: [],
+      animations: {
+        popupPlayer.view.transform = .identity
+      },
+      completion: { _ in
+        self.isPopupPlayerAnimating = false
+        completion?()
+        self.runAfterPopupPlayerAnimation()
+      }
+    )
+  }
+
+  func closePopupPlayer(animated: Bool, completion: (() -> ())? = nil) {
+    guard !isPopupPlayerAnimating else {
+      afterPopupPlayerAnimation.append { [weak self] in
+        self?.closePopupPlayer(animated: animated, completion: completion)
+      }
+      return
+    }
+    guard let popupPlayer else {
+      completion?()
+      return
+    }
+    let removePopupPlayer = {
+      // the title bar changes only once the player is gone, see openPopupPlayer
+      self.setTitlebarForPopupPlayer(isShown: false)
+      popupPlayer.willMove(toParent: nil)
+      popupPlayer.view.removeFromSuperview()
+      popupPlayer.removeFromParent()
+      self.popupPlayer = nil
+      self.isPopupPlayerAnimating = false
+      // lyrics and queue share their setting with the popup player, which might have changed it
+      self.displayOrHideInspector()
+      self.miniPlayer?.refreshPlayer()
+      self.appDelegate.rebuildMainMenu()
+      completion?()
+      self.runAfterPopupPlayerAnimation()
+    }
+    guard animated else {
+      removePopupPlayer()
+      return
+    }
+    isPopupPlayerAnimating = true
+    // A still image slides out: moving the player itself out of the title bar shrinks its safe
+    // area, it would lay out again and the artwork would jump.
+    let slidingView: UIView
+    if let snapshot = popupPlayer.view.snapshotView(afterScreenUpdates: false) {
+      snapshot.frame = popupPlayer.view.frame
+      view.addSubview(snapshot)
+      popupPlayer.view.isHidden = true
+      slidingView = snapshot
+    } else {
+      slidingView = popupPlayer.view
+    }
+    UIView.animate(
+      withDuration: 0.3,
+      delay: 0,
+      options: .curveEaseIn,
+      animations: {
+        slidingView.transform = CGAffineTransform(translationX: 0, y: self.view.bounds.height)
+      },
+      completion: { _ in
+        if slidingView !== popupPlayer.view {
+          slidingView.removeFromSuperview()
+        }
+        removePopupPlayer()
+      }
+    )
+  }
+
+  private func runAfterPopupPlayerAnimation() {
+    let pending = afterPopupPlayerAnimation
+    afterPopupPlayerAnimation.removeAll()
+    pending.forEach { $0() }
+  }
+
+  /// The navigation bars of the columns are shown in the window's title bar on Mac, above the popup
+  /// player. Their buttons and titles don't belong to the player: sidebar and inspector bars are
+  /// hidden, the detail column shows a screen with only the close button.
+  private func setTitlebarForPopupPlayer(isShown: Bool) {
+    for column in [UISplitViewController.Column.primary, .inspector] {
+      let columnVC = viewController(for: column)
+      let navController = (columnVC as? UINavigationController) ?? columnVC?.navigationController
+      navController?.setNavigationBarHidden(isShown, animated: false)
+    }
+    displayModeButtonVisibility = isShown ? .never : .automatic
+
+    if isShown {
+      guard popupPlayerTitlebarVC == nil,
+            let detailNav = viewController(for: .secondary) as? UINavigationController
+      else { return }
+      // a still image of the current screen: it stays visible while the player slides in
+      let snapshot = detailNav.topViewController?.view.snapshotView(afterScreenUpdates: false)
+      let titlebarVC = PopupPlayerTitlebarVC(
+        snapshot: snapshot,
+        closeAction: UIAction { [weak self] _ in
+          self?.closePopupPlayer(animated: true)
+        }
+      )
+      popupPlayerTitlebarVC = titlebarVC
+      detailNav.pushViewController(titlebarVC, animated: false)
+    } else {
+      guard let titlebarVC = popupPlayerTitlebarVC else { return }
+      popupPlayerTitlebarVC = nil
+      // the detail navigation might have been replaced or pushed onto meanwhile
+      guard let detailNav = titlebarVC.navigationController else { return }
+      if detailNav.topViewController === titlebarVC {
+        detailNav.popViewController(animated: false)
+      } else {
+        detailNav.viewControllers.removeAll { $0 === titlebarVC }
+      }
     }
   }
 
@@ -212,5 +385,35 @@ extension SplitVC: MainSceneHostingViewController {
           let miniPlayerHeightConstraint else { return 0.0 }
 
     return miniPlayerBottomConstraint.constant + miniPlayerHeightConstraint.constant
+  }
+}
+
+// MARK: - PopupPlayerTitlebarVC
+
+/// Mac: the detail column's screen while the popup player is shown. The player covers it, only its
+/// navigation bar with the system close button is visible in the window's title bar.
+private class PopupPlayerTitlebarVC: UIViewController {
+  private let snapshot: UIView?
+
+  init(snapshot: UIView?, closeAction: UIAction) {
+    self.snapshot = snapshot
+    super.init(nibName: nil, bundle: nil)
+    navigationItem.hidesBackButton = true
+    navigationItem.rightBarButtonItem = UIBarButtonItem(
+      systemItem: .close,
+      primaryAction: closeAction
+    )
+  }
+
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
+  }
+
+  override func viewDidLoad() {
+    super.viewDidLoad()
+    guard let snapshot else { return }
+    snapshot.frame = view.bounds
+    snapshot.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    view.addSubview(snapshot)
   }
 }
