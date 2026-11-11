@@ -831,7 +831,7 @@ extension CarPlaySceneDelegate {
   }
 
   func getImage(for playable: AbstractPlayable, isTrackDisplayed: Bool) -> UIImage {
-    isTrackDisplayed ? UIImage.numberToImage(number: playable.track) :
+    isTrackDisplayed ? createTrackNumberImage(number: playable.track) :
       LibraryEntityImage.getImageToDisplayImmediately(
         libraryEntity: playable,
         themePreference: getPreference(activeAccountInfo).theme,
@@ -839,6 +839,36 @@ extension CarPlaySceneDelegate {
         useCache: false,
         maxPixelSize: listImagePixelSize
       )
+  }
+
+  /// Track number in the row's image slot, styled like Apple Music: regular weight, about the
+  /// size of the detail text, in the secondary label color of the car's current light or dark mode
+  func createTrackNumberImage(number: Int) -> UIImage {
+    let canvasSize = CGSize(width: 100, height: 100)
+    let font = UIFont.monospacedDigitSystemFont(ofSize: 30, weight: .regular)
+    let paragraphStyle = NSMutableParagraphStyle()
+    paragraphStyle.alignment = .center
+    let text = number > 0 ? "\(number)" : ""
+
+    let format = UIGraphicsImageRendererFormat()
+    format.scale = max(traits.displayScale, 1)
+    return UIGraphicsImageRenderer(size: canvasSize, format: format).image { _ in
+      let attributes: [NSAttributedString.Key: Any] = [
+        .font: font,
+        .paragraphStyle: paragraphStyle,
+        .foregroundColor: UIColor.secondaryLabel.resolvedColor(with: traits),
+      ]
+      let textHeight = font.lineHeight
+      text.draw(
+        in: CGRect(
+          x: 0,
+          y: (canvasSize.height - textHeight) / 2,
+          width: canvasSize.width,
+          height: textHeight
+        ),
+        withAttributes: attributes
+      )
+    }
   }
 
   func triggerPlayRandomSongsItem(onlyCached: Bool) {

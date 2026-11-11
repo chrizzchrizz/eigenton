@@ -537,41 +537,6 @@ extension UIImage {
     return buildView.screenshot ?? UIImage()
   }
 
-  private static func createEmptyImage(with size: CGSize) -> UIImage? {
-    UIGraphicsBeginImageContext(size)
-    let image = UIGraphicsGetImageFromCurrentImageContext()
-    UIGraphicsEndImageContext()
-    return image
-  }
-
-  public static func numberToImage(number: Int) -> UIImage {
-    let fontSize = 40.0
-    let textFont = UIFont(name: "Helvetica Bold", size: fontSize)!
-
-    let image = createEmptyImage(with: CGSize(width: 100.0, height: 100.0)) ?? UIImage()
-    let scale = UITraitCollection.current.displayScale
-    UIGraphicsBeginImageContextWithOptions(image.size, false, scale)
-
-    let paragraphStyle = NSMutableParagraphStyle()
-    paragraphStyle.alignment = .center
-
-    let textFontAttributes = [
-      NSAttributedString.Key.font: textFont,
-      NSAttributedString.Key.paragraphStyle: paragraphStyle,
-      NSAttributedString.Key.foregroundColor: UIColor.lightGray,
-    ] as [NSAttributedString.Key: Any]
-    image.draw(in: CGRect(origin: CGPoint.zero, size: image.size))
-
-    let textPoint = CGPoint(x: 0.0, y: 50.0 - (fontSize / 2))
-    let rect = CGRect(origin: textPoint, size: image.size)
-    number.description.draw(in: rect, withAttributes: textFontAttributes)
-
-    let newImage = UIGraphicsGetImageFromCurrentImageContext()
-    UIGraphicsEndImageContext()
-
-    return newImage!
-  }
-
   public func styleForNavigationBar(pointSize: CGFloat, tintColor: UIColor) -> UIImage {
     let navBarSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: pointSize)
     let img = applyingSymbolConfiguration(navBarSymbolConfiguration) ?? UIImage()
