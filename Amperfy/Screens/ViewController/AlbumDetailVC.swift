@@ -155,6 +155,9 @@ class AlbumDetailVC: SingleSnapshotFetchedResultsTableViewController<SongMO> {
       completionHandler(SwipeActionContext(containable: song, playContext: playContext))
     }
 
+    // grouped style (Mac) defaults to the gray grouped background; without artwork background
+    // the album should look like the other (plain) screens
+    tableView.backgroundColor = .systemBackground
     // as early as possible, so the default color is barely visible during the push
     artworkBackground = ArtworkBackgroundController(
       owner: self,
