@@ -456,8 +456,9 @@ extension AlbumsCollectionVC: UICollectionViewDelegateFlowLayout {
     insetForSectionAt section: Int
   )
     -> UIEdgeInsets {
-    // more room between the albums of a year and the header of the next year
-    let bottom: CGFloat = displayFilter == .latestReleased ? 32 : 8
+    // more room between the albums of a section and the header of the next one;
+    // sections without a header continue the grid seamlessly
+    let bottom: CGFloat = hasSectionHeader(section + 1) || displayFilter == .latestReleased ? 32 : 8
     let inset = horizontalSectionInset
     return UIEdgeInsets(top: 8, left: inset.leading, bottom: bottom, right: inset.trailing)
   }
@@ -473,6 +474,19 @@ extension AlbumsCollectionVC: UICollectionViewDelegateFlowLayout {
     )
   }
 
+  /// Whether the section shows a title header (false for sections past the end)
+  private func hasSectionHeader(_ section: Int) -> Bool {
+    guard section < collectionView.numberOfSections else { return false }
+    switch common.sortType {
+    case .artist, .name, .rating, .year:
+      return true
+    case .newest:
+      return !(albumsDataSource?.sectionTitle(for: section) ?? "").isEmpty
+    case .duration, .recent:
+      return false
+    }
+  }
+
   func collectionView(
     _ collectionView: UICollectionView,
     layout collectionViewLayout: UICollectionViewLayout,
@@ -480,20 +494,7 @@ extension AlbumsCollectionVC: UICollectionViewDelegateFlowLayout {
   )
     -> CGSize {
     let headerTopHeight = section == 0 ? LibraryElementDetailTableHeaderView.frameHeight : 0.0
-    switch common.sortType {
-    case .artist, .name, .rating, .year:
-      return CGSize(
-        width: collectionView.bounds.size.width,
-        height: CommonCollectionSectionHeader.frameHeight + headerTopHeight
-      )
-    case .newest:
-      let hasTitle = !(albumsDataSource?.sectionTitle(for: section) ?? "").isEmpty
-      return CGSize(
-        width: collectionView.bounds.size.width,
-        height: (hasTitle ? CommonCollectionSectionHeader.frameHeight : 0.0) + headerTopHeight
-      )
-    case .duration, .recent:
-      return CGSize(width: collectionView.bounds.size.width, height: headerTopHeight)
-    }
+    let titleHeight = hasSectionHeader(section) ? CommonCollectionSectionHeader.frameHeight : 0.0
+    return CGSize(width: collectionView.bounds.size.width, height: titleHeight + headerTopHeight)
   }
 }
