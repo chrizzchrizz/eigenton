@@ -145,8 +145,9 @@ class AlbumsCollectionDiffableDataSource: BasicUICollectionViewDiffableDataSourc
   func sectionTitle(for section: Int) -> String {
     switch sortType {
     case .name:
+      // the initial the albums are grouped by ("?" for symbols, "#" for digits)
       guard let album = getFirstAlbum(in: section) else { return "" }
-      return album.name
+      return album.managedObject.alphabeticSectionInitial
     case .rating:
       guard let album = getFirstAlbum(in: section) else { return "" }
       if album.rating > 0 {
@@ -161,8 +162,9 @@ class AlbumsCollectionDiffableDataSource: BasicUICollectionViewDiffableDataSourc
     case .recent:
       return ""
     case .artist:
+      // the artist initial the albums are grouped by
       guard let album = getFirstAlbum(in: section) else { return "" }
-      return album.subtitle ?? ""
+      return album.managedObject.artist?.alphabeticSectionInitial ?? ""
     case .duration:
       guard let album = getFirstAlbum(in: section) else { return "" }
       return album.duration.description
