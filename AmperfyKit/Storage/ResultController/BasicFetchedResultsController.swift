@@ -25,9 +25,6 @@ import Foundation
 extension NSFetchedResultsController {
   @objc
   func fetch() {
-    if sectionNameKeyPath == #keyPath(AlbumMO.addedDateSectionTitle) {
-      IndexHeaderNameGenerator.refreshAddedDateBoundaries()
-    }
     do {
       try performFetch()
     } catch let error as NSError {
@@ -194,21 +191,12 @@ public class IndexHeaderNameGenerator {
     AddedDateSectionBoundaries(now: now, calendar: calendar).title(for: date)
   }
 
-  private static let addedDateBoundaries = Atomic(wrappedValue: AddedDateSectionBoundaries())
-
-  /// Boundaries all added date sections are computed with. They only move on a fetch
-  /// (`refreshAddedDateBoundaries`), so the sections of a fetched list stay contiguous while the
-  /// app runs, also across a month change.
-  public static var currentAddedDateBoundaries: AddedDateSectionBoundaries {
-    addedDateBoundaries.wrappedValue
-  }
-
-  /// Called before a fetch that is grouped by added date; moves the boundaries once per day
-  static func refreshAddedDateBoundaries(now: Date = Date()) {
-    let current = addedDateBoundaries.wrappedValue
-    guard !current.calendar.isDate(current.referenceDate, inSameDayAs: now) else { return }
-    addedDateBoundaries.wrappedValue = AddedDateSectionBoundaries(now: now)
-  }
+  /// Boundaries all added date sections are computed with, fixed for the lifetime of the app
+  /// process. Every fetched results controller, including ones that stay alive and only process
+  /// changes, therefore groups with the same boundaries, so sections stay contiguous and unique.
+  /// Moving them while lists are alive would sort changed albums into groups that don't match
+  /// their neighbours. Trade-off: after midnight the titles are a day behind until the next start.
+  public static let currentAddedDateBoundaries = AddedDateSectionBoundaries()
 
   public static func sortByYear(forSectionName sectionName: String) -> String {
     if let year = Int(sectionName), year > 0 {
