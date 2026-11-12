@@ -114,7 +114,7 @@ enum KeyboardCommands: CaseIterable {
 
   private var wantsPriorityOverSystemBehavior: Bool {
     switch self {
-    case .previous, .next:
+    case .next, .previous:
       return true
     default:
       return false
@@ -130,7 +130,12 @@ private enum FirstResponderFinder {
 
   static func find() -> UIResponder? {
     current = nil
-    UIApplication.shared.sendAction(#selector(UIResponder.amp_reportFirstResponder), to: nil, from: nil, for: nil)
+    UIApplication.shared.sendAction(
+      #selector(UIResponder.amp_reportFirstResponder),
+      to: nil,
+      from: nil,
+      for: nil
+    )
     return current
   }
 }

@@ -39,6 +39,7 @@ class LyricsView: UITableView, UITableViewDataSource, UITableViewDataSourcePrefe
       reloadViewModels()
     }
   }
+
   /// A gap before the first line longer than this is shown as pause.
   private let introPauseThreshold = CMTime(value: 5, timescale: 1)
   /// A seek to the start of a line can end a few milliseconds before it, the line still has to be active.
