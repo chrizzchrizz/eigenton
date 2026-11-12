@@ -162,7 +162,9 @@ class PlaylistAddAlbumsVC: SingleSnapshotFetchedResultsTableViewController<Album
   )
     -> CGFloat {
     switch common.sortType {
-    case .artist, .duration, .name, .recent:
+    case .artist, .name:
+      return super.tableView(tableView, heightForHeaderInSection: section)
+    case .duration, .recent:
       return 0.0
     case .newest:
       return self.tableView(tableView, titleForHeaderInSection: section) == nil ? 0.0 :

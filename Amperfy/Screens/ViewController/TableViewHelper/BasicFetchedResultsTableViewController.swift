@@ -45,6 +45,19 @@ class BasicFetchedResultsTableViewController<ResultType>: BasicTableViewControll
     singleFetchController?.titleForHeader(inSection: section)
   }
 
+  /// Lists grouped by initial letter show the letter above each section, so it is also visible
+  /// after a jump via the section index. Screens with other groupings decide themselves.
+  override func tableView(
+    _ tableView: UITableView,
+    heightForHeaderInSection section: Int
+  )
+    -> CGFloat {
+    guard singleFetchController?.fetchResultsController.sectionIndexType == .alphabet,
+          let title = self.tableView(tableView, titleForHeaderInSection: section), !title.isEmpty
+    else { return 0.0 }
+    return CommonScreenOperations.tableSectionHeightLarge
+  }
+
   override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
     singleFetchController?.numberOfRows(inSection: section) ?? 0
   }

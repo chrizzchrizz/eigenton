@@ -144,7 +144,7 @@ class PlaylistAddArtistsVC: SingleSnapshotFetchedResultsTableViewController<Arti
     -> CGFloat {
     switch sortType {
     case .name:
-      return 0.0
+      return super.tableView(tableView, heightForHeaderInSection: section)
     case .rating:
       return CommonScreenOperations.tableSectionHeightLarge
     case .newest:
