@@ -129,6 +129,15 @@ class AlbumsCommonVCInteractions {
     self.isSetNavbarButton = isSetNavbarButton
   }
 
+  /// Header title of a section grouped by added date ("This Month", "2024", …), nil for the
+  /// group without a date. Read from the fetched sections, as the section index stays empty.
+  public func addedDateSectionTitle(forSection section: Int) -> String? {
+    guard let sections = fetchedResultsController?.sections, sections.indices.contains(section)
+    else { return nil }
+    let title = sections[section].name
+    return title.isEmpty ? nil : title
+  }
+
   public var isContentUnavailable: Bool {
     fetchedResultsController.fetchedObjects?.count ?? 0 == 0
   }

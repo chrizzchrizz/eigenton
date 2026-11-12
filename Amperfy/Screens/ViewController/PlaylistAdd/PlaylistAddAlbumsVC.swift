@@ -146,6 +146,18 @@ class PlaylistAddAlbumsVC: SingleSnapshotFetchedResultsTableViewController<Album
 
   override func tableView(
     _ tableView: UITableView,
+    titleForHeaderInSection section: Int
+  )
+    -> String? {
+    // grouped by added date there is no section index, which the default title is read from
+    guard common.sortType == .newest else {
+      return super.tableView(tableView, titleForHeaderInSection: section)
+    }
+    return common.addedDateSectionTitle(forSection: section)
+  }
+
+  override func tableView(
+    _ tableView: UITableView,
     heightForHeaderInSection section: Int
   )
     -> CGFloat {
