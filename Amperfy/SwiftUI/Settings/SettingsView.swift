@@ -177,6 +177,7 @@ struct SettingsView: View {
         list
           .contentMargins(.top, 16, for: .scrollContent)
           .navigationTitle("Settings")
+          .navigationBarTitleDisplayMode(.inline)
           // All pushes in this stack must be value based. Mixing view based links
           // (NavigationLink(destination:)) with the value based links of the sub pages
           // results in a navigation loop.
