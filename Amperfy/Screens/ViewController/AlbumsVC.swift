@@ -80,34 +80,19 @@ class AlbumsDiffableDataSource: BasicUITableViewDiffableDataSource {
   }
 
   override func sectionIndexTitles(for tableView: UITableView) -> [String]? {
-    guard !isIndexTitelsHidden, sortType != .newest, sortType != .recent else { return nil }
+    // only name and artist have single-letter index titles; longer ones would cover the content
+    guard !isIndexTitelsHidden, sortType == .name || sortType == .artist else { return nil }
     let sectionCount = numberOfSections(in: tableView)
     var indexTitles = [String]()
-    for i in 0 ... sectionCount {
-      if let sectionName = self.tableView(tableView, titleForHeaderInSection: i) {
-        var indexTitle = ""
-        switch sortType {
-        case .name:
-          indexTitle = sectionName.prefix(1).uppercased()
-          if let _ = Int(indexTitle) {
-            indexTitle = "#"
-          }
-        case .artist:
-          indexTitle = sectionName.prefix(1).uppercased()
-          if let _ = Int(indexTitle) {
-            indexTitle = "#"
-          }
-        case .rating:
-          indexTitle = IndexHeaderNameGenerator.sortByRating(forSectionName: sectionName)
-        case .duration:
-          indexTitle = IndexHeaderNameGenerator.sortByDurationAlbum(forSectionName: sectionName)
-        case .year:
-          indexTitle = IndexHeaderNameGenerator.sortByYear(forSectionName: sectionName)
-        default:
-          break
-        }
-        indexTitles.append(indexTitle)
+    for i in 0 ..< sectionCount {
+      // one entry per section, also without a title (album without artist), because
+      // sectionForSectionIndexTitle maps entry n to section n
+      let sectionName = self.tableView(tableView, titleForHeaderInSection: i) ?? ""
+      var indexTitle = sectionName.prefix(1).uppercased()
+      if indexTitle.isEmpty || Int(indexTitle) != nil {
+        indexTitle = "#"
       }
+      indexTitles.append(indexTitle)
     }
     return indexTitles
   }

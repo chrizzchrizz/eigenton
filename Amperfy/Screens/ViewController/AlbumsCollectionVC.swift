@@ -102,19 +102,19 @@ class AlbumsCollectionDiffableDataSource: BasicUICollectionViewDiffableDataSourc
   }
 
   override func indexTitles(for collectionView: UICollectionView) -> [String]? {
-    guard let vc, !vc.common.isIndexTitelsHidden else { return nil }
-    switch sortType {
-    case .artist, .duration, .name, .rating, .year:
-      let sectionCount = numberOfSections(in: collectionView)
-      var indexTitles = [String]()
-      for i in 0 ... sectionCount {
-        let sectionName = sectionTitle(for: i)
-        indexTitles.append(sectionTitleToIndexTitle(sectionName: sectionName))
-      }
-      return indexTitles
-    case .newest, .recent:
-      return nil
+    // only name and artist have single-letter index titles; longer ones would cover the covers
+    guard let vc, !vc.common.isIndexTitelsHidden, sortType == .name || sortType == .artist
+    else { return nil }
+    // UIKit checks every entry against an existing cell, so an empty grid gets no index
+    let sectionCount = numberOfSections(in: collectionView)
+    guard sectionCount > 0 else { return nil }
+    var indexTitles = [String]()
+    for i in 0 ..< sectionCount {
+      // one entry per section, also without a title (album without artist), so they line up
+      let indexTitle = sectionTitleToIndexTitle(sectionName: sectionTitle(for: i))
+      indexTitles.append(indexTitle.isEmpty ? "#" : indexTitle)
     }
+    return indexTitles
   }
 
   func sectionTitleToIndexTitle(sectionName: String) -> String {
