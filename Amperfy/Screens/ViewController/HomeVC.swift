@@ -74,7 +74,8 @@ final class HomeVC: UICollectionViewController {
     sectionLookup.homeVC = self
     sharedHome.applySnapshotCB = { [weak self] in
       guard let self else { return }
-      applySnapshot(animated: true)
+      // the first snapshot (before the home is on screen) appears without animation
+      applySnapshot(animated: viewIfLoaded?.window != nil)
     }
   }
 
@@ -112,8 +113,8 @@ final class HomeVC: UICollectionViewController {
     arrangeNavButtonsForMac()
     configureCollectionView()
     configureDataSource()
+    // fills all sections and applies the first snapshot via applySnapshotCB
     sharedHome.createFetchController()
-    applySnapshot(animated: false)
 
     appDelegate.notificationHandler.register(
       self,
@@ -356,13 +357,11 @@ final class HomeVC: UICollectionViewController {
         header.showsRefreshButton = true
         header.setRefreshHandler { [weak self] in
           guard let self else { return }
-          Task { @MainActor in
-            await self.sharedHome.updateFixedDecadeOrGenreAlbums(
-              section,
-              isOfflineMode: self.sharedHome.isOfflineMode
-            )
-            self.scrollSectionToStart(section)
-          }
+          sharedHome.updateFixedDecadeOrGenreAlbums(
+            section,
+            isOfflineMode: sharedHome.isOfflineMode
+          )
+          scrollSectionToStart(section)
         }
       } else {
         header.showsRefreshButton = false
@@ -421,8 +420,7 @@ final class HomeVC: UICollectionViewController {
         accountSettings.homeSections = visible
         accountSettings.homeSectionOrder = order
       }
-      applySnapshot(animated: true)
-
+      // applies the snapshot with the new sections via applySnapshotCB
       sharedHome.createFetchController()
       sharedHome.updateFromRemote()
     }
@@ -439,58 +437,44 @@ final class HomeVC: UICollectionViewController {
 
   @objc
   func refreshRandomAlbumsSection() {
-    Task { @MainActor in
-      await sharedHome.updateRandomAlbums(isOfflineMode: sharedHome.isOfflineMode)
-      scrollSectionToStart(.randomAlbums)
-    }
+    sharedHome.updateRandomAlbums(isOfflineMode: sharedHome.isOfflineMode)
+    scrollSectionToStart(.randomAlbums)
   }
 
   @objc
   func refreshCompilationsSection() {
-    Task { @MainActor in
-      await sharedHome.updateCompilations(isOfflineMode: sharedHome.isOfflineMode)
-      scrollSectionToStart(.compilations)
-    }
+    sharedHome.updateCompilations(isOfflineMode: sharedHome.isOfflineMode)
+    scrollSectionToStart(.compilations)
   }
 
   @objc
   func refreshRandomArtistsSection() {
-    Task { @MainActor in
-      await sharedHome.updateRandomArtists(isOfflineMode: sharedHome.isOfflineMode)
-      scrollSectionToStart(.randomArtists)
-    }
+    sharedHome.updateRandomArtists(isOfflineMode: sharedHome.isOfflineMode)
+    scrollSectionToStart(.randomArtists)
   }
 
   @objc
   func refreshFavoriteAlbumsSection() {
-    Task { @MainActor in
-      await sharedHome.updateFavoriteAlbums(isOfflineMode: sharedHome.isOfflineMode)
-      scrollSectionToStart(.favoriteAlbums)
-    }
+    sharedHome.updateFavoriteAlbums(isOfflineMode: sharedHome.isOfflineMode)
+    scrollSectionToStart(.favoriteAlbums)
   }
 
   @objc
   func refreshFavoriteArtistsSection() {
-    Task { @MainActor in
-      await sharedHome.updateFavoriteArtists(isOfflineMode: sharedHome.isOfflineMode)
-      scrollSectionToStart(.favoriteArtists)
-    }
+    sharedHome.updateFavoriteArtists(isOfflineMode: sharedHome.isOfflineMode)
+    scrollSectionToStart(.favoriteArtists)
   }
 
   @objc
   func refreshRandomGenresSection() {
-    Task { @MainActor in
-      await sharedHome.updateRandomGenres()
-      scrollSectionToStart(.randomGenres)
-    }
+    sharedHome.updateRandomGenres()
+    scrollSectionToStart(.randomGenres)
   }
 
   @objc
   func refreshRandomSongsSection() {
-    Task { @MainActor in
-      await sharedHome.updateRandomSongs(isOfflineMode: sharedHome.isOfflineMode)
-      scrollSectionToStart(.randomSongs)
-    }
+    sharedHome.updateRandomSongs(isOfflineMode: sharedHome.isOfflineMode)
+    scrollSectionToStart(.randomSongs)
   }
 
   // MARK: - Section Navigation

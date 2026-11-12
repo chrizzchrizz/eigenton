@@ -124,7 +124,21 @@ class HomeManager: NSObject {
       .getSetting(account.info).read.homeSections
   }
 
+  /// Set while createFetchController fills all sections: they are announced together afterwards,
+  /// so the first snapshot already contains the random sections (no jumping rows on start)
+  private var isFillingAllSections = false
+
+  private func notifySnapshotChange() {
+    guard !isFillingAllSections else { return }
+    applySnapshotCB?()
+  }
+
   func createFetchController() {
+    isFillingAllSections = true
+    defer {
+      isFillingAllSections = false
+      applySnapshotCB?()
+    }
     if orderedVisibleSections.contains(where: { $0 == .recentlyPlayedAlbums }) {
       albumsRecentlyPlayedFetchController = AlbumFetchedResultsController(
         coreDataCompanion: storage.main, account: account,
@@ -184,46 +198,30 @@ class HomeManager: NSObject {
     }
 
     if orderedVisibleSections.contains(where: { $0 == .randomAlbums }) {
-      Task { @MainActor in
-        await updateRandomAlbums(isOfflineMode: isOfflineMode)
-      }
+      updateRandomAlbums(isOfflineMode: isOfflineMode)
     }
     if orderedVisibleSections.contains(where: { $0 == .compilations }) {
-      Task { @MainActor in
-        await updateCompilations(isOfflineMode: isOfflineMode)
-      }
+      updateCompilations(isOfflineMode: isOfflineMode)
     }
     if orderedVisibleSections.contains(where: { $0 == .randomArtists }) {
-      Task { @MainActor in
-        await updateRandomArtists(isOfflineMode: isOfflineMode)
-      }
+      updateRandomArtists(isOfflineMode: isOfflineMode)
     }
     if orderedVisibleSections.contains(where: { $0 == .favoriteAlbums }) {
-      Task { @MainActor in
-        await updateFavoriteAlbums(isOfflineMode: isOfflineMode)
-      }
+      updateFavoriteAlbums(isOfflineMode: isOfflineMode)
     }
     if orderedVisibleSections.contains(where: { $0 == .favoriteArtists }) {
-      Task { @MainActor in
-        await updateFavoriteArtists(isOfflineMode: isOfflineMode)
-      }
+      updateFavoriteArtists(isOfflineMode: isOfflineMode)
     }
     if orderedVisibleSections.contains(where: { $0 == .randomGenres }) {
-      Task { @MainActor in
-        await updateRandomGenres()
-      }
+      updateRandomGenres()
     }
     if orderedVisibleSections.contains(where: { $0 == .randomSongs }) {
-      Task { @MainActor in
-        await updateRandomSongs(isOfflineMode: isOfflineMode)
-      }
+      updateRandomSongs(isOfflineMode: isOfflineMode)
     }
     let fixedSections = orderedVisibleSections.filter(\.isFixedDecadeOrGenre)
     if !fixedSections.isEmpty {
-      Task { @MainActor in
-        for section in fixedSections {
-          await updateFixedDecadeOrGenreAlbums(section, isOfflineMode: isOfflineMode)
-        }
+      for section in fixedSections {
+        updateFixedDecadeOrGenreAlbums(section, isOfflineMode: isOfflineMode)
       }
     }
 
@@ -357,7 +355,7 @@ class HomeManager: NSObject {
         .compactMap { Album(managedObject: $0) }.compactMap {
           HomeItem(section: .recentlyPlayedAlbums, playableContainable: $0)
         }
-      applySnapshotCB?()
+      notifySnapshotChange()
     }
   }
 
@@ -367,7 +365,7 @@ class HomeManager: NSObject {
         .compactMap { Album(managedObject: $0) }.compactMap {
           HomeItem(section: .newestAlbums, playableContainable: $0)
         }
-      applySnapshotCB?()
+      notifySnapshotChange()
     }
   }
 
@@ -377,11 +375,11 @@ class HomeManager: NSObject {
         .compactMap { Album(managedObject: $0) }.compactMap {
           HomeItem(section: .latestReleasedAlbums, playableContainable: $0)
         }
-      applySnapshotCB?()
+      notifySnapshotChange()
     }
   }
 
-  func updateRandomAlbums(isOfflineMode: Bool) async {
+  func updateRandomAlbums(isOfflineMode: Bool) {
     let randomAlbums = storage.main.library.getRandomAlbums(
       for: account,
       count: Self.sectionMaxItemCount,
@@ -390,11 +388,11 @@ class HomeManager: NSObject {
     data[.randomAlbums] = randomAlbums.compactMap {
       HomeItem(section: .randomAlbums, playableContainable: $0)
     }
-    applySnapshotCB?()
+    notifySnapshotChange()
   }
 
   /// Random albums of the decade or genre group a fixed section stands for.
-  func updateFixedDecadeOrGenreAlbums(_ section: HomeSection, isOfflineMode: Bool) async {
+  func updateFixedDecadeOrGenreAlbums(_ section: HomeSection, isOfflineMode: Bool) {
     var albums = [Album]()
     if let decade = section.fixedDecade {
       albums = storage.main.library.getRandomAlbums(
@@ -412,10 +410,10 @@ class HomeManager: NSObject {
       )
     }
     data[section] = albums.compactMap { HomeItem(section: section, playableContainable: $0) }
-    applySnapshotCB?()
+    notifySnapshotChange()
   }
 
-  func updateFavoriteAlbums(isOfflineMode: Bool) async {
+  func updateFavoriteAlbums(isOfflineMode: Bool) {
     let favoriteAlbums = storage.main.library.getRandomAlbums(
       for: account,
       count: Self.sectionMaxItemCount,
@@ -425,10 +423,10 @@ class HomeManager: NSObject {
     data[.favoriteAlbums] = favoriteAlbums.compactMap {
       HomeItem(section: .favoriteAlbums, playableContainable: $0)
     }
-    applySnapshotCB?()
+    notifySnapshotChange()
   }
 
-  func updateCompilations(isOfflineMode: Bool) async {
+  func updateCompilations(isOfflineMode: Bool) {
     let compilations = storage.main.library.getRandomCompilationAlbums(
       for: account,
       count: Self.sectionMaxItemCount,
@@ -437,10 +435,10 @@ class HomeManager: NSObject {
     data[.compilations] = compilations.compactMap {
       HomeItem(section: .compilations, playableContainable: $0)
     }
-    applySnapshotCB?()
+    notifySnapshotChange()
   }
 
-  func updateRandomArtists(isOfflineMode: Bool) async {
+  func updateRandomArtists(isOfflineMode: Bool) {
     let randomArtists = storage.main.library.getRandomArtists(
       for: account,
       count: Self.sectionMaxItemCount,
@@ -449,10 +447,10 @@ class HomeManager: NSObject {
     data[.randomArtists] = randomArtists.compactMap {
       HomeItem(section: .randomArtists, playableContainable: $0)
     }
-    applySnapshotCB?()
+    notifySnapshotChange()
   }
 
-  func updateFavoriteArtists(isOfflineMode: Bool) async {
+  func updateFavoriteArtists(isOfflineMode: Bool) {
     let favoriteArtists = storage.main.library.getRandomArtists(
       for: account,
       count: Self.sectionMaxItemCount,
@@ -462,10 +460,10 @@ class HomeManager: NSObject {
     data[.favoriteArtists] = favoriteArtists.compactMap {
       HomeItem(section: .favoriteArtists, playableContainable: $0)
     }
-    applySnapshotCB?()
+    notifySnapshotChange()
   }
 
-  func updateRandomGenres() async {
+  func updateRandomGenres() {
     let randomGenres = storage.main.library.getRandomGenres(
       for: account,
       count: Self.sectionMaxItemCount
@@ -473,10 +471,10 @@ class HomeManager: NSObject {
     data[.randomGenres] = randomGenres.compactMap {
       HomeItem(section: .randomGenres, playableContainable: $0)
     }
-    applySnapshotCB?()
+    notifySnapshotChange()
   }
 
-  func updateRandomSongs(isOfflineMode: Bool) async {
+  func updateRandomSongs(isOfflineMode: Bool) {
     let randomSongs = storage.main.library.getRandomSongs(
       for: account,
       count: Self.sectionMaxItemCount,
@@ -485,7 +483,7 @@ class HomeManager: NSObject {
     data[.randomSongs] = randomSongs.compactMap {
       HomeItem(section: .randomSongs, playableContainable: $0)
     }
-    applySnapshotCB?()
+    notifySnapshotChange()
   }
 
   /// Up to `playlistSubtitleArtistCount` artists, the song count if the songs of the playlist
@@ -522,7 +520,7 @@ class HomeManager: NSObject {
             playlistSubtitle: playlistSubtitle(for: $0)
           )
         }
-      applySnapshotCB?()
+      notifySnapshotChange()
     }
   }
 
@@ -533,7 +531,7 @@ class HomeManager: NSObject {
         .compactMap { PodcastEpisode(managedObject: $0) }.compactMap {
           HomeItem(section: .newestPodcastEpisodes, playableContainable: $0)
         }
-      applySnapshotCB?()
+      notifySnapshotChange()
     }
   }
 
@@ -543,7 +541,7 @@ class HomeManager: NSObject {
         .compactMap { Podcast(managedObject: $0) }.compactMap {
           HomeItem(section: .podcasts, playableContainable: $0)
         }
-      applySnapshotCB?()
+      notifySnapshotChange()
     }
   }
 
@@ -553,7 +551,7 @@ class HomeManager: NSObject {
         .compactMap { Radio(managedObject: $0) }.compactMap {
           HomeItem(section: .radios, playableContainable: $0)
         }
-      applySnapshotCB?()
+      notifySnapshotChange()
     }
   }
 }

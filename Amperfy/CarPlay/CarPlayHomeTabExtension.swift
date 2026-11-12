@@ -96,35 +96,29 @@ extension CarPlaySceneDelegate {
     let item = CPListItem(text: "Refresh", detailText: nil, image: image)
     item.handler = { [weak self] _, completion in
       guard let self, let sharedHome else { completion(); return }
-      Task { @MainActor in
+      switch section {
+      case .randomAlbums:
+        sharedHome.updateRandomAlbums(isOfflineMode: isOfflineMode)
+      case .compilations:
+        sharedHome.updateCompilations(isOfflineMode: isOfflineMode)
+      case .randomArtists:
+        sharedHome.updateRandomArtists(isOfflineMode: isOfflineMode)
+      case .favoriteAlbums:
+        sharedHome.updateFavoriteAlbums(isOfflineMode: isOfflineMode)
+      case .favoriteArtists:
+        sharedHome.updateFavoriteArtists(isOfflineMode: isOfflineMode)
+      case .randomGenres:
+        sharedHome.updateRandomGenres()
+      case .randomSongs:
+        sharedHome.updateRandomSongs(isOfflineMode: isOfflineMode)
+      default:
         // decade and genre sections ("Albums from the 90s", "Rock") are random sections too
         if section.isFixedDecadeOrGenre {
-          await sharedHome.updateFixedDecadeOrGenreAlbums(section, isOfflineMode: isOfflineMode)
-          completion()
-          return
+          sharedHome.updateFixedDecadeOrGenreAlbums(section, isOfflineMode: isOfflineMode)
         }
-        switch section {
-        case .randomAlbums:
-          await sharedHome.updateRandomAlbums(isOfflineMode: isOfflineMode)
-        case .compilations:
-          await sharedHome.updateCompilations(isOfflineMode: isOfflineMode)
-        case .randomArtists:
-          await sharedHome.updateRandomArtists(isOfflineMode: isOfflineMode)
-        case .favoriteAlbums:
-          await sharedHome.updateFavoriteAlbums(isOfflineMode: isOfflineMode)
-        case .favoriteArtists:
-          await sharedHome.updateFavoriteArtists(isOfflineMode: isOfflineMode)
-        case .randomGenres:
-          await sharedHome.updateRandomGenres()
-        case .randomSongs:
-          await sharedHome.updateRandomSongs(isOfflineMode: isOfflineMode)
-        default:
-          // only random sections have a refresh
-          break
-        }
-        // the new content arrives via updateHomeSections
-        completion()
       }
+      // the new content arrives via updateHomeSections
+      completion()
     }
     return item
   }
