@@ -53,6 +53,9 @@ extension AlbumMO {
   /// Release date; falls back to the date the album was added on the server
   @NSManaged
   public var releaseSortDate: Date?
+  /// Date the album was added on the server (Subsonic `created`)
+  @NSManaged
+  public var addedDate: Date?
   @NSManaged
   public var artist: ArtistMO?
   @NSManaged

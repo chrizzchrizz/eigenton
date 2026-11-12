@@ -71,6 +71,14 @@ public class Album: AbstractLibraryEntity {
     }
   }
 
+  /// Date the album was added on the server
+  public var addedDate: Date? {
+    get { managedObject.addedDate }
+    set {
+      if managedObject.addedDate != newValue { managedObject.addedDate = newValue }
+    }
+  }
+
   public var duration: Int { Int(managedObject.duration) }
 
   public var remoteDuration: Int {

@@ -87,7 +87,12 @@ class SsAlbumParserDelegate: SsXmlLibWithArtworkParser {
       }
       // fallback for the release date, which is delivered by a child element (OpenSubsonic)
       isReleaseDateParsed = false
-      albumBuffer?.releaseSortDate = attributeDict["created"].flatMap { Self.parseDate($0) }
+      let createdDate = attributeDict["created"].flatMap { Self.parseDate($0) }
+      albumBuffer?.releaseSortDate = createdDate
+      // keep a known added date if a response leaves out created
+      if let createdDate {
+        albumBuffer?.addedDate = createdDate
+      }
       // OpenSubsonic: isCompilation attribute (absent on plain Subsonic servers)
       if let attributeIsCompilation = attributeDict["isCompilation"] {
         albumBuffer?.isCompilation = attributeIsCompilation.lowercased() == "true"

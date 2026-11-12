@@ -190,6 +190,11 @@ class SsAlbumParserTest: AbstractSsParserTest {
       DateComponents(year: 2004, month: 11, day: 27)
     )
     XCTAssertNil(albums["4"]?.releaseSortDate)
+
+    // the added date is always the created attribute, also if a release date exists
+    XCTAssertEqual(albums["5"]?.addedDate, createdWithFraction)
+    XCTAssertEqual(albums["3"]?.addedDate, createdPlain)
+    XCTAssertNil(albums["4"]?.addedDate)
   }
 
   private func reParse() {
