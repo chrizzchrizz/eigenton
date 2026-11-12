@@ -272,6 +272,14 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
   weak var homeSectionTemplate: CPListTemplate?
   var homeSectionTemplateSection: HomeSection?
 
+  /// A home image row element to refresh once an artwork is downloaded
+  struct HomeImageRowArtworkTarget {
+    let element: CPListImageRowItemRowElement
+    let containable: PlayableContainable
+  }
+
+  var homeImageRowArtworkTargets: [String: [HomeImageRowArtworkTarget]] = [:] // Artwork.uniqueID
+
   lazy var cachedTab = {
     let cachedTab = CPListTemplate(title: "Cached", sections: createCachedSections())
     cachedTab.tabImage = UIImage.cache
@@ -500,6 +508,8 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
     guard let downloadNotification = DownloadNotification.fromNotification(notification)
     else { return }
     guard let templates = interfaceController?.templates else { return }
+
+    refreshHomeImageRowArtwork(downloadID: downloadNotification.id)
 
     // refresh List items
     for template in templates {
