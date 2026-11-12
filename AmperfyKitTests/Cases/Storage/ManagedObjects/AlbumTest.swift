@@ -228,7 +228,7 @@ class AlbumTest: XCTestCase {
       calendar.date(from: DateComponents(year: year, month: month, day: day, hour: 12))!
     }
     func title(_ added: Date?, now: Date) -> String {
-      IndexHeaderNameGenerator.sortByAddedDate(added, now: now, calendar: calendar)
+      AddedDateSectionBoundaries(now: now, calendar: calendar).title(for: added)
     }
 
     let november = date(2026, 11, 12)

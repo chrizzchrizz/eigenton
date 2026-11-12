@@ -28,6 +28,8 @@ import UIKit
 class AlbumsDiffableDataSource: BasicUITableViewDiffableDataSource {
   var sortType: AlbumElementSortType = .name
   var isIndexTitelsHidden = false
+  /// Title of a section grouped by added date, read from the fetched sections
+  var addedDateSectionTitle: ((Int) -> String?)?
 
   func getAlbum(at indexPath: IndexPath) -> Album? {
     guard let objectID = itemIdentifier(for: indexPath) else { return nil }
@@ -61,10 +63,8 @@ class AlbumsDiffableDataSource: BasicUITableViewDiffableDataSource {
         return "Not rated"
       }
     case .newest:
-      guard let album = getFirstAlbum(in: section) else { return nil }
       // the section name the list was grouped with
-      let title = album.managedObject.addedDateSectionTitle
-      return title.isEmpty ? nil : title
+      return addedDateSectionTitle?(section)
     case .recent:
       return nil
     case .artist:
@@ -152,6 +152,9 @@ class AlbumsVC: SingleSnapshotFetchedResultsTableViewController<AlbumMO> {
         let album = Album(managedObject: albumMO)
         return createCell(tableView, forRowAt: indexPath, album: album)
       }
+    source.addedDateSectionTitle = { [weak self] section in
+      self?.common.addedDateSectionTitle(forSection: section)
+    }
     return source
   }
 

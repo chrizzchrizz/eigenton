@@ -181,16 +181,6 @@ public class IndexHeaderNameGenerator {
     }
   }
 
-  /// Groups by how long ago something was added, see `AddedDateSectionBoundaries`
-  public static func sortByAddedDate(
-    _ date: Date?,
-    now: Date = Date(),
-    calendar: Calendar = .current
-  )
-    -> String {
-    AddedDateSectionBoundaries(now: now, calendar: calendar).title(for: date)
-  }
-
   /// Boundaries all added date sections are computed with, fixed for the lifetime of the app
   /// process. Every fetched results controller, including ones that stay alive and only process
   /// changes, therefore groups with the same boundaries, so sections stay contiguous and unique.

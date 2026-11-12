@@ -156,9 +156,8 @@ class AlbumsCollectionDiffableDataSource: BasicUICollectionViewDiffableDataSourc
         return "Not rated"
       }
     case .newest:
-      guard let album = getFirstAlbum(in: section) else { return "" }
       // the section name the list was grouped with
-      return album.managedObject.addedDateSectionTitle
+      return vc?.common.addedDateSectionTitle(forSection: section) ?? ""
     case .recent:
       return ""
     case .artist:

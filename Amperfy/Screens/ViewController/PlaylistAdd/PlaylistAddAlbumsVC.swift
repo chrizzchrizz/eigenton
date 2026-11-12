@@ -67,6 +67,9 @@ class PlaylistAddAlbumsVC: SingleSnapshotFetchedResultsTableViewController<Album
         let album = Album(managedObject: albumMO)
         return createCell(tableView, forRowAt: indexPath, album: album)
       }
+    source.addedDateSectionTitle = { [weak self] section in
+      self?.common.addedDateSectionTitle(forSection: section)
+    }
     return source
   }
 
