@@ -59,7 +59,12 @@ class AlbumsDiffableDataSource: BasicUITableViewDiffableDataSource {
       } else {
         return "Not rated"
       }
-    case .newest, .recent:
+    case .newest:
+      guard let album = getFirstAlbum(in: section) else { return nil }
+      // the section name the list was grouped with
+      let title = album.managedObject.addedDateSectionTitle
+      return title.isEmpty ? nil : title
+    case .recent:
       return nil
     case .artist:
       guard let album = getFirstAlbum(in: section) else { return nil }
@@ -75,7 +80,7 @@ class AlbumsDiffableDataSource: BasicUITableViewDiffableDataSource {
   }
 
   override func sectionIndexTitles(for tableView: UITableView) -> [String]? {
-    guard !isIndexTitelsHidden else { return nil }
+    guard !isIndexTitelsHidden, sortType != .newest, sortType != .recent else { return nil }
     let sectionCount = numberOfSections(in: tableView)
     var indexTitles = [String]()
     for i in 0 ... sectionCount {
@@ -304,8 +309,11 @@ class AlbumsVC: SingleSnapshotFetchedResultsTableViewController<AlbumMO> {
   )
     -> CGFloat {
     switch common.sortType {
-    case .artist, .duration, .name, .newest, .recent:
+    case .artist, .duration, .name, .recent:
       return 0.0
+    case .newest:
+      return self.tableView(tableView, titleForHeaderInSection: section) == nil ? 0.0 :
+        CommonScreenOperations.tableSectionHeightLarge
     case .rating, .year:
       return CommonScreenOperations.tableSectionHeightLarge
     }

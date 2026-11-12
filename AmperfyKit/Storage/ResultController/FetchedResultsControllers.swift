@@ -706,7 +706,9 @@ public class AlbumFetchedResultsController: CachedFetchedResultsController<Album
     case .rating:
       fetchRequest = AlbumMO.ratingSortedFetchRequest
     case .newest:
-      fetchRequest = AlbumMO.newestSortedFetchRequest
+      // grouped: sections by added date ("This Month", …, "2024")
+      fetchRequest = isGroupedInAlphabeticSections ? AlbumMO
+        .newestAddedDateSortedFetchRequest : AlbumMO.newestSortedFetchRequest
     case .recent:
       fetchRequest = AlbumMO.recentSortedFetchRequest
     case .artist:
@@ -731,7 +733,9 @@ public class AlbumFetchedResultsController: CachedFetchedResultsController<Album
       coreDataCompanion: coreDataCompanion,
       fetchRequest: fetchRequest, account: account,
       sectionIndexType: sortType.asSectionIndexType,
-      isGroupedInAlphabeticSections: isGroupedInAlphabeticSections
+      isGroupedInAlphabeticSections: isGroupedInAlphabeticSections,
+      customSectionNameKeyPath: sortType == .newest && isGroupedInAlphabeticSections ?
+        #keyPath(AlbumMO.addedDateSectionTitle) : nil
     )
   }
 

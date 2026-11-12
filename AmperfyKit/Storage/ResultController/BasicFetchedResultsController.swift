@@ -25,6 +25,9 @@ import Foundation
 extension NSFetchedResultsController {
   @objc
   func fetch() {
+    if sectionNameKeyPath == #keyPath(AlbumMO.addedDateSectionTitle) {
+      IndexHeaderNameGenerator.refreshAddedDateBoundaries()
+    }
     do {
       try performFetch()
     } catch let error as NSError {
@@ -57,6 +60,40 @@ public enum SectionIndexType: Int, Sendable {
   public static let noRatingIndexSymbol = "#"
   public static let noDurationSymbol = "#"
   public static let noYearSymbol = "#"
+}
+
+// MARK: - AddedDateSectionBoundaries
+
+/// Groups by how long ago something was added: "This Month", "Last 3 Months", "Last 6 Months",
+/// "This Year" and then the year ("2025", "2024", …). The groups follow each other in descending
+/// date order, so a list sorted by date descending gets contiguous sections. The boundaries are
+/// computed once, so grouping many items only compares dates.
+public struct AddedDateSectionBoundaries: Sendable {
+  public let referenceDate: Date
+  let calendar: Calendar
+  private let monthStart: Date
+  private let threeMonthsAgo: Date
+  private let sixMonthsAgo: Date
+  private let yearStart: Date
+
+  public init(now: Date = Date(), calendar: Calendar = .current) {
+    self.referenceDate = now
+    self.calendar = calendar
+    self.monthStart = calendar.dateInterval(of: .month, for: now)?.start ?? now
+    self.threeMonthsAgo = calendar.date(byAdding: .month, value: -3, to: now) ?? now
+    self.sixMonthsAgo = calendar.date(byAdding: .month, value: -6, to: now) ?? now
+    self.yearStart = calendar.dateInterval(of: .year, for: now)?.start ?? now
+  }
+
+  /// Empty if there is no date
+  public func title(for date: Date?) -> String {
+    guard let date else { return "" }
+    if date >= monthStart { return "This Month" }
+    if date >= threeMonthsAgo { return "Last 3 Months" }
+    if date >= sixMonthsAgo { return "Last 6 Months" }
+    if date >= yearStart { return "This Year" }
+    return "\(calendar.component(.year, from: date))"
+  }
 }
 
 // MARK: - IndexHeaderNameGenerator
@@ -145,6 +182,32 @@ public class IndexHeaderNameGenerator {
     } else {
       return SectionIndexType.noDurationSymbol
     }
+  }
+
+  /// Groups by how long ago something was added, see `AddedDateSectionBoundaries`
+  public static func sortByAddedDate(
+    _ date: Date?,
+    now: Date = Date(),
+    calendar: Calendar = .current
+  )
+    -> String {
+    AddedDateSectionBoundaries(now: now, calendar: calendar).title(for: date)
+  }
+
+  private static let addedDateBoundaries = Atomic(wrappedValue: AddedDateSectionBoundaries())
+
+  /// Boundaries all added date sections are computed with. They only move on a fetch
+  /// (`refreshAddedDateBoundaries`), so the sections of a fetched list stay contiguous while the
+  /// app runs, also across a month change.
+  public static var currentAddedDateBoundaries: AddedDateSectionBoundaries {
+    addedDateBoundaries.wrappedValue
+  }
+
+  /// Called before a fetch that is grouped by added date; moves the boundaries once per day
+  static func refreshAddedDateBoundaries(now: Date = Date()) {
+    let current = addedDateBoundaries.wrappedValue
+    guard !current.calendar.isDate(current.referenceDate, inSameDayAs: now) else { return }
+    addedDateBoundaries.wrappedValue = AddedDateSectionBoundaries(now: now)
   }
 
   public static func sortByYear(forSectionName sectionName: String) -> String {
@@ -496,17 +559,20 @@ public class CachedFetchedResultsController<ResultType>: BasicFetchedResultsCont
     fetchRequest: NSFetchRequest<ResultType>,
     account: Account,
     sectionIndexType: SectionIndexType = .defaultValue,
-    isGroupedInAlphabeticSections: Bool
+    isGroupedInAlphabeticSections: Bool,
+    customSectionNameKeyPath: String? = nil
   ) {
     self.account = account
     self.sectionIndexType = sectionIndexType
-    let sectionNameKeyPath: String? = isGroupedInAlphabeticSections ? fetchRequest
-      .sortDescriptors![0].key : nil
+    let sectionNameKeyPath: String? = isGroupedInAlphabeticSections ?
+      (customSectionNameKeyPath ?? fetchRequest.sortDescriptors![0].key) : nil
     self.allFetchResulsController = CustomSectionIndexFetchedResultsController<ResultType>(
       fetchRequest: fetchRequest.copy() as! NSFetchRequest<ResultType>,
       coreDataCompanion: coreDataCompanion,
       sectionNameKeyPath: sectionNameKeyPath,
-      cacheName: "\(Self.typeName)-\(account.serverHash)-\(account.userHash)"
+      // a computed section name is not stored, the section cache would go stale
+      cacheName: customSectionNameKeyPath == nil ?
+        "\(Self.typeName)-\(account.serverHash)-\(account.userHash)" : nil
     )
     allFetchResulsController.sectionIndexType = sectionIndexType
     self.searchFetchResulsController = CustomSectionIndexFetchedResultsController<ResultType>(

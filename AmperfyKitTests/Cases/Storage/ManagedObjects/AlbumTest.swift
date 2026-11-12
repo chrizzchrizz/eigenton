@@ -220,4 +220,68 @@ class AlbumTest: XCTestCase {
     // newest year first, then newest date first; albums without a date come last in their year
     XCTAssertEqual(ids, ["rel-c", "rel-b", "rel-a", "rel-d"])
   }
+
+  func testAddedDateSectionTitle() throws {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+    func date(_ year: Int, _ month: Int, _ day: Int) -> Date {
+      calendar.date(from: DateComponents(year: year, month: month, day: day, hour: 12))!
+    }
+    func title(_ added: Date?, now: Date) -> String {
+      IndexHeaderNameGenerator.sortByAddedDate(added, now: now, calendar: calendar)
+    }
+
+    let november = date(2026, 11, 12)
+    XCTAssertEqual(title(date(2026, 11, 1), now: november), "This Month")
+    XCTAssertEqual(title(date(2026, 10, 31), now: november), "Last 3 Months")
+    XCTAssertEqual(title(date(2026, 8, 13), now: november), "Last 3 Months")
+    XCTAssertEqual(title(date(2026, 8, 11), now: november), "Last 6 Months")
+    XCTAssertEqual(title(date(2026, 5, 13), now: november), "Last 6 Months")
+    XCTAssertEqual(title(date(2026, 5, 11), now: november), "This Year")
+    XCTAssertEqual(title(date(2026, 1, 1), now: november), "This Year")
+    XCTAssertEqual(title(date(2025, 12, 31), now: november), "2025")
+    XCTAssertEqual(title(date(2019, 3, 3), now: november), "2019")
+    XCTAssertEqual(title(nil, now: november), "")
+
+    // early in the year the last months reach into the previous year, "This Year" stays empty
+    let february = date(2027, 2, 10)
+    XCTAssertEqual(title(date(2027, 1, 5), now: february), "Last 3 Months")
+    XCTAssertEqual(title(date(2026, 12, 5), now: february), "Last 3 Months")
+    XCTAssertEqual(title(date(2026, 9, 5), now: february), "Last 6 Months")
+    XCTAssertEqual(title(date(2026, 8, 5), now: february), "2026")
+  }
+
+  func testNewestAlbumsGroupedByAddedDate() {
+    let now = Date()
+    let day: TimeInterval = 24 * 60 * 60
+    func createAlbum(id: String, newestIndex: Int, addedDate: Date?) {
+      let album = library.createAlbum(account: account)
+      album.id = id
+      album.name = id
+      album.markAsNotNewAnymore()
+      album.updateIsNewestInfo(index: newestIndex)
+      album.addedDate = addedDate
+    }
+    createAlbum(id: "add-old", newestIndex: 3, addedDate: now.addingTimeInterval(-800 * day))
+    createAlbum(id: "add-none", newestIndex: 4, addedDate: nil)
+    createAlbum(id: "add-new", newestIndex: 1, addedDate: now)
+    createAlbum(id: "add-mid", newestIndex: 2, addedDate: now.addingTimeInterval(-60 * day))
+    library.saveContext()
+
+    let controller = AlbumFetchedResultsController(
+      coreDataCompanion: CoreDataCompanion(context: cdHelper.persistentContainer.viewContext),
+      account: account,
+      sortType: .newest,
+      isGroupedInAlphabeticSections: true
+    )
+    controller.search(searchText: "", onlyCached: false, displayFilter: .newest)
+    let sections = controller.sections ?? []
+    let ids = sections.map { section in
+      (section.objects as? [AlbumMO] ?? []).map(\.id).filter { $0.hasPrefix("add-") }
+    }.filter { !$0.isEmpty }
+    // newest added first, albums without a date last
+    XCTAssertEqual(ids, [["add-new"], ["add-mid"], ["add-old"], ["add-none"]])
+    XCTAssertEqual(sections.first?.name, "This Month")
+    XCTAssertEqual(sections.last?.name, "")
+  }
 }

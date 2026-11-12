@@ -88,7 +88,10 @@ class AlbumsCollectionDiffableDataSource: BasicUICollectionViewDiffableDataSourc
         .display(title: sectionTitleToIndexTitle(sectionName: sectionTitle(for: indexPath.section)))
     case .rating, .year:
       sectionHeader.display(title: sectionTitle(for: indexPath.section))
-    case .duration, .newest, .recent:
+    case .newest:
+      let title = sectionTitle(for: indexPath.section)
+      sectionHeader.display(title: title.isEmpty ? nil : title)
+    case .duration, .recent:
       sectionHeader.display(title: nil)
     }
 
@@ -151,7 +154,11 @@ class AlbumsCollectionDiffableDataSource: BasicUICollectionViewDiffableDataSourc
       } else {
         return "Not rated"
       }
-    case .newest, .recent:
+    case .newest:
+      guard let album = getFirstAlbum(in: section) else { return "" }
+      // the section name the list was grouped with
+      return album.managedObject.addedDateSectionTitle
+    case .recent:
       return ""
     case .artist:
       guard let album = getFirstAlbum(in: section) else { return "" }
@@ -479,7 +486,13 @@ extension AlbumsCollectionVC: UICollectionViewDelegateFlowLayout {
         width: collectionView.bounds.size.width,
         height: CommonCollectionSectionHeader.frameHeight + headerTopHeight
       )
-    case .duration, .newest, .recent:
+    case .newest:
+      let hasTitle = !(albumsDataSource?.sectionTitle(for: section) ?? "").isEmpty
+      return CGSize(
+        width: collectionView.bounds.size.width,
+        height: (hasTitle ? CommonCollectionSectionHeader.frameHeight : 0.0) + headerTopHeight
+      )
+    case .duration, .recent:
       return CGSize(width: collectionView.bounds.size.width, height: headerTopHeight)
     }
   }

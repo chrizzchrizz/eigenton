@@ -116,6 +116,29 @@ public final class AlbumMO: AbstractLibraryEntityMO {
     return fetchRequest
   }
 
+  /// Recently added albums grouped by `addedDateSectionTitle`: newest added date first,
+  /// albums without an added date at the end in server order
+  static var newestAddedDateSortedFetchRequest: NSFetchRequest<AlbumMO> {
+    let fetchRequest: NSFetchRequest<AlbumMO> = AlbumMO.fetchRequest()
+    fetchRequest.sortDescriptors = [
+      NSSortDescriptor(key: #keyPath(AlbumMO.addedDate), ascending: false),
+      NSSortDescriptor(key: #keyPath(AlbumMO.newestIndex), ascending: true),
+      NSSortDescriptor(
+        key: #keyPath(AlbumMO.id),
+        ascending: true,
+        selector: #selector(NSString.localizedStandardCompare)
+      ),
+    ]
+    return fetchRequest
+  }
+
+  /// Section name for the recently added list ("This Month", "Last 3 Months", …, "2024");
+  /// empty if the server provides no added date
+  @objc
+  public var addedDateSectionTitle: String {
+    IndexHeaderNameGenerator.currentAddedDateBoundaries.title(for: addedDate)
+  }
+
   static var recentSortedFetchRequest: NSFetchRequest<AlbumMO> {
     let fetchRequest: NSFetchRequest<AlbumMO> = AlbumMO.fetchRequest()
     fetchRequest.sortDescriptors = [

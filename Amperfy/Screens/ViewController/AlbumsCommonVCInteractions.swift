@@ -188,9 +188,10 @@ class AlbumsCommonVCInteractions {
     fetchedResultsController?.clearResults()
     var isGroupedInAlphabeticSections = false
     switch sortType {
-    case .artist, .duration, .name, .rating, .year:
+    case .artist, .duration, .name, .newest, .rating, .year:
+      // newest: sections by added date
       isGroupedInAlphabeticSections = true
-    case .newest, .recent:
+    case .recent:
       isGroupedInAlphabeticSections = false
     }
 
@@ -210,15 +211,18 @@ class AlbumsCommonVCInteractions {
   func listViewWillDisplayCell(at indexPath: IndexPath, searchBarText: String?) {
     guard let elementCount = fetchedResultsController.fetchResultsController.fetchedObjects?.count
     else { return }
-    if sortType == .newest || sortType == .recent,
-       (searchBarText ?? "").isEmpty,
-       indexPath.row > 0,
+    guard sortType == .newest || sortType == .recent, (searchBarText ?? "").isEmpty else { return }
+    // position in the whole list, the newest albums are grouped in sections
+    let sections = fetchedResultsController.sections ?? []
+    let row = sections.prefix(indexPath.section).reduce(0) { $0 + $1.numberOfObjects } + indexPath
+      .row
+    if row > 0,
        // fetch each 20th row or on last element
-       indexPath.row == elementCount - 1 || (indexPath.row % 20 == 0),
+       row == elementCount - 1 || (row % 20 == 0),
        // this offset has not been synced yet
-       !newestElementsOffsetsSynced.contains(indexPath.row) {
-      newestElementsOffsetsSynced.insert(indexPath.row)
-      updateFromRemote(offset: indexPath.row, count: AmperKit.newestElementsFetchCount)
+       !newestElementsOffsetsSynced.contains(row) {
+      newestElementsOffsetsSynced.insert(row)
+      updateFromRemote(offset: row, count: AmperKit.newestElementsFetchCount)
     }
   }
 
