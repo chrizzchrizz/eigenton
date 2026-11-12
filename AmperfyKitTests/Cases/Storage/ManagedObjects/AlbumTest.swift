@@ -284,4 +284,21 @@ class AlbumTest: XCTestCase {
     XCTAssertEqual(sections.first?.name, "This Month")
     XCTAssertEqual(sections.last?.name, "")
   }
+
+  func testHighestNewestIndexOfAlbumsWithoutAddedDate() {
+    XCTAssertEqual(library.getHighestNewestIndexOfAlbumsWithoutAddedDate(for: account), 0)
+    let dated = library.createAlbum(account: account)
+    dated.updateIsNewestInfo(index: 7)
+    dated.addedDate = Date()
+    let undated = library.createAlbum(account: account)
+    undated.updateIsNewestInfo(index: 3)
+    let notNewest = library.createAlbum(account: account)
+    notNewest.addedDate = nil
+    library.saveContext()
+    XCTAssertEqual(library.getHighestNewestIndexOfAlbumsWithoutAddedDate(for: account), 3)
+
+    undated.addedDate = Date()
+    library.saveContext()
+    XCTAssertEqual(library.getHighestNewestIndexOfAlbumsWithoutAddedDate(for: account), 0)
+  }
 }

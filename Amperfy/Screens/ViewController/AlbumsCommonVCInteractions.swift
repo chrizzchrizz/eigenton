@@ -251,6 +251,9 @@ class AlbumsCommonVCInteractions {
               .playableDownloadManager
           )
           .syncNewestLibraryElements(offset: offset, count: count)
+          if offset == 0 {
+            try await self.syncMissingAddedDatesIfNeeded()
+          }
         } catch {
           self.appDelegate.eventLogger.report(topic: "Newest Albums Sync", error: error)
         }
@@ -281,6 +284,41 @@ class AlbumsCommonVCInteractions {
         }
         self.updateSearchResultsCB?()
       }
+    }
+  }
+
+  /// Accounts whose newest albums got their missing added dates in this app run
+  private static var accountsWithSyncedAddedDates = Set<String>()
+  /// Max albums per request (Subsonic getAlbumList2 limit)
+  private static let addedDateSyncPageSize = 500
+
+  /// Albums synced before the added date was stored (model v55) have none and would sit in a
+  /// group without header at the end of the recently added list. Syncs the newest list again
+  /// up to the last of them, once per account and app run; Ampache provides no added date.
+  @MainActor
+  private func syncMissingAddedDatesIfNeeded() async throws {
+    guard account.apiType != .ampache,
+          !Self.accountsWithSyncedAddedDates.contains(account.info.ident)
+    else { return }
+    // marked up front so a second list opened meanwhile doesn't sync again
+    let accountIdent = account.info.ident
+    Self.accountsWithSyncedAddedDates.insert(accountIdent)
+    let lastIndex = appDelegate.storage.main.library
+      .getHighestNewestIndexOfAlbumsWithoutAddedDate(for: account)
+    guard lastIndex > 0 else { return }
+    let librarySyncer = appDelegate.getMeta(account.info).librarySyncer
+    do {
+      // the newest index is 1-based
+      for offset in stride(from: 0, to: lastIndex, by: Self.addedDateSyncPageSize) {
+        try await librarySyncer.syncNewestAlbums(
+          offset: offset,
+          count: min(Self.addedDateSyncPageSize, lastIndex - offset)
+        )
+      }
+    } catch {
+      // try again the next time the list opens, e.g. after being offline
+      Self.accountsWithSyncedAddedDates.remove(accountIdent)
+      throw error
     }
   }
 

@@ -1533,6 +1533,23 @@ public class LibraryStorage: PlayableFileCachable {
     return albums ?? [Album]()
   }
 
+  /// Highest position in the newest list of an album without added date, 0 if there is none.
+  /// Albums synced before the added date was stored (model v55) have none until they are
+  /// synced again.
+  public func getHighestNewestIndexOfAlbumsWithoutAddedDate(for account: Account) -> Int {
+    let fetchRequest: NSFetchRequest<AlbumMO> = AlbumMO.fetchRequest()
+    fetchRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+      getFetchPredicate(forAccount: account),
+      getFetchPredicate(albumsDisplayFilter: .newest),
+      NSPredicate(format: "%K == nil", #keyPath(AlbumMO.addedDate)),
+    ])
+    fetchRequest.sortDescriptors = [
+      NSSortDescriptor(key: #keyPath(AlbumMO.newestIndex), ascending: false),
+    ]
+    fetchRequest.fetchLimit = 1
+    return Int((try? context.fetch(fetchRequest))?.first?.newestIndex ?? 0)
+  }
+
   public func getLatestReleasedAlbums(
     for account: Account,
     offset: Int = 0,
