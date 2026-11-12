@@ -168,9 +168,9 @@ class PlaylistAddAlbumsVC: SingleSnapshotFetchedResultsTableViewController<Album
       return 0.0
     case .newest:
       return self.tableView(tableView, titleForHeaderInSection: section) == nil ? 0.0 :
-        CommonScreenOperations.tableSectionHeightLarge
+        sectionHeaderHeight(forSection: section)
     case .rating, .year:
-      return CommonScreenOperations.tableSectionHeightLarge
+      return sectionHeaderHeight(forSection: section)
     }
   }
 

@@ -307,6 +307,9 @@ class AlbumDetailVC: SingleSnapshotFetchedResultsTableViewController<SongMO> {
     return Song(managedObject: songMO).discNumber
   }
 
+  /// The disc headers are own views and keep the table's padding above them
+  override var usesSectionHeaderSpacing: Bool { false }
+
   override func tableView(
     _ tableView: UITableView,
     viewForHeaderInSection section: Int

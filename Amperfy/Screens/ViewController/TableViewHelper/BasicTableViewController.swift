@@ -115,7 +115,9 @@ final class TableSectionHeaderView: UIView {
   private let accessoryView: UIView?
   private var isPinnedToTable = false
 
-  init(title: String, accessoryView: UIView? = nil) {
+  /// `topInset`: space above the title within the header, e.g. to separate it from the
+  /// previous section when the table adds no padding above section headers
+  init(title: String, accessoryView: UIView? = nil, topInset: CGFloat = 0) {
     self.accessoryView = accessoryView
     super.init(frame: .zero)
     var configuration = UIListContentConfiguration.header()
@@ -132,7 +134,7 @@ final class TableSectionHeaderView: UIView {
     fallbackLeading.priority = .defaultLow
     fallbackTrailing.priority = .defaultLow
     NSLayoutConstraint.activate([
-      listContentView.topAnchor.constraint(equalTo: topAnchor),
+      listContentView.topAnchor.constraint(equalTo: topAnchor, constant: topInset),
       listContentView.bottomAnchor.constraint(equalTo: bottomAnchor),
       fallbackLeading,
       fallbackTrailing,
@@ -224,7 +226,15 @@ class BasicTableViewController: KeyCommandTableViewController {
     guard tableView.separatorStyle == .none,
           let title = self.tableView(tableView, titleForHeaderInSection: section), !title.isEmpty
     else { return nil }
-    return TableSectionHeaderView(title: title)
+    return TableSectionHeaderView(
+      title: title,
+      topInset: sectionHeaderTopInset(forSection: section)
+    )
+  }
+
+  /// Space above the title of the default section header (see `TableSectionHeaderView`)
+  func sectionHeaderTopInset(forSection section: Int) -> CGFloat {
+    0.0
   }
 
   override func tableView(_ tableView: UITableView, willBeginEditingRowAt indexPath: IndexPath) {

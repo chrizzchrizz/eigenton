@@ -187,7 +187,7 @@ class PlaylistAddSongsVC: SingleFetchedResultsTableViewController<SongMO>, Playl
     case .name:
       return super.tableView(tableView, heightForHeaderInSection: section)
     case .rating:
-      return CommonScreenOperations.tableSectionHeightLarge
+      return sectionHeaderHeight(forSection: section)
     case .addedDate:
       return 0.0
     case .duration:
