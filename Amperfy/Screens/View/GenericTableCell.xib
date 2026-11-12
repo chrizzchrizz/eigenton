@@ -18,13 +18,13 @@
                 <autoresizingMask key="autoresizingMask"/>
                 <subviews>
                     <stackView opaque="NO" contentMode="scaleToFill" alignment="center" spacing="16" translatesAutoresizingMaskIntoConstraints="NO" id="sEM-ZY-PBA" userLabel="VStack View">
-                        <rect key="frame" x="0.0" y="10" width="641" height="48"/>
+                        <rect key="frame" x="0.0" y="10" width="641" height="56"/>
                         <subviews>
                             <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="kaN-9u-M2i" userLabel="EntityImage" customClass="EntityImageView" customModule="AmperfyKit">
-                                <rect key="frame" x="0.0" y="0.0" width="48" height="48"/>
+                                <rect key="frame" x="0.0" y="0.0" width="56" height="56"/>
                                 <color key="backgroundColor" systemColor="systemRedColor"/>
                                 <constraints>
-                                    <constraint firstAttribute="width" constant="48" id="5oe-DH-jSb"/>
+                                    <constraint firstAttribute="width" constant="56" id="5oe-DH-jSb"/>
                                     <constraint firstAttribute="width" secondItem="kaN-9u-M2i" secondAttribute="height" multiplier="1:1" id="wD7-nl-i5l"/>
                                 </constraints>
                             </view>
