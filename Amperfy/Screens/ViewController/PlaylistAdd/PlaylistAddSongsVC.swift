@@ -54,8 +54,8 @@ class PlaylistAddSongsVC: SingleFetchedResultsTableViewController<SongMO>, Playl
 
     applyFilter()
     tableView.register(nibName: PlayableTableCell.typeName)
-    tableView.rowHeight = PlayableTableCell.rowHeight
-    tableView.estimatedRowHeight = PlayableTableCell.rowHeight
+    tableView.rowHeight = PlayableTableCell.rowHeightLarge
+    tableView.estimatedRowHeight = PlayableTableCell.rowHeightLarge
     tableView.sectionHeaderHeight = 0.0
     tableView.estimatedSectionHeaderHeight = 0.0
     tableView.sectionFooterHeight = 0.0

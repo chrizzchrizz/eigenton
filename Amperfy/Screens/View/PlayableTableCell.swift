@@ -88,7 +88,10 @@ class PlayableTableCell: BasicTableCell {
   private var ratingStackView: UIStackView?
   private var ratingStarViews: [UIImageView] = []
 
-  static let rowHeight: CGFloat = 48 + margin.bottom + margin.top
+  /// The cover is square and as high as the row content
+  static let rowHeight: CGFloat = 42 + margin.bottom + margin.top
+  /// For the song list, with a larger cover
+  static let rowHeightLarge: CGFloat = 56 + margin.bottom + margin.top
   /// rows with the artist label hidden, only the title line remains
   static let singleLineRowHeight: CGFloat = 40 + margin.bottom + margin.top
   private static let touchAnimation = 0.4

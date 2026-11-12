@@ -18,13 +18,13 @@
                 <autoresizingMask key="autoresizingMask"/>
                 <subviews>
                     <stackView opaque="NO" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="Ls1-Sl-0t1" userLabel="Leading Slot">
-                        <rect key="frame" x="20" y="15" width="48" height="40"/>
+                        <rect key="frame" x="20" y="15" width="40" height="40"/>
                         <subviews>
                             <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="Uwb-Vy-dE7" customClass="EntityImageView" customModule="AmperfyKit">
-                                <rect key="frame" x="0.0" y="0.0" width="48" height="40"/>
+                                <rect key="frame" x="0.0" y="0.0" width="40" height="40"/>
                                 <color key="backgroundColor" systemColor="systemMintColor"/>
                                 <constraints>
-                                    <constraint firstAttribute="width" constant="48" id="PdF-S9-lw7"/>
+                                    <constraint firstAttribute="width" secondItem="Uwb-Vy-dE7" secondAttribute="height" multiplier="1:1" id="PdF-S9-lw7"/>
                                 </constraints>
                             </view>
                             <view hidden="YES" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="gPA-kl-kqX" userLabel="Track Number Container">
