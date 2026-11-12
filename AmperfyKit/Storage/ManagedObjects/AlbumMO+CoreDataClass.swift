@@ -31,6 +31,16 @@ public final class AlbumMO: AbstractLibraryEntityMO {
     if hasChangedSongs {
       updateSongCount()
     }
+    if changedValues().keys.contains(#keyPath(addedDate)) {
+      updateAddedDateSection()
+    }
+  }
+
+  /// The recently added group follows the added date on every save, whichever way it was set
+  fileprivate func updateAddedDateSection() {
+    let section = IndexHeaderNameGenerator.currentAddedDateBoundaries.title(for: addedDate)
+    guard addedDateSection != section else { return }
+    addedDateSection = section
   }
 
   fileprivate var hasChangedSongs: Bool {
@@ -116,7 +126,7 @@ public final class AlbumMO: AbstractLibraryEntityMO {
     return fetchRequest
   }
 
-  /// Recently added albums grouped by `addedDateSectionTitle`: newest added date first,
+  /// Recently added albums grouped by `addedDateSection`: newest added date first,
   /// albums without an added date at the end in server order
   static var newestAddedDateSortedFetchRequest: NSFetchRequest<AlbumMO> {
     let fetchRequest: NSFetchRequest<AlbumMO> = AlbumMO.fetchRequest()
@@ -130,13 +140,6 @@ public final class AlbumMO: AbstractLibraryEntityMO {
       ),
     ]
     return fetchRequest
-  }
-
-  /// Section name for the recently added list ("This Month", "Last 3 Months", …, "2024");
-  /// empty if the server provides no added date
-  @objc
-  public var addedDateSectionTitle: String {
-    IndexHeaderNameGenerator.currentAddedDateBoundaries.title(for: addedDate)
   }
 
   static var recentSortedFetchRequest: NSFetchRequest<AlbumMO> {

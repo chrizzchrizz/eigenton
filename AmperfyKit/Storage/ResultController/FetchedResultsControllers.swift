@@ -735,7 +735,7 @@ public class AlbumFetchedResultsController: CachedFetchedResultsController<Album
       sectionIndexType: sortType.asSectionIndexType,
       isGroupedInAlphabeticSections: isGroupedInAlphabeticSections,
       customSectionNameKeyPath: sortType == .newest && isGroupedInAlphabeticSections ?
-        #keyPath(AlbumMO.addedDateSectionTitle) : nil
+        #keyPath(AlbumMO.addedDateSection) : nil
     )
   }
 

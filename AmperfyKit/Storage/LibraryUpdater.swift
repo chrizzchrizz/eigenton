@@ -80,6 +80,25 @@ public class LibraryUpdater {
     }
   }
 
+  /// Moves albums into the recently added group of this app run's boundaries (see
+  /// `LibraryStorage.updateAddedDateSections`) in the background. Usually nothing changes; after
+  /// the migration to model v56 all albums with a date get their group. Lists shown meanwhile
+  /// follow the saved changes like any other library update.
+  @MainActor
+  public func updateAddedDateSectionsInBackground() {
+    let log = log
+    Task {
+      do {
+        let changedCount = try await storage.async.performAndGet { asyncCompanion in
+          asyncCompanion.library.updateAddedDateSections()
+        }
+        os_log("Recently added groups updated: %i albums", log: log, type: .info, changedCount)
+      } catch {
+        os_log("Recently added groups update failed", log: log, type: .error)
+      }
+    }
+  }
+
   /// This function will block the execution before the scene handler
   /// Perform here only small/fast operations
   /// Use UpdateVC for longer operations to display progress to user

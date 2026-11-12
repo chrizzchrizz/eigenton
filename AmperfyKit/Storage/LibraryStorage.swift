@@ -1533,6 +1533,46 @@ public class LibraryStorage: PlayableFileCachable {
     return albums ?? [Album]()
   }
 
+  /// Moves albums into the recently added group (`AlbumMO.addedDateSection`) of the given
+  /// boundaries. Per group only the albums in its date range whose stored group differs are
+  /// fetched, so usually none; right after the migration to model v56 all with a date.
+  /// Returns the number of changed albums; the caller saves.
+  @discardableResult
+  public func updateAddedDateSections(
+    boundaries: AddedDateSectionBoundaries = IndexHeaderNameGenerator.currentAddedDateBoundaries
+  )
+    -> Int {
+    let oldestRequest: NSFetchRequest<AlbumMO> = AlbumMO.fetchRequest()
+    oldestRequest.predicate = NSPredicate(format: "%K != nil", #keyPath(AlbumMO.addedDate))
+    oldestRequest.sortDescriptors = [
+      NSSortDescriptor(key: #keyPath(AlbumMO.addedDate), ascending: true),
+    ]
+    oldestRequest.fetchLimit = 1
+    guard let oldestDate = (try? context.fetch(oldestRequest))?.first?.addedDate
+    else { return 0 }
+
+    var changedCount = 0
+    for range in boundaries.ranges(oldestDate: oldestDate) {
+      var predicates = [
+        NSPredicate(format: "%K >= %@", #keyPath(AlbumMO.addedDate), range.start as NSDate),
+        NSPredicate(format: "%K != %@", #keyPath(AlbumMO.addedDateSection), range.title),
+      ]
+      if let end = range.end {
+        predicates.append(NSPredicate(
+          format: "%K < %@",
+          #keyPath(AlbumMO.addedDate),
+          end as NSDate
+        ))
+      }
+      let fetchRequest: NSFetchRequest<AlbumMO> = AlbumMO.fetchRequest()
+      fetchRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
+      let albums = (try? context.fetch(fetchRequest)) ?? []
+      albums.forEach { $0.addedDateSection = range.title }
+      changedCount += albums.count
+    }
+    return changedCount
+  }
+
   /// Highest position in the newest list of an album without added date, 0 if there is none.
   /// Albums synced before the added date was stored (model v55) have none until they are
   /// synced again.

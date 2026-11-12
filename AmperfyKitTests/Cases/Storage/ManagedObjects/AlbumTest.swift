@@ -301,4 +301,70 @@ class AlbumTest: XCTestCase {
     library.saveContext()
     XCTAssertEqual(library.getHighestNewestIndexOfAlbumsWithoutAddedDate(for: account), 0)
   }
+
+  func testAddedDateSetsSectionOnSave() {
+    let album = library.createAlbum(account: account)
+    XCTAssertEqual(album.managedObject.addedDateSection, "")
+    album.addedDate = Date()
+    library.saveContext()
+    XCTAssertEqual(album.managedObject.addedDateSection, "This Month")
+    // also when the managed object is written directly
+    album.managedObject.addedDate = nil
+    library.saveContext()
+    XCTAssertEqual(album.managedObject.addedDateSection, "")
+  }
+
+  func testUpdateAddedDateSections() throws {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+    func date(_ year: Int, _ month: Int, _ day: Int) -> Date {
+      calendar.date(from: DateComponents(year: year, month: month, day: day, hour: 12))!
+    }
+    // stored groups as left by an earlier app run or the migration
+    func createAlbum(added: Date?, section: String) -> AlbumMO {
+      let album = library.createAlbum(account: account).managedObject
+      album.addedDate = added
+      library.saveContext()
+      album.addedDateSection = section
+      library.saveContext()
+      return album
+    }
+    let migrated = createAlbum(added: date(2019, 3, 1), section: "")
+    let movedOn = createAlbum(added: date(2026, 10, 20), section: "This Month")
+    let unchanged = createAlbum(added: date(2026, 11, 2), section: "This Month")
+    let wrongYear = createAlbum(added: date(2026, 11, 2), section: "2019")
+    let withoutDate = createAlbum(added: nil, section: "")
+
+    let boundaries = AddedDateSectionBoundaries(now: date(2026, 11, 12), calendar: calendar)
+    XCTAssertEqual(library.updateAddedDateSections(boundaries: boundaries), 3)
+    XCTAssertEqual(migrated.addedDateSection, "2019")
+    XCTAssertEqual(movedOn.addedDateSection, "Last 3 Months")
+    XCTAssertEqual(unchanged.addedDateSection, "This Month")
+    // e.g. computed with another clock or calendar, every group is checked again
+    XCTAssertEqual(wrongYear.addedDateSection, "This Month")
+    XCTAssertEqual(withoutDate.addedDateSection, "")
+    library.saveContext()
+    XCTAssertEqual(library.updateAddedDateSections(boundaries: boundaries), 0)
+  }
+
+  func testAddedDateRangesMatchTitles() throws {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+    let oldest = try XCTUnwrap(calendar.date(from: DateComponents(year: 2015, month: 6, day: 1)))
+    // reference dates with "This Year" before and after the six months boundary
+    for (month, day) in [(1, 1), (3, 15), (7, 31), (11, 12), (12, 31)] {
+      let now = try XCTUnwrap(calendar.date(from: DateComponents(
+        year: 2026, month: month, day: day, hour: 12
+      )))
+      let boundaries = AddedDateSectionBoundaries(now: now, calendar: calendar)
+      let ranges = boundaries.ranges(oldestDate: oldest)
+      var date = oldest
+      while date <= now.addingTimeInterval(86400) {
+        let matching = ranges.filter { date >= $0.start && date < ($0.end ?? .distantFuture) }
+        XCTAssertEqual(matching.count, 1, "\(date) at \(now)")
+        XCTAssertEqual(matching.first?.title, boundaries.title(for: date), "\(date) at \(now)")
+        date = date.addingTimeInterval(5 * 3600 + 17)
+      }
+    }
+  }
 }

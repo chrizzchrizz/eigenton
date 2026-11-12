@@ -75,6 +75,7 @@ public class Album: AbstractLibraryEntity {
   public var addedDate: Date? {
     get { managedObject.addedDate }
     set {
+      // the recently added group follows on save (`AlbumMO.willSave`)
       if managedObject.addedDate != newValue { managedObject.addedDate = newValue }
     }
   }

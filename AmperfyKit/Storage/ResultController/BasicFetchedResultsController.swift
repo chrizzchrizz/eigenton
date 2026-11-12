@@ -91,6 +91,34 @@ public struct AddedDateSectionBoundaries: Sendable {
     if date >= yearStart { return "This Year" }
     return "\(calendar.component(.year, from: date))"
   }
+
+  /// The date range of each group, newest first, back to the year of `oldestDate`: all dates in
+  /// `start ..< end` (no end if nil) get `title`, the same as `title(for:)` returns
+  public func ranges(
+    oldestDate: Date
+  )
+    -> [(title: String, start: Date, end: Date?)] {
+    var ranges: [(title: String, start: Date, end: Date?)] = [
+      ("This Month", monthStart, nil),
+      ("Last 3 Months", threeMonthsAgo, monthStart),
+      ("Last 6 Months", sixMonthsAgo, threeMonthsAgo),
+    ]
+    if yearStart < sixMonthsAgo {
+      ranges.append(("This Year", yearStart, sixMonthsAgo))
+    }
+    // older dates are grouped by their year
+    let yearsEnd = min(yearStart, sixMonthsAgo)
+    var yearInterval = calendar.dateInterval(of: .year, for: yearsEnd.addingTimeInterval(-1))
+    while let interval = yearInterval, interval.end > oldestDate {
+      ranges.append((
+        "\(calendar.component(.year, from: interval.start))",
+        interval.start,
+        min(interval.end, yearsEnd)
+      ))
+      yearInterval = calendar.dateInterval(of: .year, for: interval.start.addingTimeInterval(-1))
+    }
+    return ranges
+  }
 }
 
 // MARK: - IndexHeaderNameGenerator
@@ -181,9 +209,9 @@ public class IndexHeaderNameGenerator {
     }
   }
 
-  /// Boundaries all added date sections are computed with, fixed for the lifetime of the app
-  /// process. Every fetched results controller, including ones that stay alive and only process
-  /// changes, therefore groups with the same boundaries, so sections stay contiguous and unique.
+  /// Boundaries all added date sections (`AlbumMO.addedDateSection`) are computed with, fixed
+  /// for the lifetime of the app process. Every album therefore gets its group with the same
+  /// boundaries, so the sections of the recently added list stay contiguous and unique.
   /// Moving them while lists are alive would sort changed albums into groups that don't match
   /// their neighbours. Trade-off: after midnight the titles are a day behind until the next start.
   public static let currentAddedDateBoundaries = AddedDateSectionBoundaries()
@@ -548,7 +576,9 @@ public class CachedFetchedResultsController<ResultType>: BasicFetchedResultsCont
       fetchRequest: fetchRequest.copy() as! NSFetchRequest<ResultType>,
       coreDataCompanion: coreDataCompanion,
       sectionNameKeyPath: sectionNameKeyPath,
-      // a computed section name is not stored, the section cache would go stale
+      // groups like the recently added sections are moved at app start (see
+      // `LibraryStorage.updateAddedDateSections`) while no controller observes; a section
+      // cache would keep the old sections
       cacheName: customSectionNameKeyPath == nil ?
         "\(Self.typeName)-\(account.serverHash)-\(account.userHash)" : nil
     )

@@ -295,6 +295,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       CacheFileManager.shared.getAmperfyPath() ?? "-"
     )
     libraryUpdater.performSmallBlockingLibraryUpdatesIfNeeded()
+    libraryUpdater.updateAddedDateSectionsInBackground()
     // start manager only if no visual indicated updates are needed
     if !libraryUpdater.isVisualUpadateNeeded {
       libraryUpdater.deleteUnreferencedArtworksBeforeManagersStart()
