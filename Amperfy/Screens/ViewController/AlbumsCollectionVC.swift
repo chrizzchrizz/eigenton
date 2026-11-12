@@ -185,6 +185,8 @@ class AlbumsCollectionVC: SingleSnapshotFetchedResultsCollectionViewController<A
 
   private var previousSize: CGSize = .zero
   private var cachedItemSize: CGSize?
+  /// A check whether an index bar jump hid the section header is scheduled
+  private var isHeaderCheckPending = false
 
   func invalidateItemSizeCache() {
     cachedItemSize = nil
@@ -226,6 +228,22 @@ class AlbumsCollectionVC: SingleSnapshotFetchedResultsCollectionViewController<A
       return createCell(collectionView, forItemAt: indexPath, album: album)
     }
     return source
+  }
+
+  override func loadView() {
+    // own subclass to correct where the index bar jumps to (see `headerRevealingOffsetY`)
+    let collectionView = TargetOffsetAdjustingCollectionView(
+      frame: .zero,
+      collectionViewLayout: collectionViewLayout
+    )
+    collectionView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    collectionView.delegate = self
+    collectionView.dataSource = self
+    collectionView.adjustTargetOffsetY = { [weak self] offsetY in
+      self?.headerRevealingOffsetY(forTargetOffsetY: offsetY) ?? offsetY
+    }
+    self.collectionView = collectionView
+    view = collectionView
   }
 
   override func viewDidLoad() {
@@ -396,7 +414,86 @@ class AlbumsCollectionVC: SingleSnapshotFetchedResultsCollectionViewController<A
   }
 }
 
-// MARK: UICollectionViewDelegateFlowLayout
+// MARK: - Index bar jump
+
+extension AlbumsCollectionVC {
+  override func scrollViewDidScroll(_ scrollView: UIScrollView) {
+    // no super call: UICollectionViewController declares but doesn't implement this method
+    // fallback for jumps that don't go through setContentOffset: a scroll without any touch
+    // on the grid itself, checked once afterwards outside of any layout pass.
+    // Not on Mac: no index bar there, but mouse wheel and keyboard scroll without a touch.
+    #if !targetEnvironment(macCatalyst)
+      guard !scrollView.isTracking, !scrollView.isDragging, !scrollView.isDecelerating,
+            !isHeaderCheckPending
+      else { return }
+      isHeaderCheckPending = true
+      DispatchQueue.main.async { [weak self] in
+        guard let self else { return }
+        isHeaderCheckPending = false
+        guard !collectionView.isTracking, !collectionView.isDragging,
+              !collectionView.isDecelerating
+        else { return }
+        let offsetY = collectionView.contentOffset.y
+        let headerOffsetY = headerRevealingOffsetY(forTargetOffsetY: offsetY)
+        guard headerOffsetY != offsetY else { return }
+        collectionView.setContentOffset(
+          CGPoint(x: collectionView.contentOffset.x, y: headerOffsetY),
+          animated: false
+        )
+      }
+    #endif
+  }
+
+  /// The index bar scrolls the first item of a section to the top, which leaves the section
+  /// header behind the navigation bar. For such a target this returns the offset that shows the
+  /// header (the letter) instead; any other target is returned unchanged.
+  fileprivate func headerRevealingOffsetY(forTargetOffsetY offsetY: CGFloat) -> CGFloat {
+    guard !common.isIndexTitelsHidden, common.sortType == .name || common.sortType == .artist,
+          !collectionView.isTracking, !collectionView.isDragging, !collectionView.isDecelerating
+    else { return offsetY }
+    let inset = collectionView.adjustedContentInset
+    let visibleTop = offsetY + inset.top
+    // the item in the top leading corner must be the first of its section and sit at the top
+    let probe = CGPoint(x: horizontalSectionInset.leading + 1, y: visibleTop + 1)
+    guard let indexPath = collectionView.indexPathForItem(at: probe), indexPath.item == 0,
+          let firstItem = collectionView.layoutAttributesForItem(at: indexPath),
+          let header = collectionView.layoutAttributesForSupplementaryElement(
+            ofKind: UICollectionView.elementKindSectionHeader,
+            at: indexPath
+          )
+    else { return offsetY }
+    let sectionInsetTop = collectionView(
+      collectionView,
+      layout: collectionView.collectionViewLayout,
+      insetForSectionAt: indexPath.section
+    ).top
+    // only the exact positions the index bar jumps to (first item or its section inset at the
+    // top), so wheel, keyboard or other programmatic scrolls near a section start stay as they are
+    let isJumpTarget = abs(visibleTop - firstItem.frame.minY) < 0.5
+      || abs(visibleTop - (firstItem.frame.minY - sectionInsetTop)) < 0.5
+    guard isJumpTarget else { return offsetY }
+    let headerOffsetY = max(header.frame.minY - inset.top, -inset.top)
+    return min(headerOffsetY, offsetY)
+  }
+}
+
+// MARK: - TargetOffsetAdjustingCollectionView
+
+/// Lets the screen correct the target of programmatic scrolls, such as the index bar's jump,
+/// before they start, so an animated jump ends at the corrected position right away.
+private final class TargetOffsetAdjustingCollectionView: UICollectionView {
+  var adjustTargetOffsetY: ((CGFloat) -> CGFloat)?
+
+  override func setContentOffset(_ contentOffset: CGPoint, animated: Bool) {
+    var target = contentOffset
+    if let adjustTargetOffsetY {
+      target.y = adjustTargetOffsetY(contentOffset.y)
+    }
+    super.setContentOffset(target, animated: animated)
+  }
+}
+
+// MARK: - AlbumsCollectionVC + UICollectionViewDelegateFlowLayout
 
 extension AlbumsCollectionVC: UICollectionViewDelegateFlowLayout {
   static let minimumLineSpacing: CGFloat = 16
