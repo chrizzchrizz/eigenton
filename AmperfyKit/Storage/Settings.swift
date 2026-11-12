@@ -521,7 +521,7 @@ public struct AccountSettings: Sendable, Codable {
 
 // MARK: - AmperfySettings
 
-public struct AmperfySettings: Sendable, Codable {
+public struct AmperfySettings: Sendable {
   // MARK: - Persistence
 
   private static let decoder: JSONDecoder = .init()
@@ -575,92 +575,128 @@ public struct AmperfySettings: Sendable, Codable {
     }
   }
 
-  private var _appSettings: AppSettings = .init()
+  // The settings are decoded once and kept in memory: they are read very often (e.g. for every
+  // artwork that is shown), and decoding them from UserDefaults on every read is wasted work.
+  // The memory is shared by all copies of AmperfySettings (several components keep their own copy
+  // from launch), so a change made through any copy is seen by all of them. Every write goes
+  // through the setters, which update the memory and UserDefaults together.
+  private static let cache = SettingsCache()
+
+  public init() {}
+
+  /// Drops the settings kept in memory, so they are decoded from UserDefaults again on the next
+  /// read (e.g. after a test wrote UserDefaults directly).
+  static func reloadFromUserDefaults() {
+    cache.removeAll()
+  }
+
+  fileprivate static func load<T: Codable>(
+    key: PersistentStorage.UserDefaultsKey,
+    defaults: T
+  )
+    -> T {
+    guard let data = UserDefaults.standard.data(forKey: key.rawValue) else { return defaults }
+    do {
+      return try decode(T.self, from: data, defaults: defaults, storeMergedForKey: key.rawValue)
+    } catch {
+      os_log("Decoding %s failed: %s", type: .error, key.rawValue, String(describing: error))
+      return defaults
+    }
+  }
+
+  /// Returns false if the settings could not be encoded (nothing is stored then)
+  fileprivate static func store<T: Codable>(
+    _ settings: T,
+    key: PersistentStorage.UserDefaultsKey
+  )
+    -> Bool {
+    do {
+      let data = try encoder.encode(settings)
+      UserDefaults.standard.set(data, forKey: key.rawValue)
+      return true
+    } catch {
+      os_log("Encoding %s failed: %s", type: .error, key.rawValue, String(describing: error))
+      return false
+    }
+  }
+
   public var app: AppSettings {
-    get {
-      guard let data = UserDefaults.standard
-        .data(forKey: PersistentStorage.UserDefaultsKey.SettingsApp.rawValue)
-      else { return _appSettings }
-      do {
-        return try Self.decode(
-          AppSettings.self,
-          from: data,
-          defaults: _appSettings,
-          storeMergedForKey: PersistentStorage.UserDefaultsKey.SettingsApp.rawValue
-        )
-      } catch {
-        os_log("Decoding app settings failed: %s", type: .error, String(describing: error))
-        return _appSettings
-      }
-    }
-    set {
-      _appSettings = newValue
-      do {
-        let data = try Self.encoder.encode(_appSettings)
-        UserDefaults.standard.set(
-          data,
-          forKey: PersistentStorage.UserDefaultsKey.SettingsApp.rawValue
-        )
-      } catch {}
-    }
+    get { Self.cache.read(\.app, key: .SettingsApp) }
+    set { Self.cache.write(newValue, to: \.app, key: .SettingsApp) }
   }
 
-  private var _userSettings: UserSettings = .init()
   public var user: UserSettings {
-    get {
-      guard let data = UserDefaults.standard
-        .data(forKey: PersistentStorage.UserDefaultsKey.SettingsUser.rawValue)
-      else { return _userSettings }
-      do {
-        return try Self.decode(
-          UserSettings.self,
-          from: data,
-          defaults: _userSettings,
-          storeMergedForKey: PersistentStorage.UserDefaultsKey.SettingsUser.rawValue
-        )
-      } catch {
-        os_log("Decoding user settings failed: %s", type: .error, String(describing: error))
-        return _userSettings
-      }
-    }
-    set {
-      _userSettings = newValue
-      do {
-        let data = try Self.encoder.encode(_userSettings)
-        UserDefaults.standard.set(
-          data,
-          forKey: PersistentStorage.UserDefaultsKey.SettingsUser.rawValue
-        )
-      } catch {}
-    }
+    get { Self.cache.read(\.user, key: .SettingsUser) }
+    set { Self.cache.write(newValue, to: \.user, key: .SettingsUser) }
   }
 
-  private var _accountSettings: AccountSettings = .init()
   public var accounts: AccountSettings {
-    get {
-      guard let data = UserDefaults.standard
-        .data(forKey: PersistentStorage.UserDefaultsKey.SettingsAccount.rawValue)
-      else { return _accountSettings }
-      do {
-        return try Self.decode(
-          AccountSettings.self,
-          from: data,
-          defaults: _accountSettings,
-          storeMergedForKey: PersistentStorage.UserDefaultsKey.SettingsAccount.rawValue
-        )
-      } catch {
-        return _accountSettings
-      }
-    }
-    set {
-      _accountSettings = newValue
-      do {
-        let data = try Self.encoder.encode(_accountSettings)
-        UserDefaults.standard.set(
-          data,
-          forKey: PersistentStorage.UserDefaultsKey.SettingsAccount.rawValue
-        )
-      } catch {}
-    }
+    get { Self.cache.read(\.accounts, key: .SettingsAccount) }
+    set { Self.cache.write(newValue, to: \.accounts, key: .SettingsAccount) }
   }
 }
+
+// MARK: - SettingsCache
+
+/// The decoded settings of all AmperfySettings copies. Read from any thread, so guarded by a lock;
+/// the lock only protects each single read or write: `settings.user.x = v` reads and writes
+/// separately, so concurrent changes of the same settings struct can still overwrite each other.
+private final class SettingsCache: @unchecked Sendable {
+  // recursive: UserDefaults.set posts didChangeNotification on the writing thread, an observer
+  // that reads settings there would deadlock with a plain lock
+  private let lock = NSRecursiveLock()
+  fileprivate var app: AppSettings?
+  fileprivate var user: UserSettings?
+  fileprivate var accounts: AccountSettings?
+
+  func read<T: Codable>(
+    _ keyPath: ReferenceWritableKeyPath<SettingsCache, T?>,
+    key: PersistentStorage.UserDefaultsKey
+  )
+    -> T where T: DefaultInitializable {
+    lock.lock()
+    defer { lock.unlock() }
+    if let value = self[keyPath: keyPath] { return value }
+    let value = AmperfySettings.load(key: key, defaults: T())
+    self[keyPath: keyPath] = value
+    return value
+  }
+
+  func write<T: Codable>(
+    _ value: T,
+    to keyPath: ReferenceWritableKeyPath<SettingsCache, T?>,
+    key: PersistentStorage.UserDefaultsKey
+  ) {
+    lock.lock()
+    defer { lock.unlock() }
+    // memory follows only what is stored, so it never shows a change that is lost on restart
+    guard AmperfySettings.store(value, key: key) else { return }
+    self[keyPath: keyPath] = value
+  }
+
+  func removeAll() {
+    lock.lock()
+    defer { lock.unlock() }
+    app = nil
+    user = nil
+    accounts = nil
+  }
+}
+
+// MARK: - DefaultInitializable
+
+private protocol DefaultInitializable {
+  init()
+}
+
+// MARK: - AppSettings + DefaultInitializable
+
+extension AppSettings: DefaultInitializable {}
+
+// MARK: - UserSettings + DefaultInitializable
+
+extension UserSettings: DefaultInitializable {}
+
+// MARK: - AccountSettings + DefaultInitializable
+
+extension AccountSettings: DefaultInitializable {}

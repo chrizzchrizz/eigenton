@@ -61,6 +61,7 @@ class OfflineModeNotificationTest: XCTestCase {
   override func setUp() async throws {
     savedUserSettings = UserDefaults.standard.data(forKey: userSettingsKey)
     UserDefaults.standard.removeObject(forKey: userSettingsKey)
+    AmperfySettings.reloadFromUserDefaults()
     cdHelper = CoreDataHelper()
     storage = PersistentStorage(
       coreDataManager: MOCK_CoreDataManager(persistentContainer: cdHelper.persistentContainer)
@@ -69,6 +70,7 @@ class OfflineModeNotificationTest: XCTestCase {
 
   override func tearDown() async throws {
     UserDefaults.standard.set(savedUserSettings, forKey: userSettingsKey)
+    AmperfySettings.reloadFromUserDefaults()
   }
 
   func testChangePostsNotification() {

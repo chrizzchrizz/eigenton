@@ -29,11 +29,13 @@ class SettingsTest: XCTestCase {
     super.setUp()
     savedUserData = UserDefaults.standard.data(forKey: userKey)
     savedAppData = UserDefaults.standard.data(forKey: appKey)
+    AmperfySettings.reloadFromUserDefaults()
   }
 
   override func tearDown() {
     UserDefaults.standard.set(savedUserData, forKey: userKey)
     UserDefaults.standard.set(savedAppData, forKey: appKey)
+    AmperfySettings.reloadFromUserDefaults()
     super.tearDown()
   }
 
@@ -47,6 +49,13 @@ class SettingsTest: XCTestCase {
     var object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
     XCTAssertNotNil(object.removeValue(forKey: removedKey))
     UserDefaults.standard.set(try JSONSerialization.data(withJSONObject: object), forKey: key)
+    AmperfySettings.reloadFromUserDefaults()
+  }
+
+  /// The settings as decoded from UserDefaults (not the ones kept in memory)
+  private func rereadSettings() -> AmperfySettings {
+    AmperfySettings.reloadFromUserDefaults()
+    return AmperfySettings()
   }
 
   private func changedUserSettings() -> UserSettings {
@@ -70,7 +79,7 @@ class SettingsTest: XCTestCase {
     XCTAssertTrue(settings.user.isHapticsEnabled, "missing field gets its default")
 
     settings.user.isOfflineMode = true
-    let reread = AmperfySettings().user
+    let reread = rereadSettings().user
     XCTAssertTrue(reread.isOfflineMode)
     assertChangedValuesKept(reread)
   }
@@ -79,7 +88,7 @@ class SettingsTest: XCTestCase {
     var settings = AmperfySettings()
     settings.user = changedUserSettings()
 
-    let reread = AmperfySettings().user
+    let reread = rereadSettings().user
     assertChangedValuesKept(reread)
     XCTAssertFalse(reread.isHapticsEnabled)
   }
@@ -89,8 +98,17 @@ class SettingsTest: XCTestCase {
     app.isLibrarySynced = true
     try saveWithout("_librarySyncVersion", app, forKey: appKey)
 
-    let reread = AmperfySettings().app
+    let reread = rereadSettings().app
     XCTAssertTrue(reread.isLibrarySynced)
     XCTAssertEqual(reread.librarySyncVersion, AppSettings().librarySyncVersion)
+  }
+
+  func testChangeIsSeenByOtherCopies() {
+    var settings = AmperfySettings()
+    let otherCopy = AmperfySettings()
+    settings.user.isHapticsEnabled = false
+    XCTAssertFalse(otherCopy.user.isHapticsEnabled)
+    settings.user.isHapticsEnabled = true
+    XCTAssertTrue(otherCopy.user.isHapticsEnabled)
   }
 }
