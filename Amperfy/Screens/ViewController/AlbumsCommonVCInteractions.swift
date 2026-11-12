@@ -67,12 +67,19 @@ class SliderMenuView: UIView {
 
   private func setupView() {
     addSubview(slider)
-    slider.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10).isActive = true
-    slider.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10).isActive = true
+    // keeps the thumb clear of the strongly rounded glass corners
+    slider.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 20).isActive = true
+    slider.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -20).isActive = true
     #if targetEnvironment(macCatalyst)
       slider.centerYAnchor.constraint(equalTo: centerYAnchor).isActive = true
     #else
-      slider.centerYAnchor.constraint(equalTo: centerYAnchor, constant: -6).isActive = true
+      if #available(iOS 27.0, *) {
+        // the popover has no arrow anymore, the content is centered
+        slider.centerYAnchor.constraint(equalTo: centerYAnchor).isActive = true
+      } else {
+        // compensates the arrow area of the popover on iOS 26
+        slider.centerYAnchor.constraint(equalTo: centerYAnchor, constant: -6).isActive = true
+      }
     #endif
     slider.addTarget(self, action: #selector(sliderValueChanged(_:)), for: .valueChanged)
   }
