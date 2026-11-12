@@ -67,6 +67,7 @@ enum CoreDataMigrationVersion: String, CaseIterable {
     "Amperfy v53" // AbstractLibraryEntity.artwork: delete rule Nullify instead of Cascade (#896)
   case v54 = "Amperfy v54" // AbstractPlayable: add bitrateCached (#564)
   case v55 = "Amperfy v55" // Album: add addedDate
+  case v56 = "Amperfy v56" // Album: add addedDateSection (stored recently added group)
 
   // MARK: - Current
 
@@ -191,6 +192,8 @@ enum CoreDataMigrationVersion: String, CaseIterable {
     case .v54:
       return .v55
     case .v55:
+      return .v56
+    case .v56:
       return nil
     }
   }

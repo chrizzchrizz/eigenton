@@ -56,6 +56,10 @@ extension AlbumMO {
   /// Date the album was added on the server (Subsonic `created`)
   @NSManaged
   public var addedDate: Date?
+  /// Recently added group ("This Month", …, "2024"), empty without added date; see
+  /// `LibraryStorage.updateAddedDateSections`
+  @NSManaged
+  public var addedDateSection: String
   @NSManaged
   public var artist: ArtistMO?
   @NSManaged
