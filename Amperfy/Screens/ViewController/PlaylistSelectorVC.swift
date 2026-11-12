@@ -229,7 +229,8 @@ class PlaylistSelectorVC: SingleSnapshotFetchedResultsTableViewController<Playli
   private func createSortButtonMenu() -> UIMenu {
     let sortByName = UIAction(
       title: "Name",
-      image: sortType == .name ? .check : nil,
+      image: .letterPicker,
+      state: sortType == .name ? .on : .off,
       handler: { [weak self] _ in
         guard let self else { return }
         change(sortType: .name)
@@ -243,7 +244,8 @@ class PlaylistSelectorVC: SingleSnapshotFetchedResultsTableViewController<Playli
     )
     let sortByLastTimePlayed = UIAction(
       title: "Last time played",
-      image: sortType == .lastPlayed ? .check : nil,
+      image: .clockLastPlayed,
+      state: sortType == .lastPlayed ? .on : .off,
       handler: { [weak self] _ in
         guard let self else { return }
         change(sortType: .lastPlayed)
@@ -257,7 +259,8 @@ class PlaylistSelectorVC: SingleSnapshotFetchedResultsTableViewController<Playli
     )
     let sortByChangeDate = UIAction(
       title: "Change date",
-      image: sortType == .lastChanged ? .check : nil,
+      image: .pencil,
+      state: sortType == .lastChanged ? .on : .off,
       handler: { [weak self] _ in
         guard let self else { return }
         change(sortType: .lastChanged)
@@ -271,7 +274,8 @@ class PlaylistSelectorVC: SingleSnapshotFetchedResultsTableViewController<Playli
     )
     let sortByDuration = UIAction(
       title: "Duration",
-      image: sortType == .duration ? .check : nil,
+      image: .timer,
+      state: sortType == .duration ? .on : .off,
       handler: { [weak self] _ in
         guard let self else { return }
         change(sortType: .duration)
@@ -284,9 +288,7 @@ class PlaylistSelectorVC: SingleSnapshotFetchedResultsTableViewController<Playli
       }
     )
     return UIMenu(
-      title: "Sort",
-      image: .sort,
-      options: [],
+      options: [.displayInline],
       children: [sortByName, sortByLastTimePlayed, sortByChangeDate, sortByDuration]
     )
   }

@@ -378,7 +378,8 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
   private func createSortButtonMenu() -> UIMenu {
     let sortByName = UIAction(
       title: "Name",
-      image: sortType == .name ? .check : nil,
+      image: .letterPicker,
+      state: sortType == .name ? .on : .off,
       handler: { [weak self] _ in
         guard let self else { return }
         change(sortType: .name)
@@ -393,7 +394,8 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
     )
     let sortByRating = UIAction(
       title: "Rating",
-      image: sortType == .rating ? .check : nil,
+      image: .starEmpty,
+      state: sortType == .rating ? .on : .off,
       handler: { [weak self] _ in
         guard let self else { return }
         change(sortType: .rating)
@@ -408,7 +410,8 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
     )
     let sortByDuration = UIAction(
       title: "Duration",
-      image: sortType == .duration ? .check : nil,
+      image: .timer,
+      state: sortType == .duration ? .on : .off,
       handler: { [weak self] _ in
         guard let self else { return }
         change(sortType: .duration)
@@ -423,7 +426,8 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
     )
     let sortByStarredDate = UIAction(
       title: "Starred date",
-      image: sortType == .starredDate ? .check : nil,
+      image: .heartEmpty,
+      state: sortType == .starredDate ? .on : .off,
       handler: { [weak self] _ in
         guard let self else { return }
         change(sortType: .starredDate)
@@ -438,7 +442,8 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
     )
     let sortByAddedDate = UIAction(
       title: "Date Added",
-      image: sortType == .addedDate ? .check : nil,
+      image: .calendarAdded,
+      state: sortType == .addedDate ? .on : .off,
       handler: { [weak self] _ in
         guard let self else { return }
         change(sortType: .addedDate)
@@ -453,23 +458,17 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
     )
     if displayFilter == .favorites, account.apiType.asServerApiType != .ampache {
       return UIMenu(
-        title: "Sort",
-        image: .sort,
-        options: [],
+        options: [.displayInline],
         children: [sortByName, sortByRating, sortByDuration, sortByStarredDate, sortByAddedDate]
       )
     } else if account.apiType.asServerApiType != .ampache {
       return UIMenu(
-        title: "Sort",
-        image: .sort,
-        options: [],
+        options: [.displayInline],
         children: [sortByName, sortByRating, sortByDuration, sortByAddedDate]
       )
     } else {
       return UIMenu(
-        title: "Sort",
-        image: .sort,
-        options: [],
+        options: [.displayInline],
         children: [sortByName, sortByRating, sortByDuration]
       )
     }

@@ -318,7 +318,8 @@ class PodcastsVC: MultiSourceTableViewController {
   private func createSortButtonMenu() -> UIMenu {
     let podcastsSortByName = UIAction(
       title: "Podcasts sorted by name",
-      image: showType == .podcasts ? .check : nil,
+      image: .letterPicker,
+      state: showType == .podcasts ? .on : .off,
       handler: { [weak self] _ in
         guard let self else { return }
         showType = .podcasts
@@ -333,7 +334,8 @@ class PodcastsVC: MultiSourceTableViewController {
     )
     let episodesSortByReleaseDate = UIAction(
       title: "Episodes sorted by release date",
-      image: showType == .episodesSortedByReleaseDate ? .check : nil,
+      image: .calendar,
+      state: showType == .episodesSortedByReleaseDate ? .on : .off,
       handler: { [weak self] _ in
         guard let self else { return }
         showType = .episodesSortedByReleaseDate

@@ -352,7 +352,8 @@ class AlbumsCommonVCInteractions {
   private func createSortButtonMenu() -> UIMenu {
     let sortByName = UIAction(
       title: "Name",
-      image: sortType == .name ? .check : nil,
+      image: .letterPicker,
+      state: sortType == .name ? .on : .off,
       handler: { [weak self] _ in
         guard let self else { return }
         change(sortType: .name)
@@ -367,7 +368,8 @@ class AlbumsCommonVCInteractions {
     )
     let sortByRating = UIAction(
       title: "Rating",
-      image: sortType == .rating ? .check : nil,
+      image: .starEmpty,
+      state: sortType == .rating ? .on : .off,
       handler: { [weak self] _ in
         guard let self else { return }
         change(sortType: .rating)
@@ -382,7 +384,8 @@ class AlbumsCommonVCInteractions {
     )
     let sortByArtist = UIAction(
       title: "Artist",
-      image: sortType == .artist ? .check : nil,
+      image: .artist,
+      state: sortType == .artist ? .on : .off,
       handler: { [weak self] _ in
         guard let self else { return }
         change(sortType: .artist)
@@ -397,7 +400,8 @@ class AlbumsCommonVCInteractions {
     )
     let sortByDuration = UIAction(
       title: "Duration",
-      image: sortType == .duration ? .check : nil,
+      image: .timer,
+      state: sortType == .duration ? .on : .off,
       handler: { [weak self] _ in
         guard let self else { return }
         change(sortType: .duration)
@@ -412,7 +416,8 @@ class AlbumsCommonVCInteractions {
     )
     let sortByYear = UIAction(
       title: "Year",
-      image: sortType == .year ? .check : nil,
+      image: .calendar,
+      state: sortType == .year ? .on : .off,
       handler: { [weak self] _ in
         guard let self else { return }
         change(sortType: .year)
@@ -426,9 +431,7 @@ class AlbumsCommonVCInteractions {
       }
     )
     return UIMenu(
-      title: "Sort",
-      image: .sort,
-      options: [],
+      options: [.displayInline],
       children: [sortByName, sortByRating, sortByArtist, sortByDuration, sortByYear]
     )
   }
@@ -484,7 +487,8 @@ class AlbumsCommonVCInteractions {
   private func createStyleButtonMenu() -> UIMenu {
     let tableStyle = UIAction(
       title: "Table",
-      image: appDelegate.storage.settings.user.albumsStyleSetting == .table ? .check : nil,
+      image: .listBullet,
+      state: appDelegate.storage.settings.user.albumsStyleSetting == .table ? .on : .off,
       handler: { [weak self] _ in
         guard let self else { return }
         appDelegate.storage.settings.user.albumsStyleSetting = .table
@@ -501,7 +505,8 @@ class AlbumsCommonVCInteractions {
     )
     let gridStyle = UIAction(
       title: "Grid",
-      image: appDelegate.storage.settings.user.albumsStyleSetting == .grid ? .check : nil,
+      image: .grid,
+      state: appDelegate.storage.settings.user.albumsStyleSetting == .grid ? .on : .off,
       handler: { [weak self] _ in
         guard let self else { return }
         appDelegate.storage.settings.user.albumsStyleSetting = .grid
@@ -528,9 +533,7 @@ class AlbumsCommonVCInteractions {
       .attributes = (appDelegate.storage.settings.user.albumsStyleSetting != .grid) ? .disabled : []
 
     return UIMenu(
-      title: "Style",
-      image: .grid,
-      options: [],
+      options: [.displayInline],
       children: [tableStyle, gridStyle, changeGridSize]
     )
   }

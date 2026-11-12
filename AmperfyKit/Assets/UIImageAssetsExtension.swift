@@ -153,12 +153,15 @@ public struct AmperfyImage: Sendable {
   public static let backwardFill = Self("backward.fill")
   public static let bars = Self("line.3.horizontal")
   public static let bell = Self("bell.fill")
+  public static let calendar = Self("calendar")
+  public static let calendarAdded = Self("calendar.badge.plus")
   public static let cancleDownloads = Self("xmark.icloud")
   public static let check = Self("checkmark")
   public static let circle = Self("circle")
   public static let clear = Self("clear")
   public static let clipboard = Self("doc.on.doc")
   public static let clock = Self("clock")
+  public static let clockLastPlayed = Self("clock.arrow.circlepath")
   public static let cloudX = Self("xmark.icloud")
   public static let currentSongMenu = Self("music.note")
   public static let display = Self("display")
@@ -249,6 +252,7 @@ public struct AmperfyImage: Sendable {
   public static let stop = Self("stop.fill")
   public static let stopMenu = Self("stop")
   public static let switchPlayerWindow = Self("play.rectangle.on.rectangle")
+  public static let timer = Self("timer")
   public static let continuePlayback = Self("laptopcomputer.and.iphone")
   public static let trash = Self("trash")
   public static let triangleDown = Self("arrowtriangle.down.fill")
@@ -300,6 +304,9 @@ extension UIImage {
   public static let ban = UIImage.create(systemName: AmperfyImage.ban.systemName)
   public static let bars = UIImage.create(systemName: AmperfyImage.bars.systemName)
   public static let bell = UIImage.create(systemName: AmperfyImage.bell.systemName)
+  public static let calendar = UIImage.create(systemName: AmperfyImage.calendar.systemName)
+  public static let calendarAdded = UIImage
+    .create(systemName: AmperfyImage.calendarAdded.systemName)
   public static let cache = download
   public static let cancleDownloads = UIImage
     .create(systemName: AmperfyImage.cancleDownloads.systemName)
@@ -310,6 +317,8 @@ extension UIImage {
   public static let clear = UIImage.create(systemName: AmperfyImage.clear.systemName)
   public static let clipboard = UIImage.create(systemName: AmperfyImage.clipboard.systemName)
   public static let clock = UIImage.create(systemName: AmperfyImage.clock.systemName)
+  public static let clockLastPlayed = UIImage
+    .create(systemName: AmperfyImage.clockLastPlayed.systemName)
   public static let cloudX = UIImage.create(systemName: AmperfyImage.cloudX.systemName)
   public static let currentSongMenu = UIImage
     .create(systemName: AmperfyImage.currentSongMenu.systemName)
@@ -410,6 +419,7 @@ extension UIImage {
   public static let stopMenu = UIImage.create(systemName: AmperfyImage.stopMenu.systemName)
   public static let continuePlayback = UIImage
     .create(systemName: AmperfyImage.continuePlayback.systemName)
+  public static let timer = UIImage.create(systemName: AmperfyImage.timer.systemName)
   public static let trash = UIImage.create(systemName: AmperfyImage.trash.systemName)
   public static let triangleDown = UIImage.create(systemName: AmperfyImage.triangleDown.systemName)
   public static let unSelected = UIImage.create(systemName: AmperfyImage.unSelected.systemName)
