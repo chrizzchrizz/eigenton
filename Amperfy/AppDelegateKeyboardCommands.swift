@@ -106,7 +106,39 @@ enum KeyboardCommands: CaseIterable {
     let keyCmd = asCommand
     let cmd = UIKeyCommand(input: keyCmd.input, modifierFlags: keyCmd.modifierFlags, action: action)
     cmd.title = name
+    // Plain arrow keys are otherwise consumed by the focus system and keyboard scrolling
+    // of table/collection views and never reach the app delegate
+    cmd.wantsPriorityOverSystemBehavior = wantsPriorityOverSystemBehavior
     return cmd
+  }
+
+  private var wantsPriorityOverSystemBehavior: Bool {
+    switch self {
+    case .previous, .next:
+      return true
+    default:
+      return false
+    }
+  }
+}
+
+// MARK: - FirstResponderFinder
+
+@MainActor
+private enum FirstResponderFinder {
+  static weak var current: UIResponder?
+
+  static func find() -> UIResponder? {
+    current = nil
+    UIApplication.shared.sendAction(#selector(UIResponder.amp_reportFirstResponder), to: nil, from: nil, for: nil)
+    return current
+  }
+}
+
+extension UIResponder {
+  @objc
+  fileprivate func amp_reportFirstResponder() {
+    FirstResponderFinder.current = self
   }
 }
 
@@ -119,6 +151,17 @@ extension AppDelegate {
     KeyboardCommands.allCases.filter(\.isAvailable).map { cmd in
       cmd.asUIKeyCommand(action: #selector(handleKeyCommand(sender:)))
     }
+  }
+
+  /// Keep the arrow keys for cursor movement while text is edited
+  open override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+    if action == #selector(handleKeyCommand(sender:)),
+       let keyCommand = sender as? UIKeyCommand,
+       keyCommand.wantsPriorityOverSystemBehavior,
+       FirstResponderFinder.find() is UITextInput {
+      return false
+    }
+    return super.canPerformAction(action, withSender: sender)
   }
 
   @objc
