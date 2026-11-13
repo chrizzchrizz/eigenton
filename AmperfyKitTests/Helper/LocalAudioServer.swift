@@ -52,6 +52,7 @@ final class LocalAudioServer: @unchecked Sendable {
   private var _requests = [Request]()
   private var _isOffline = false
   private var _refusedConnectionCount = 0
+  private var responseDelays = [String: TimeInterval]()
   private var _bytesPerSecond: Int?
   private var _dropAfterBytes: Int?
   private var _httpStatus: Int?
@@ -103,6 +104,11 @@ final class LocalAudioServer: @unchecked Sendable {
 
   func serve(path: String, data: Data, contentType: String) {
     lock.withLock { files[path] = File(data: data, contentType: contentType) }
+  }
+
+  /// Answers requests for the path only after the delay, e.g. a slow playlist server
+  func delayResponses(path: String, by delay: TimeInterval) {
+    lock.withLock { responseDelays[path] = delay }
   }
 
   func url(path: String) -> URL {
@@ -210,6 +216,17 @@ final class LocalAudioServer: @unchecked Sendable {
   }
 
   private func respond(_ connection: NWConnection, header: String) {
+    let path = header.split(separator: " ", maxSplits: 2).dropFirst().first.map(String.init) ?? ""
+    if let delay = lock.withLock({ responseDelays[path] }) {
+      queue.asyncAfter(deadline: .now() + delay) { [weak self] in
+        self?.respondNow(connection, header: header)
+      }
+    } else {
+      respondNow(connection, header: header)
+    }
+  }
+
+  private func respondNow(_ connection: NWConnection, header: String) {
     let lines = header.components(separatedBy: "\r\n")
     let requestLine = lines.first?.split(separator: " ") ?? []
     guard requestLine.count >= 2 else {

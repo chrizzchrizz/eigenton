@@ -236,6 +236,58 @@ final class PlayerIntegrationTest: XCTestCase {
     XCTAssertEqual(recorder.recoverCount, 0)
   }
 
+  func testRadio_M3ULink_PlaysTheStreamFromThePlaylist() async {
+    // issue #777: a station set up with a playlist link instead of the stream itself
+    server.serve(path: "/radio.wav", data: Self.songData, contentType: "audio/wav")
+    let playlist = "#EXTM3U\n#EXTINF:-1,Station\n\(server.url(path: "/radio.wav").absoluteString)\n"
+    server.serve(path: "/station.m3u", data: Data(playlist.utf8), contentType: "audio/mpegurl")
+    let radio = library.createRadio(account: account)
+    radio.id = "radio1"
+    radio.title = "Station"
+    radio.url = server.url(path: "/station.m3u").absoluteString
+    player.play(context: PlayContext(name: "", playables: [radio]))
+    await wait("radio plays", timeout: 10) { player.isPlaying && player.elapsedTime >= 1 }
+    XCTAssertEqual(player.currentlyPlaying?.id, radio.id)
+    XCTAssertEqual(recorder.recoverCount, 0)
+    XCTAssertTrue(server.requests.contains { $0.path == "/radio.wav" })
+  }
+
+  func testRadio_SlowPlaylistThenSong_SongKeepsPlaying() async {
+    server.serve(path: "/radio.wav", data: Self.songData, contentType: "audio/wav")
+    let playlist = "\(server.url(path: "/radio.wav").absoluteString)\n"
+    server.serve(path: "/station.m3u", data: Data(playlist.utf8), contentType: "audio/mpegurl")
+    server.delayResponses(path: "/station.m3u", by: 2)
+    let radio = library.createRadio(account: account)
+    radio.id = "radio1"
+    radio.title = "Station"
+    radio.url = server.url(path: "/station.m3u").absoluteString
+    let song = createSong(id: "song1")
+    player.play(context: PlayContext(name: "", playables: [radio]))
+    try? await Task.sleep(for: .milliseconds(300))
+    // the user picks a song while the radio playlist is still loading
+    play([song])
+    await wait("song plays", timeout: 10) { player.isPlaying && player.elapsedTime >= 1 }
+    try? await Task.sleep(for: .seconds(3))
+    XCTAssertEqual(player.currentlyPlaying?.id, song.id)
+    XCTAssertFalse(server.requests.contains { $0.path == "/radio.wav" }, "radio didn't take over")
+    XCTAssertTrue(player.isPlaying)
+  }
+
+  func testRadio_BrokenPlaylist_NoRetries() async {
+    musicPlayer.errorRecoveryDelays = [0.2, 0.2, 0.2]
+    server.serve(path: "/station.m3u", data: Data("#EXTM3U\n".utf8), contentType: "audio/mpegurl")
+    let radio = library.createRadio(account: account)
+    radio.id = "radio1"
+    radio.title = "Station"
+    radio.url = server.url(path: "/station.m3u").absoluteString
+    player.play(context: PlayContext(name: "", playables: [radio]))
+    await wait("preparation fails", timeout: 10) { backendPlayer.isPreparationFailed }
+    try? await Task.sleep(for: .seconds(1.5))
+    XCTAssertEqual(recorder.recoverCount, 0)
+    XCTAssertEqual(server.requests.filter { $0.path == "/station.m3u" }.count, 1, "no retries")
+    XCTAssertFalse(player.isPlaying)
+  }
+
   func testStream_ShortOutage_KeepsPlaying() async {
     server.bytesPerSecond = Self.audioByteRate * 3 / 2
     let song = createSong(id: "song1")

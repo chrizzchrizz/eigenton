@@ -737,6 +737,12 @@ class BackendAudioPlayer: NSObject {
         } catch {
           // a newer request replaced this one and reports its own result
           guard requestID == playRequestID else { return }
+          if error is RadioPlaylistResolver.InvalidPlaylistError {
+            // a broken playlist link won't work on a retry either
+            reactToInvalidRadioUrl(playableDisplayTitle: playable.displayString)
+            self.eventLogger.report(topic: "Player", error: error, displayPopup: false)
+            return
+          }
           isPreparationFailed = true
           self.responder?.notifyErrorOccurred(error: error)
           self.responder?.notifyItemPreparationFinished()
@@ -854,11 +860,13 @@ class BackendAudioPlayer: NSObject {
     @MainActor
     func provideUrl() async throws -> URL {
       if let radio = playable.asRadio {
-        guard let streamUrlString = radio.url,
-              let streamUrl = URL(string: streamUrlString)
+        guard let radioUrlString = radio.url,
+              let radioUrl = URL(string: radioUrlString)
         else {
           throw BackendError.invalidUrl
         }
+        // stations are often set up with a .m3u or .pls link that only names the stream
+        let streamUrl = try await RadioPlaylistResolver.resolve(url: radioUrl)
         // a radio preloaded as the next item doesn't change what is playing now
         if queueType == .play {
           playType = .stream
@@ -893,7 +901,13 @@ class BackendAudioPlayer: NSObject {
       }
     }
     let request = streamRestartRequest
+    let playRequest = playRequestID
     let streamUrl = try await provideUrl()
+    // a newer play request replaced this one while the URL was generated (e.g. a slow radio
+    // playlist), it must not take over the player
+    guard queueType == .queue || playRequest == playRequestID else {
+      throw CancellationError()
+    }
     // the preload might have been invalidated or replaced while the URL was generated
     if queueType == .queue, nextPreloadedPlayable != playable {
       return
