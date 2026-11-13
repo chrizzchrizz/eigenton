@@ -51,6 +51,8 @@ final class HomeVC: UICollectionViewController {
   }()
 
   #if targetEnvironment(macCatalyst)
+    private lazy var macLargeTitle = MacLargeTitle(viewController: self, scrollView: collectionView)
+
     /// on Mac the downloads are opened from Home, on iOS from the library
     private lazy var downloadsButton = DownloadsBarButton(account: account) { [weak self] in
       self?.showLibraryList(.downloads)
@@ -183,6 +185,10 @@ final class HomeVC: UICollectionViewController {
     super.viewIsAppearing(animated)
     extendSafeAreaToAccountForMiniPlayer()
     sharedHome.updateFromRemote()
+    #if targetEnvironment(macCatalyst)
+      // the navigation controller resets the title bar for every shown screen
+      macLargeTitle.update()
+    #endif
   }
 
   // MARK: - Layout
@@ -259,6 +265,12 @@ final class HomeVC: UICollectionViewController {
 
       return sectionLayout
     }
+    #if targetEnvironment(macCatalyst)
+      // the Mac idiom has no large navigation titles, Home shows its own above the first section
+      let configuration = UICollectionViewCompositionalLayoutConfiguration()
+      configuration.boundarySupplementaryItems = [MacLargeTitle.layoutItem()]
+      layout.configuration = configuration
+    #endif
     return layout
   }
 
@@ -279,6 +291,9 @@ final class HomeVC: UICollectionViewController {
       forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader,
       withReuseIdentifier: SectionHeaderView.reuseID
     )
+    #if targetEnvironment(macCatalyst)
+      macLargeTitle.register()
+    #endif
   }
 
   // MARK: - Data Source
@@ -313,6 +328,11 @@ final class HomeVC: UICollectionViewController {
     }
 
     dataSource.supplementaryViewProvider = { [weak self] collectionView, kind, indexPath in
+      #if targetEnvironment(macCatalyst)
+        if kind == MacLargeTitle.elementKind {
+          return self?.macLargeTitle.header(for: indexPath)
+        }
+      #endif
       guard let self,
             kind == UICollectionView.elementKindSectionHeader,
             let header = collectionView.dequeueReusableSupplementaryView(
