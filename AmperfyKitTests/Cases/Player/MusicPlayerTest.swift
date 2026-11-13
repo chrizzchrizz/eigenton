@@ -250,6 +250,8 @@ final class MOCK_BackendApi: BackendApi {
   let isScrobbleOfStreamedSongsNeeded = false
   /// Thrown when a stream URL is requested
   nonisolated(unsafe) var streamUrlError: Error?
+  /// Stream URL per playable, `nil` streams `Helper.testURL`
+  nonisolated(unsafe) var streamUrlProvider: ((AbstractPlayableInfo) -> URL)?
   func provideCredentials(credentials: LoginCredentials) {}
   func isAuthenticationValid(credentials: LoginCredentials) async throws {
     throw BackendError.notSupported
@@ -269,7 +271,7 @@ final class MOCK_BackendApi: BackendApi {
   ) async throws
     -> URL {
     if let streamUrlError { throw streamUrlError }
-    return Helper.testURL
+    return streamUrlProvider?(playableInfo) ?? Helper.testURL
   }
 
   func generateUrl(

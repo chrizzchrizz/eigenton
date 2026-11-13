@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E1A6DCFAEB54ADAF29ED9EE9 /* PlayerIntegrationTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57A5F89DA4DD1564E6F22E3B /* PlayerIntegrationTest.swift */; };
+		879E48E8AD3ADC3217E1A93C /* LocalAudioServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEA1A10EC95FE986E5221DE5 /* LocalAudioServer.swift */; };
 		09EB5F102F93B96E00B1C71C /* ShareSongAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09EB5F0D2F93B65400B1C71C /* ShareSongAction.swift */; };
 		27EB1C38402CA80F8B0B537D /* SearchDebouncer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7049C69DC0AAE33A2158D8F5 /* SearchDebouncer.swift */; };
 		3E259BB6C3BA5E7278C240AF /* DownloadTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB890C7F92FDC39784593C50 /* DownloadTest.swift */; };
@@ -610,6 +612,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		57A5F89DA4DD1564E6F22E3B /* PlayerIntegrationTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerIntegrationTest.swift; sourceTree = "<group>"; };
+		CEA1A10EC95FE986E5221DE5 /* LocalAudioServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalAudioServer.swift; sourceTree = "<group>"; };
 		09EB5F0D2F93B65400B1C71C /* ShareSongAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSongAction.swift; sourceTree = "<group>"; };
 		5000FACE000000000000AB01 /* AlbumSyncCoalescerTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumSyncCoalescerTest.swift; sourceTree = "<group>"; };
 		5002565625E69DC700674CE1 /* SpinnerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpinnerViewController.swift; sourceTree = "<group>"; };
@@ -1640,6 +1644,7 @@
 				5095F98B23C8389E008B0805 /* MusicPlayerTest.swift */,
 				5011712D27453D1300B7C08D /* PlayQueueHandlerTest.swift */,
 				E196D6CAB3E6FA2348684FC6 /* PlayQueueSaveThrottleTest.swift */,
+				57A5F89DA4DD1564E6F22E3B /* PlayerIntegrationTest.swift */,
 			);
 			path = Player;
 			sourceTree = "<group>";
@@ -1752,6 +1757,7 @@
 				50B798AC23B7E73D00551E62 /* CoreDataHelper.swift */,
 				50B798AE23B7ED6200551E62 /* CoreDataSeeder.swift */,
 				50DB118626650D630033BFFA /* UnitTestHelper.swift */,
+				CEA1A10EC95FE986E5221DE5 /* LocalAudioServer.swift */,
 			);
 			path = Helper;
 			sourceTree = "<group>";
@@ -2924,6 +2930,7 @@
 				50BE5D6E2850F4FB00156FC6 /* SsPlaylistsParserTest.swift in Sources */,
 				50BE5D862850F50F00156FC6 /* PlaylistSongsParserTest.swift in Sources */,
 				50BE5D532850F4E700156FC6 /* MusicPlayerTest.swift in Sources */,
+				E1A6DCFAEB54ADAF29ED9EE9 /* PlayerIntegrationTest.swift in Sources */,
 				50BE5D732850F4FB00156FC6 /* SsPodcastParserTest.swift in Sources */,
 				50BE5D722850F4FB00156FC6 /* SsSongExample1ParserTest.swift in Sources */,
 				50BE5D912850F50F00156FC6 /* GenreParserTest.swift in Sources */,
@@ -2950,6 +2957,7 @@
 				50BE5D8C2850F50F00156FC6 /* AlbumParserTest.swift in Sources */,
 				50BE5D8A2850F50F00156FC6 /* ErrorParserTest.swift in Sources */,
 				50BE5D942850F51E00156FC6 /* UnitTestHelper.swift in Sources */,
+				879E48E8AD3ADC3217E1A93C /* LocalAudioServer.swift in Sources */,
 				50AE79B82C1F68090085CBB3 /* SsLyricsBySongId2ParserTest.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
