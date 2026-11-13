@@ -54,6 +54,8 @@ extension DownloadManager: URLSessionDelegate, URLSessionDownloadDelegate {
     // reading or move it to a permanent location in your app’s sandbox container directory before returning from this delegate method.
     // If you choose to open the file for reading, you should do the actual reading in another thread to avoid blocking the delegate queue.
     Task {
+      // a successful download is moved into the cache, every other path leaves it in tmp
+      defer { if let filePath { try? FileManager.default.removeItem(at: filePath) } }
       guard let taskInfo = await tasks[downloadTask] else { return }
 
       var downloadError: DownloadError?
