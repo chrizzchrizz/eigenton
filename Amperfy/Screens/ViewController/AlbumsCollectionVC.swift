@@ -120,6 +120,15 @@ class AlbumsCollectionDiffableDataSource: BasicUICollectionViewDiffableDataSourc
   }
 
   override func indexTitles(for collectionView: UICollectionView) -> [String]? {
+    #if targetEnvironment(macCatalyst)
+      // no section index on Mac, like the tables (see BasicTableViewController)
+      return nil
+    #else
+      return alphabeticIndexTitles(for: collectionView)
+    #endif
+  }
+
+  private func alphabeticIndexTitles(for collectionView: UICollectionView) -> [String]? {
     // only name and artist have single-letter index titles; longer ones would cover the covers
     guard let vc, !vc.common.isIndexTitelsHidden, sortType == .name || sortType == .artist
     else { return nil }

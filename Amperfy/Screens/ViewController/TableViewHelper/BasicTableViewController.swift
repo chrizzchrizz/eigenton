@@ -204,6 +204,8 @@ class BasicTableViewController: KeyCommandTableViewController {
         // Before macOS 27 the soft glass is too big (see SideBarVC), so keep the default there.
         tableView.topEdgeEffect.style = .soft
       }
+      // no section index on Mac, the lists are scrolled with wheel, trackpad or keyboard
+      tableView.sectionIndexMinimumDisplayRowCount = .max
     #endif
   }
 
