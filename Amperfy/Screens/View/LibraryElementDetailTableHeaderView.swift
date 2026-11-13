@@ -96,14 +96,65 @@ class LibraryElementDetailTableHeaderView: UIView {
         width: rootView.view.bounds.size.width,
         height: Self.frameHeight
       ))!
+    #if targetEnvironment(macCatalyst)
+      // aligned with the rows and the large title (see MacLargeTitle) via the table's margins
+      genericDetailTableHeaderView.followsTableMargins = true
+    #endif
     genericDetailTableHeaderView.prepare(configuration: configuration)
     rootView.tableView.tableHeaderView?.addSubview(genericDetailTableHeaderView)
     return genericDetailTableHeaderView
   }
 
+  /// Takes the horizontal margins of the table it is the header of instead of its own.
+  private var followsTableMargins = false
+  /// Horizontal margins given by the embedding view (see `alignHorizontally`).
+  private var fixedHorizontalMargins: (leading: CGFloat, trailing: CGFloat)?
+
+  /// Aligns the content with the surrounding content instead of the default margins.
+  func alignHorizontally(leading: CGFloat, trailing: CGFloat) {
+    fixedHorizontalMargins = (leading, trailing)
+    layoutMargins = UIEdgeInsets(top: 0.0, left: leading, bottom: 0.0, right: trailing)
+  }
+
+  override func layoutSubviews() {
+    if followsTableMargins {
+      applyTableMargins()
+    }
+    super.layoutSubviews()
+  }
+
+  /// Only the horizontal margins, preserving the superview's margins would add its vertical ones.
+  private func applyTableMargins() {
+    var view = superview
+    while let current = view, !(current is UITableView) {
+      view = current.superview
+    }
+    guard let tableView = view else { return }
+    // the table's margins include its safe area (e.g. under the Mac sidebar), the header adds
+    // its own safe area to its margins itself
+    let margins = UIEdgeInsets(
+      top: 0.0,
+      left: max(0, tableView.layoutMargins.left - tableView.safeAreaInsets.left),
+      bottom: 0.0,
+      right: max(0, tableView.layoutMargins.right - tableView.safeAreaInsets.right)
+    )
+    if layoutMargins != margins {
+      layoutMargins = margins
+    }
+  }
+
   func refresh() {
     guard let config = config else { return }
-    if config.isEmbeddedInOtherView {
+    if followsTableMargins {
+      applyTableMargins()
+    } else if let fixedHorizontalMargins {
+      layoutMargins = UIEdgeInsets(
+        top: 0.0,
+        left: fixedHorizontalMargins.leading,
+        bottom: 0.0,
+        right: fixedHorizontalMargins.trailing
+      )
+    } else if config.isEmbeddedInOtherView {
       layoutMargins = UIEdgeInsets(top: 0.0, left: 0.0, bottom: 0.0, right: 0.0)
     } else {
       if traitCollection.horizontalSizeClass == .compact {

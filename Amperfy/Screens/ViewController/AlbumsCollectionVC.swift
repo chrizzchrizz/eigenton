@@ -97,12 +97,24 @@ class AlbumsCollectionDiffableDataSource: BasicUICollectionViewDiffableDataSourc
 
     if indexPath.section == 0, let vc {
       #if targetEnvironment(macCatalyst)
-        sectionHeader.displayTopView(
-          vc.macLargeTitle.makeTitleView(),
-          height: MacLargeTitle.titleHeight
+        // title and play header aligned with the covers, like the section titles
+        let inset = vc.horizontalSectionInset
+        let titleView = vc.macLargeTitle.makeTitleView()
+        titleView.preservesSuperviewLayoutMargins = false
+        titleView.directionalLayoutMargins = NSDirectionalEdgeInsets(
+          top: 0,
+          leading: inset.leading,
+          bottom: 0,
+          trailing: inset.trailing
         )
+        sectionHeader.displayTopView(titleView, height: MacLargeTitle.titleHeight)
+        sectionHeader.displayPlayHeader(
+          configuration: vc.common.createPlayShuffleInfoConfig(),
+          horizontalInset: inset
+        )
+      #else
+        sectionHeader.displayPlayHeader(configuration: vc.common.createPlayShuffleInfoConfig())
       #endif
-      sectionHeader.displayPlayHeader(configuration: vc.common.createPlayShuffleInfoConfig())
     }
     return sectionHeader
   }

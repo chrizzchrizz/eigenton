@@ -53,7 +53,11 @@ class CommonCollectionSectionHeader: UICollectionReusableView {
     addSubview(view)
   }
 
-  func displayPlayHeader(configuration: PlayShuffleInfoConfiguration) {
+  /// `horizontalInset` aligns the play header with the items instead of the default margins.
+  func displayPlayHeader(
+    configuration: PlayShuffleInfoConfiguration,
+    horizontalInset: (leading: CGFloat, trailing: CGFloat)? = nil
+  ) {
     detailHeader = ViewCreator<LibraryElementDetailTableHeaderView>
       .createFromNib(withinFixedFrame: CGRect(
         x: 0,
@@ -62,6 +66,12 @@ class CommonCollectionSectionHeader: UICollectionReusableView {
         height: LibraryElementDetailTableHeaderView.frameHeight
       ))
     detailHeader?.prepare(configuration: configuration)
+    if let horizontalInset {
+      detailHeader?.alignHorizontally(
+        leading: horizontalInset.leading,
+        trailing: horizontalInset.trailing
+      )
+    }
     detailHeader?.refresh()
     if let detailHeader = detailHeader {
       addSubview(detailHeader)
