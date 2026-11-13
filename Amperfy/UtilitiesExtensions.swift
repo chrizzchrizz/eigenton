@@ -566,3 +566,24 @@ extension UISearchBar {
     return appDelegate.storage.settings.user.isOfflineMode
   }
 }
+
+extension UIMenu {
+  /// macOS 27 hides menu images by default; the library option menus show their icons like on
+  /// iOS, next to the leading checkmarks.
+  func showingImagesOnMac() -> UIMenu {
+    #if targetEnvironment(macCatalyst)
+      if #available(macCatalyst 27.0, *) {
+        Self.showImages(of: self)
+      }
+    #endif
+    return self
+  }
+
+  #if targetEnvironment(macCatalyst)
+    @available(macCatalyst 27.0, *)
+    private static func showImages(of element: UIMenuElement) {
+      element.preferredImageVisibility = .visible
+      (element as? UIMenu)?.children.forEach { showImages(of: $0) }
+    }
+  #endif
+}

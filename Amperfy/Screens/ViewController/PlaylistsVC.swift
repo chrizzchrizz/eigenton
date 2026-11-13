@@ -253,7 +253,7 @@ class PlaylistsVC: SingleSnapshotFetchedResultsTableViewController<PlaylistMO> {
     actions.append(createSortButtonMenu())
     actions.append(createOptionsButtonMenu())
     optionsButton = UIBarButtonItem.createOptionsBarButton()
-    optionsButton.menu = UIMenu(children: actions)
+    optionsButton.menu = UIMenu(children: actions).showingImagesOnMac()
     var barButtons = [UIBarButtonItem]()
     barButtons.append(optionsButton)
     if appDelegate.storage.settings.user.isOnlineMode {

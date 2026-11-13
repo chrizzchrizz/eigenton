@@ -179,7 +179,7 @@ class PlaylistSelectorVC: SingleSnapshotFetchedResultsTableViewController<Playli
       selector: #selector(cancelBarButtonPressed)
     )
     optionsButton = UIBarButtonItem.createOptionsBarButton()
-    optionsButton.menu = createSortButtonMenu()
+    optionsButton.menu = createSortButtonMenu().showingImagesOnMac()
     navigationItem.rightBarButtonItems = [closeButton, optionsButton]
   }
 

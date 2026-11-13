@@ -349,7 +349,7 @@ class AlbumsCommonVCInteractions {
 
     if !actions.isEmpty {
       optionsButton = UIBarButtonItem.createOptionsBarButton()
-      optionsButton.menu = UIMenu(children: actions)
+      optionsButton.menu = UIMenu(children: actions).showingImagesOnMac()
       rootVC?.navigationItem.rightBarButtonItems = [optionsButton]
     } else {
       rootVC?.navigationItem.rightBarButtonItems = []

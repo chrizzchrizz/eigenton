@@ -190,7 +190,7 @@ class PodcastsVC: MultiSourceTableViewController {
 
   func updateRightBarButtonItems() {
     optionsButton = UIBarButtonItem.createOptionsBarButton()
-    optionsButton.menu = createSortButtonMenu()
+    optionsButton.menu = createSortButtonMenu().showingImagesOnMac()
     navigationItem.rightBarButtonItem = optionsButton
   }
 

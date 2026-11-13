@@ -304,7 +304,7 @@ class ArtistsVC: SingleSnapshotFetchedResultsTableViewController<ArtistMO> {
       actions.append(createActionButtonMenu())
     }
     optionsButton = UIBarButtonItem.createOptionsBarButton()
-    optionsButton.menu = UIMenu(children: actions)
+    optionsButton.menu = UIMenu(children: actions).showingImagesOnMac()
     navigationItem.rightBarButtonItems = [optionsButton]
   }
 
