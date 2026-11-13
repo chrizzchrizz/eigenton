@@ -604,10 +604,6 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
        !backendAudioPlayer.isPreparationFailed {
       errorResumePoint = (playable: playable, time: resumeTime)
     }
-    notifierList = notifierList.filter { $0.value != nil }
-    for notifier in notifierList {
-      notifier.value?.errorOccurred(error: error)
-    }
   }
 
   func notifyItemPaused() {

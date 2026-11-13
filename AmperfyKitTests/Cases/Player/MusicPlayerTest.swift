@@ -307,10 +307,7 @@ final class MOCK_NetworkMonitor: NetworkMonitorFacade {
 // MARK: - MOCK_MusicPlayable
 
 class MOCK_MusicPlayable: MusicPlayable {
-  var thrownError: Error?
-
   var expectationDidStartPlaying: XCTestExpectation?
-  var expectationErrorOccurred: XCTestExpectation?
 
   var startedFromBeginningCount = 0
 
@@ -329,11 +326,6 @@ class MOCK_MusicPlayable: MusicPlayable {
   func didArtworkChange() {}
   func didShuffleChange() {}
   func didRepeatChange() {}
-
-  func errorOccurred(_ error: Error) {
-    thrownError = error
-    expectationErrorOccurred?.fulfill()
-  }
 }
 
 // MARK: - MOCK_CoreDataManager

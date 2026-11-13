@@ -50,7 +50,6 @@ extension MusicPlayable {
   func didShuffleChange() {}
   func didRepeatChange() {}
   func didPlaybackRateChange() {}
-  func errorOccurred(error: Error) {}
 }
 
 // MARK: - RadioNowPlayingInfo
