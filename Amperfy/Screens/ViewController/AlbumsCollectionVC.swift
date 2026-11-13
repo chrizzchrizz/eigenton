@@ -96,6 +96,12 @@ class AlbumsCollectionDiffableDataSource: BasicUICollectionViewDiffableDataSourc
     }
 
     if indexPath.section == 0, let vc {
+      #if targetEnvironment(macCatalyst)
+        sectionHeader.displayTopView(
+          vc.macLargeTitle.makeTitleView(),
+          height: MacLargeTitle.titleHeight
+        )
+      #endif
       sectionHeader.displayPlayHeader(configuration: vc.common.createPlayShuffleInfoConfig())
     }
     return sectionHeader
@@ -188,6 +194,13 @@ class AlbumsCollectionVC: SingleSnapshotFetchedResultsCollectionViewController<A
   private var cachedItemSize: CGSize?
   /// A check whether an index bar jump hid the section header is scheduled
   private var isHeaderCheckPending = false
+  #if targetEnvironment(macCatalyst)
+    /// shown in the header of the first section, above the play header
+    fileprivate lazy var macLargeTitle = MacLargeTitle(
+      viewController: self,
+      scrollView: collectionView
+    )
+  #endif
 
   func invalidateItemSizeCache() {
     cachedItemSize = nil
@@ -342,6 +355,10 @@ class AlbumsCollectionVC: SingleSnapshotFetchedResultsCollectionViewController<A
     common.updateRightBarButtonItems()
     common.updateFromRemote()
     common.updateContentUnavailable()
+    #if targetEnvironment(macCatalyst)
+      // the navigation controller resets the title bar for every shown screen
+      macLargeTitle.update()
+    #endif
   }
 
   func createCell(
@@ -591,7 +608,12 @@ extension AlbumsCollectionVC: UICollectionViewDelegateFlowLayout {
     referenceSizeForHeaderInSection section: Int
   )
     -> CGSize {
-    let headerTopHeight = section == 0 ? LibraryElementDetailTableHeaderView.frameHeight : 0.0
+    var headerTopHeight = section == 0 ? LibraryElementDetailTableHeaderView.frameHeight : 0.0
+    #if targetEnvironment(macCatalyst)
+      if section == 0 {
+        headerTopHeight += MacLargeTitle.titleHeight
+      }
+    #endif
     let titleHeight = hasSectionHeader(section) ? CommonCollectionSectionHeader.frameHeight : 0.0
     return CGSize(width: collectionView.bounds.size.width, height: titleHeight + headerTopHeight)
   }

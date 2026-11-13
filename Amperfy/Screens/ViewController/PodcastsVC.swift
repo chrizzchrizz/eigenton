@@ -118,6 +118,7 @@ class PodcastsVC: MultiSourceTableViewController {
       guard let self else { return }
       updateContentUnavailable()
     }
+    showLargeTitleOnMac()
   }
 
   func updateContentUnavailable() {

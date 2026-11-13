@@ -107,6 +107,7 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
       guard let self else { return }
       updateContentUnavailable()
     }
+    showLargeTitleOnMac()
   }
 
   func updateContentUnavailable() {

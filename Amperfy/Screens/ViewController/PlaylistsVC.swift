@@ -185,6 +185,7 @@ class PlaylistsVC: SingleSnapshotFetchedResultsTableViewController<PlaylistMO> {
       guard let self else { return }
       updateContentUnavailable()
     }
+    showLargeTitleOnMac()
   }
 
   func updateContentUnavailable() {

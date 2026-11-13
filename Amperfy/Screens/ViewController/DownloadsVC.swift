@@ -64,6 +64,7 @@ class DownloadsVC: SingleFetchedResultsTableViewController<DownloadMO> {
     optionsButton = UIBarButtonItem.createOptionsBarButton()
     optionsButton.menu = createActionButtonMenu()
     navigationItem.rightBarButtonItem = optionsButton
+    showLargeTitleOnMac()
   }
 
   private func createActionButtonMenu() -> UIMenu {

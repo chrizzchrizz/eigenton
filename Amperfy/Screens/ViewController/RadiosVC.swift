@@ -105,6 +105,7 @@ class RadiosVC: SingleFetchedResultsTableViewController<RadioMO> {
       updateContentUnavailable()
     }
     setNavBarTitle(title: sceneTitle ?? "")
+    showLargeTitleOnMac()
   }
 
   func updateContentUnavailable() {

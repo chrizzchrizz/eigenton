@@ -59,6 +59,7 @@ class MusicFoldersVC: SingleFetchedResultsTableViewController<MusicFolderMO> {
       guard let self else { return }
       updateContentUnavailable()
     }
+    showLargeTitleOnMac()
   }
 
   func updateContentUnavailable() {

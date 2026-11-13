@@ -251,6 +251,7 @@ class AlbumsVC: SingleSnapshotFetchedResultsTableViewController<AlbumMO> {
       common.updateContentUnavailable()
       updateHeaderViewVisibility()
     }
+    showLargeTitleOnMac()
   }
 
   override func viewWillAppear(_ animated: Bool) {

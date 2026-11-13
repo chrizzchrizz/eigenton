@@ -29,6 +29,9 @@ class CommonCollectionSectionHeader: UICollectionReusableView {
   weak var titleLabel: UILabel!
 
   private var detailHeader: LibraryElementDetailTableHeaderView?
+  /// Height of the view above the play header, see `displayTopView`.
+  private var topViewHeight: CGFloat = 0
+  private var topView: UIView?
 
   /// Aligns the title with the items of the section.
   func applyHorizontalInset(leading: CGFloat) {
@@ -40,11 +43,21 @@ class CommonCollectionSectionHeader: UICollectionReusableView {
     titleLabel.isHidden = (title == nil)
   }
 
+  /// A full width view at the very top, above the play header (e.g. the large title on Mac).
+  func displayTopView(_ view: UIView, height: CGFloat) {
+    topView?.removeFromSuperview()
+    topView = view
+    topViewHeight = height
+    view.frame = CGRect(x: 0, y: 0, width: bounds.size.width, height: height)
+    view.autoresizingMask = [.flexibleWidth]
+    addSubview(view)
+  }
+
   func displayPlayHeader(configuration: PlayShuffleInfoConfiguration) {
     detailHeader = ViewCreator<LibraryElementDetailTableHeaderView>
       .createFromNib(withinFixedFrame: CGRect(
         x: 0,
-        y: 0,
+        y: topViewHeight,
         width: bounds.size.width,
         height: LibraryElementDetailTableHeaderView.frameHeight
       ))
@@ -55,16 +68,26 @@ class CommonCollectionSectionHeader: UICollectionReusableView {
     }
   }
 
+  override func awakeFromNib() {
+    super.awakeFromNib()
+    // once per header, registering on every reuse added another handler each time
+    MainActor.assumeIsolated {
+      _ = registerForTraitChanges(
+        [UITraitUserInterfaceStyle.self, UITraitHorizontalSizeClass.self],
+        handler: { (self: Self, previousTraitCollection: UITraitCollection) in
+          self.detailHeader?.refresh()
+        }
+      )
+    }
+  }
+
   override func prepareForReuse() {
+    super.prepareForReuse()
+    topView?.removeFromSuperview()
+    topView = nil
+    topViewHeight = 0
     detailHeader?.removeFromSuperview()
     detailHeader?.isHidden = true
     detailHeader = nil
-
-    registerForTraitChanges(
-      [UITraitUserInterfaceStyle.self, UITraitHorizontalSizeClass.self],
-      handler: { (self: Self, previousTraitCollection: UITraitCollection) in
-        self.detailHeader?.refresh()
-      }
-    )
   }
 }

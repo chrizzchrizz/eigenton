@@ -220,6 +220,7 @@ class SearchVC: BasicTableViewController {
       guard let self else { return }
       setupUserNavButton()
     }
+    showLargeTitleOnMac()
   }
 
   override func viewWillAppear(_ animated: Bool) {

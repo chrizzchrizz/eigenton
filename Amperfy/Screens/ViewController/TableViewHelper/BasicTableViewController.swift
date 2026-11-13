@@ -190,6 +190,9 @@ class BasicTableViewController: KeyCommandTableViewController {
   var swipeCallback: SwipeActionCallback?
   var isEditLockedDueToActiveSwipe = false
   var isSingleCellEditingModeActive = false
+  #if targetEnvironment(macCatalyst)
+    private var macLargeTitle: MacLargeTitle?
+  #endif
 
   override func viewDidLoad() {
     super.viewDidLoad()
@@ -206,6 +209,10 @@ class BasicTableViewController: KeyCommandTableViewController {
 
   override func viewIsAppearing(_ animated: Bool) {
     super.viewIsAppearing(animated)
+    #if targetEnvironment(macCatalyst)
+      // the navigation controller resets the title bar for every shown screen
+      macLargeTitle?.update()
+    #endif
 
     if searchController.searchBar.scopeButtonTitles?.count ?? 0 > 1,
        appDelegate.storage.settings.user.isOfflineMode {
@@ -214,6 +221,15 @@ class BasicTableViewController: KeyCommandTableViewController {
       searchController.searchBar.selectedScopeButtonIndex = 0
     }
     updateSearchResults(for: searchController)
+  }
+
+  /// Mac only: shows the title large above the table, like the large navigation title on iOS.
+  /// Call at the end of `viewDidLoad`, after an own table header view was set.
+  func showLargeTitleOnMac() {
+    #if targetEnvironment(macCatalyst)
+      macLargeTitle = MacLargeTitle(viewController: self, scrollView: tableView)
+      macLargeTitle?.installAsTableHeader()
+    #endif
   }
 
   /// Tables whose cells draw their own separators (`separatorStyle = .none`) also align the

@@ -218,6 +218,7 @@ class ArtistsVC: SingleSnapshotFetchedResultsTableViewController<ArtistMO> {
       guard let self else { return }
       updateContentUnavailable()
     }
+    showLargeTitleOnMac()
   }
 
   func updateContentUnavailable() {
