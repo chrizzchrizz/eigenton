@@ -310,7 +310,12 @@ class MOCK_MusicPlayable: MusicPlayable {
   var expectationDidStartPlaying: XCTestExpectation?
   var expectationErrorOccurred: XCTestExpectation?
 
-  func didStartPlayingFromBeginning() {}
+  var startedFromBeginningCount = 0
+
+  func didStartPlayingFromBeginning() {
+    startedFromBeginningCount += 1
+  }
+
   func didStartPlaying() {
     expectationDidStartPlaying?.fulfill()
   }
@@ -368,6 +373,8 @@ class MusicPlayerTest: XCTestCase {
   var testPlayer: AmperfyKit.PlayerFacade!
   var testQueueHandler: AmperfyKit.PlayQueueHandler!
   var mockAudioStreamingPlayer: MOCK_AudioStreamingPlayer!
+  /// Errors leave the mock stopped like the app's restarted player
+  var isRestartedPlayerIdle = false
 
   var songCached: Song!
   var songToDownload: Song!
@@ -3105,6 +3112,10 @@ class MusicPlayerTest: XCTestCase {
     count: Int,
     error: AudioStreaming.AudioPlayerError = .networkError(.failure(NetworkError.serverError))
   ) async {
+    if isRestartedPlayerIdle {
+      // the app's restarted player is a new idle instance, the mock would still be paused
+      mockAudioStreamingPlayer.isStopped = true
+    }
     for _ in 0 ..< count {
       backendPlayer.audioPlayerUnexpectedError(
         player: mockAudioStreamingPlayer,
@@ -3177,6 +3188,145 @@ class MusicPlayerTest: XCTestCase {
     XCTAssertFalse(backendPlayer.isErrorOccurred)
     XCTAssertTrue(testPlayer.isPlaying)
     XCTAssertTrue(mockAudioStreamingPlayer.isPlaying)
+  }
+
+  /// Wires the automatic recovery after an error as the app does
+  private func wireErrorRecovery() {
+    isRestartedPlayerIdle = true
+    testMusicPlayer.errorRecoveryDelays = [0, 0, 0]
+    backendPlayer.triggerReinsertPlayableCB = { [unowned self] in
+      testMusicPlayer.recoverFromPlaybackError()
+    }
+  }
+
+  func testErrorRecovery_DataErrors_SkipToNextSongAfterRetries() async {
+    wireErrorRecovery()
+    let playables = playlistAllCached.playables
+    await playAndWaitForPlayerStart(playables)
+    // also when the retries fail before the player reports a start
+    await reportPlayerErrors(count: AudioPlayer.maxErrorRecoveryCount, error: .codecError)
+    XCTAssertEqual(testPlayer.currentlyPlaying?.id, playables[0].id)
+    await reportPlayerErrors(count: 1, error: .codecError)
+    XCTAssertEqual(testPlayer.currentlyPlaying?.id, playables[1].id)
+  }
+
+  func testErrorRecovery_NetworkErrors_StayPausedAfterRetries() async {
+    wireErrorRecovery()
+    let playables = playlistAllCached.playables
+    await playAndWaitForPlayerStart(playables)
+    await reportPlayerErrors(count: AudioPlayer.maxErrorRecoveryCount + 2)
+    XCTAssertEqual(testPlayer.currentlyPlaying?.id, playables[0].id)
+    XCTAssertFalse(testPlayer.isPlaying)
+  }
+
+  func testErrorRecovery_Radio_IsNeverSkipped() async {
+    wireErrorRecovery()
+    let radios = library.getRadios(for: account)
+    testPlayer.play(context: PlayContext(name: "Radios", playables: radios))
+    await reportPlayerErrors(count: AudioPlayer.maxErrorRecoveryCount + 2, error: .codecError)
+    XCTAssertEqual(testPlayer.currentlyPlaying?.id, radios[0].id)
+  }
+
+  func testErrorRecovery_PlayAfterGivingUp_RecoversAgain() async {
+    wireErrorRecovery()
+    await playAndWaitForPlayerStart(playlistAllCached.playables)
+    await reportPlayerErrors(count: AudioPlayer.maxErrorRecoveryCount + 1)
+    XCTAssertFalse(testPlayer.isPlaying)
+
+    testPlayer.play()
+    await reportPlayerErrors(count: 1)
+    XCTAssertTrue(testPlayer.isPlaying)
+  }
+
+  func testErrorRecovery_RetriesDontCountAsPlays() async {
+    wireErrorRecovery()
+    let playables = playlistAllCached.playables
+    await playAndWaitForPlayerStart(playables)
+    let playCount = playables[0].playCount
+    let startCount = mockMusicPlayable.startedFromBeginningCount
+    await reportPlayerErrors(count: AudioPlayer.maxErrorRecoveryCount)
+    XCTAssertEqual(playables[0].playCount, playCount)
+    XCTAssertEqual(mockMusicPlayable.startedFromBeginningCount, startCount)
+  }
+
+  func testErrorRecovery_NextAfterGivingUp_AllowsSkipAgain() async {
+    wireErrorRecovery()
+    let playables = playlistAllCached.playables
+    await playAndWaitForPlayerStart(playables)
+    testPlayer.setRepeatMode(.all)
+    for _ in 0 ..< AudioPlayer.maxConsecutiveErrorSkipCount + 1 {
+      await reportPlayerErrors(count: AudioPlayer.maxErrorRecoveryCount + 1, error: .codecError)
+    }
+    let index = AudioPlayer.maxConsecutiveErrorSkipCount
+    XCTAssertEqual(testPlayer.currentlyPlaying?.id, playables[index].id)
+    // the user moves on: a failing song can be skipped again
+    testPlayer.playNext()
+    // the start is reported asynchronously and leaves the error state
+    let end = Date().addingTimeInterval(3.0)
+    while backendPlayer.isErrorOccurred, Date() < end {
+      try? await Task.sleep(for: .milliseconds(20))
+    }
+    await reportPlayerErrors(count: AudioPlayer.maxErrorRecoveryCount + 1, error: .codecError)
+    XCTAssertEqual(testPlayer.currentlyPlaying?.id, playables[(index + 2) % playables.count].id)
+  }
+
+  func testErrorRecovery_PauseDuringRetryDelay_CancelsRetry() async {
+    wireErrorRecovery()
+    testMusicPlayer.errorRecoveryDelays = [0.5]
+    await playAndWaitForPlayerStart(playlistAllCached.playables)
+    let playCount = mockAudioStreamingPlayer.playCount
+    await reportPlayerErrors(count: 1)
+    testPlayer.pause()
+    try? await Task.sleep(for: .milliseconds(800))
+    XCTAssertEqual(mockAudioStreamingPlayer.playCount, playCount)
+    XCTAssertFalse(testPlayer.isPlaying)
+  }
+
+  func testErrorRecovery_SeekDuringRetryDelay_RetriesAtSeekTarget() async {
+    wireErrorRecovery()
+    testMusicPlayer.errorRecoveryDelays = [0.3]
+    await playAndWaitForPlayerStart(playlistAllCached.playables)
+    mockAudioStreamingPlayer.mockElapsedTime = 200.0
+    let playCount = mockAudioStreamingPlayer.playCount
+    await reportPlayerErrors(count: 1)
+    testPlayer.seek(toSecond: 50.0)
+    let end = Date().addingTimeInterval(3.0)
+    while mockAudioStreamingPlayer.playCount == playCount ||
+      mockAudioStreamingPlayer.mockElapsedTime != 50.0, Date() < end {
+      try? await Task.sleep(for: .milliseconds(20))
+    }
+    XCTAssertGreaterThan(mockAudioStreamingPlayer.playCount, playCount)
+    XCTAssertEqual(mockAudioStreamingPlayer.mockElapsedTime, 50.0)
+  }
+
+  func testErrorRecovery_SkipsInARowAreLimited() async {
+    wireErrorRecovery()
+    let playables = playlistAllCached.playables
+    XCTAssertGreaterThan(playables.count, AudioPlayer.maxConsecutiveErrorSkipCount)
+    await playAndWaitForPlayerStart(playables)
+    // there is always a next song, the limit stops the skipping
+    testPlayer.setRepeatMode(.all)
+    for _ in 0 ..< AudioPlayer.maxConsecutiveErrorSkipCount {
+      await reportPlayerErrors(count: AudioPlayer.maxErrorRecoveryCount + 1, error: .codecError)
+    }
+    let lastIndex = AudioPlayer.maxConsecutiveErrorSkipCount
+    XCTAssertEqual(testPlayer.currentlyPlaying?.id, playables[lastIndex].id)
+    await reportPlayerErrors(count: AudioPlayer.maxErrorRecoveryCount + 1, error: .codecError)
+    XCTAssertEqual(testPlayer.currentlyPlaying?.id, playables[lastIndex].id)
+  }
+
+  func testPlayerError_SeekAfterError_ResumesAtSeekTarget() async {
+    await playAndWaitForPlayerStart([songCached])
+    mockAudioStreamingPlayer.mockElapsedTime = 200.0
+    await reportPlayerErrors(count: 1)
+
+    testPlayer.seek(toSecond: 50.0)
+    await playAndWaitForPlayerStart([songCached])
+    let end = Date().addingTimeInterval(3.0)
+    while mockAudioStreamingPlayer.mockElapsedTime != 50.0, Date() < end {
+      try? await Task.sleep(for: .milliseconds(20))
+    }
+    XCTAssertEqual(mockAudioStreamingPlayer.mockElapsedTime, 50.0)
   }
 
   func testPlayerError_FailedRetryPreparation_KeepsResumePosition() async {

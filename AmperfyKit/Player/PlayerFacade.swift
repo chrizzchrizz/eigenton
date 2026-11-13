@@ -547,6 +547,7 @@ class PlayerFacadeImpl: PlayerFacade {
     guard let currentlyPlaying = currentlyPlaying else { return }
     switch currentlyPlaying.derivedType {
     case .podcastEpisode, .song:
+      musicPlayer.userDidSeek(toSecond: toSecond)
       backendAudioPlayer.seek(toSecond: toSecond)
     case .radio:
       break // do nothing

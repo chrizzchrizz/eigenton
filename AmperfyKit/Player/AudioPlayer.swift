@@ -72,6 +72,26 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
   /// playable it was captured for and is used at most once, so it can't leak into a
   /// different item if the recovery fails or the user plays something else.
   private var errorResumePoint: (playable: AbstractPlayable, time: Double)?
+  /// Automatic recoveries of the playable that failed last and the furthest position it failed
+  /// at. Reset once playback got clearly past that position or the user acted.
+  private var errorRecovery: (
+    playable: AbstractPlayable,
+    count: Int,
+    position: Double,
+    hadDataError: Bool
+  )?
+  private var errorRecoveryTask: Task<(), Never>?
+  /// Playables skipped in a row because of data errors, so a queue that only fails can't loop
+  private var consecutiveErrorSkipCount = 0
+  /// The item in the player is an automatic retry: not a new play (count, scrobble)
+  private var isRetryInPlayer = false
+  /// An error tore down the player and the playable wasn't inserted again since
+  private var isPlayerTornDownByError = false
+  /// Waiting time before each retry after a connection error, to outlast a short network drop
+  var errorRecoveryDelays: [TimeInterval] = [1.0, 3.0, 6.0]
+  static let maxErrorRecoveryCount = 3
+  static let maxConsecutiveErrorSkipCount = 3
+  static let errorFreePlaybackToResetRecovery: Double = 10.0
   var autoplayCB: (@MainActor (Song) async throws -> [Song])?
 
   private var playerStatus: PlayerStatusPersistent
@@ -126,18 +146,23 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
     notifyItemStartedPlayingFromBeginning()
   }
 
-  private func insertIntoPlayer(playable: AbstractPlayable) {
-    userStatistics.playedItem(
-      repeatMode: playerStatus.repeatMode,
-      isShuffle: playerStatus.isShuffle
-    )
-    playable.countPlayed()
-    if let playableInPlayer, playableInPlayer == playable {
-      // replay: start from the beginning, a saved position would be resumed
-      playable.playProgress = 0
-    } else {
-      // the position of the previous playable is lost once the backend player switches
-      savePlayInformation()
+  private func insertIntoPlayer(playable: AbstractPlayable, isRetry: Bool = false) {
+    isRetryInPlayer = isRetry
+    isPlayerTornDownByError = false
+    // a retry keeps the saved position and isn't a new play
+    if !isRetry {
+      userStatistics.playedItem(
+        repeatMode: playerStatus.repeatMode,
+        isShuffle: playerStatus.isShuffle
+      )
+      playable.countPlayed()
+      if let playableInPlayer, playableInPlayer == playable {
+        // replay: start from the beginning, a saved position would be resumed
+        playable.playProgress = 0
+      } else {
+        // the position of the previous playable is lost once the backend player switches
+        savePlayInformation()
+      }
     }
     playableInPlayer = nil
     backendAudioPlayer.requestToPlay(
@@ -152,12 +177,16 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
     playableInPlayer = currentlyPlaying
     lastPlayInformationSaveDate = Date()
     handleRadioStartIfNeeded()
-    notifyItemStartedPlayingFromBeginning()
+    let isRetry = isRetryInPlayer
+    isRetryInPlayer = false
+    notifyItemStartedPlayingFromBeginning(isNotifyingListeners: !isRetry)
     notifyItemStartedPlaying()
   }
 
   // BackendAudioPlayerNotifiable
   func didItemFinishedPlaying() {
+    // ended without an error, also before a replay with repeat single
+    resetErrorRecovery()
     if let playableInPlayer, !playableInPlayer.isRadio {
       // The backend may already report the next (preloaded) item, use the last observed position.
       // Played to the end: start from the beginning next time. Ended early (e.g. connection loss):
@@ -189,10 +218,92 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
     }
   }
 
+  /// Called by the backend player for every playback error, after it tore down the player.
+  /// Retries a few times. Then a playable whose data can't be decoded is skipped; on other
+  /// errors the player stays paused and play resumes at the error position.
+  func recoverFromPlaybackError() {
+    guard let playable = currentlyPlaying else { return }
+    let previous = errorRecovery?.playable == playable ? errorRecovery : nil
+    let count = (previous?.count ?? 0) + 1
+    // a report from the restarted player has no position yet, keep the one of the first report
+    let position = max(previous?.position ?? 0, backendAudioPlayer.elapsedTimeBeforeErrorOccurred)
+    let isDataError = backendAudioPlayer.isDataErrorOccurred
+    let hadDataError = (previous?.hadDataError ?? false) || isDataError
+    errorRecovery = (
+      playable: playable,
+      count: count,
+      position: position,
+      hadDataError: hadDataError
+    )
+    let delay: TimeInterval
+    if count > Self.maxErrorRecoveryCount || isDataError || errorRecoveryDelays.isEmpty {
+      delay = 0
+    } else {
+      delay = errorRecoveryDelays[min(count, errorRecoveryDelays.count) - 1]
+    }
+    errorRecoveryTask?.cancel()
+    // not within the backend's error handling, a new insert may report an error itself
+    errorRecoveryTask = Task { @MainActor [weak self] in
+      if delay > 0 { try? await Task.sleep(for: .seconds(delay)) }
+      // paused, stopped or replaced by the user or a newer error meanwhile
+      guard let self, !Task.isCancelled, currentlyPlaying == playable,
+            backendAudioPlayer.isErrorOccurred
+      else { return }
+      errorRecoveryTask = nil
+      if count <= Self.maxErrorRecoveryCount {
+        continueOrInsertCurrent(isRetry: true)
+      } else if hadDataError, !playable.isRadio, let nextPlayerIndex,
+                consecutiveErrorSkipCount < Self.maxConsecutiveErrorSkipCount {
+        os_log(.default, "Skip the playable after %d failed recoveries", Self.maxErrorRecoveryCount)
+        consecutiveErrorSkipCount += 1
+        // start it from the beginning next time, the torn down player has no position to save
+        errorResumePoint = nil
+        playable.playProgress = 0
+        playableInPlayer = nil
+        // not through playNext, which counts as the user's action
+        guard let next = queueHandler.markAndGetPlayableAsPlaying(at: nextPlayerIndex)
+        else { return }
+        insertIntoPlayer(playable: next)
+      } else {
+        os_log(.default, "Stop recovering after %d failed recoveries", Self.maxErrorRecoveryCount)
+        notifyItemPaused()
+      }
+    }
+  }
+
+  private func resetErrorRecovery(isCancellingRetry: Bool = true) {
+    errorRecovery = nil
+    consecutiveErrorSkipCount = 0
+    if isCancellingRetry {
+      cancelErrorRecoveryTask()
+    }
+  }
+
+  private func cancelErrorRecoveryTask() {
+    errorRecoveryTask?.cancel()
+    errorRecoveryTask = nil
+  }
+
+  /// The user chose a new position: a pending retry and the next start resume there
+  func userDidSeek(toSecond second: Double) {
+    resetErrorRecovery(isCancellingRetry: false)
+    guard let playable = currentlyPlaying else { return }
+    // a torn down player can't seek, the seek is applied when it is inserted again
+    if isPlayerTornDownByError {
+      errorResumePoint = (playable: playable, time: second)
+    }
+  }
+
   func play() {
+    resetErrorRecovery()
+    // playing on after an error continues the same listen
+    continueOrInsertCurrent(isRetry: isPlayerTornDownByError)
+  }
+
+  private func continueOrInsertCurrent(isRetry: Bool = false) {
     if !backendAudioPlayer.canBeContinued {
       if let currentPlayable = currentlyPlaying {
-        insertIntoPlayer(playable: currentPlayable)
+        insertIntoPlayer(playable: currentPlayable, isRetry: isRetry)
       }
     } else {
       backendAudioPlayer.continuePlay()
@@ -202,6 +313,7 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
 
   public func play(context: PlayContext) {
     guard context.getActivePlayable() != nil else { return }
+    resetErrorRecovery()
     guard let playable = replaceActiveQueue(with: context) else {
       stop()
       return
@@ -213,6 +325,7 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
   /// active playable; `play()` starts it.
   public func load(context: PlayContext) {
     guard context.getActivePlayable() != nil else { return }
+    resetErrorRecovery()
     guard replaceActiveQueue(with: context) != nil else {
       stop()
       return
@@ -250,6 +363,7 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
   }
 
   func play(playerIndex: PlayerIndex) {
+    resetErrorRecovery()
     guard let playable = queueHandler.markAndGetPlayableAsPlaying(at: playerIndex) else {
       stop()
       return
@@ -258,6 +372,7 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
   }
 
   func playPreviousOrReplay() {
+    resetErrorRecovery()
     if shouldCurrentItemReplayedInsteadOfPrevious() {
       replayCurrentItem()
     } else {
@@ -267,6 +382,7 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
 
   // BackendAudioPlayerNotifiable
   func playPrevious() {
+    resetErrorRecovery()
     if queueHandler.prevQueueCount > 0 {
       play(playerIndex: PlayerIndex(queueType: .prev, index: queueHandler.prevQueueCount - 1))
     } else if playerStatus.repeatMode == .all, queueHandler.nextQueueCount > 0 {
@@ -278,6 +394,7 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
 
   // BackendAudioPlayerNotifiable
   func playNext() {
+    resetErrorRecovery()
     if let nextPlayerIndex = nextPlayerIndex {
       play(playerIndex: nextPlayerIndex)
     } else if settings.user.isAutoplayEnabled,
@@ -313,6 +430,8 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
   }
 
   func pause() {
+    // a pending retry would start playback again
+    cancelErrorRecoveryTask()
     if let currentlyPlaying = currentlyPlaying,
        currentlyPlaying.isRadio {
       stopButRemainIndex()
@@ -325,6 +444,8 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
 
   // BackendAudioPlayerNotifiable
   func stop() {
+    resetErrorRecovery()
+    isPlayerTornDownByError = false
     savePlayInformation()
     playableInPlayer = nil
     backendAudioPlayer.stop()
@@ -333,6 +454,8 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
   }
 
   func stopButRemainIndex() {
+    cancelErrorRecoveryTask()
+    isPlayerTornDownByError = false
     savePlayInformation()
     playableInPlayer = nil
     backendAudioPlayer.stop()
@@ -394,6 +517,14 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
     if playableInPlayer != nil {
       lastObservedPosition = (backendAudioPlayer.elapsedTime, backendAudioPlayer.duration)
     }
+    // played clearly past the error, or another playable plays: errors are no longer in a row
+    if let errorRecovery, playableInPlayer != nil, backendAudioPlayer.isPlaying,
+       !backendAudioPlayer.isErrorOccurred {
+      let errorPosition = errorRecovery.playable == playableInPlayer ? errorRecovery.position : 0
+      if backendAudioPlayer.elapsedTime >= errorPosition + Self.errorFreePlaybackToResetRecovery {
+        resetErrorRecovery()
+      }
+    }
     if let lastPlayInformationSaveDate,
        Date().timeIntervalSince(lastPlayInformationSaveDate) < Self.playInformationSaveInterval {
       return
@@ -437,10 +568,12 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
     notifierList.removeAll()
   }
 
-  func notifyItemStartedPlayingFromBeginning() {
-    notifierList = notifierList.filter { $0.value != nil }
-    for notifier in notifierList {
-      notifier.value?.didStartPlayingFromBeginning()
+  func notifyItemStartedPlayingFromBeginning(isNotifyingListeners: Bool = true) {
+    if isNotifyingListeners {
+      notifierList = notifierList.filter { $0.value != nil }
+      for notifier in notifierList {
+        notifier.value?.didStartPlayingFromBeginning()
+      }
     }
     seekToLastStoppedPlayTime()
   }
@@ -454,6 +587,8 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
 
   // BackendAudioPlayerNotifiable
   func notifyErrorOccurred(error: Error) {
+    // the backend tore down the player, or the preparation left nothing in it
+    isPlayerTornDownByError = true
     // Radios are live streams and can't be seeked, they just reconnect.
     // A failed preparation reports no position, a pending resume point stays for the next attempt.
     let resumeTime = backendAudioPlayer.elapsedTimeBeforeErrorOccurred

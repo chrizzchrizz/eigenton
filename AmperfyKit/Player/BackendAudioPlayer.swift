@@ -119,7 +119,6 @@ class BackendAudioPlayer: NSObject {
   /// Queue the next item before the player starts reading it
   private let preloadLeadTimeInSeconds = AudioStreamingPlayer.bufferSizeInSeconds + 10
   private var audioSessionHandler: AudioSessionHandler
-  private var isTriggerReinsertPlayableAllowed = true
   private var wasPlayingBeforeErrorOccurred: Bool = false
   private var userDefinedPlaybackRate: PlaybackRate = .one
   private var currentPreparedUrl: String = ""
@@ -172,6 +171,9 @@ class BackendAudioPlayer: NSObject {
   /// The last requested item couldn't be prepared (e.g. no stream URL while offline), so there
   /// is nothing in the player to seek in.
   public private(set) var isPreparationFailed = false
+  /// The current error is about the audio data (parsing or decoding), not about the connection.
+  /// Cleared once playback runs again.
+  public private(set) var isDataErrorOccurred = false
   /// Identifies the latest request, an async preparation of an older one must not change its state
   private var playRequestID = 0
   public private(set) var playType: PlayType?
@@ -364,7 +366,6 @@ class BackendAudioPlayer: NSObject {
 
   @MainActor
   private func itemFinishedPlaying() {
-    isTriggerReinsertPlayableAllowed = true
     isPreviousPlaylableFinshed = true
     if nextPreloadedPlayable != nil {
       isPlaying = true
@@ -382,6 +383,12 @@ class BackendAudioPlayer: NSObject {
       wasPlayingBeforeErrorOccurred = isPlaying
     }
     isErrorOccurred = true
+    switch error as? AudioStreaming.AudioPlayerError {
+    case .codecError, .streamParseBytesFailure:
+      // the error belongs to the entry being read, which can already be the preloaded next one
+      isDataErrorOccurred = nextPreloadedPlayable == nil
+    default: isDataErrorOccurred = false
+    }
     elapsedTimeBeforeErrorOccurred = elapsedTime
     pause()
     nextPreloadedPlayable = nil
@@ -397,10 +404,8 @@ class BackendAudioPlayer: NSObject {
     restartPlayer()
     eventLogger.report(topic: "Player Status", error: error)
     responder?.notifyErrorOccurred(error: error)
-    if isTriggerReinsertPlayableAllowed {
-      isTriggerReinsertPlayableAllowed = false
-      triggerReinsertPlayableCB?()
-    }
+    // AudioPlayer decides whether to retry, skip or stay paused
+    triggerReinsertPlayableCB?()
   }
 
   func continuePlay() {
@@ -560,6 +565,7 @@ class BackendAudioPlayer: NSObject {
     isErrorOccurred = false
     wasPlayingBeforeErrorOccurred = false
     elapsedTimeBeforeErrorOccurred = 0.0
+    isDataErrorOccurred = false
   }
 
   func requestToPlay(
@@ -1071,7 +1077,12 @@ extension BackendAudioPlayer: AudioStreaming.AudioPlayerDelegate {
     duration: Double
   ) {
     let entryID = entryId.id
+    // Only compared by identity on the main actor, as in audioPlayerUnexpectedError
+    nonisolated(unsafe) let reportingPlayer = player
     Task { @MainActor in
+      // errors are recovered in handleError, a replaced player's late report must not end the
+      // retried item
+      guard stopReason != .error, reportingPlayer === self.player else { return }
       if self.currentPlayUrl == entryID {
         self.currentPlayUrl = ""
         self.itemFinishedPlaying()
