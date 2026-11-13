@@ -51,6 +51,7 @@ final class LocalAudioServer: @unchecked Sendable {
   private var connections = [ObjectIdentifier: NWConnection]()
   private var _requests = [Request]()
   private var _isOffline = false
+  private var _refusedConnectionCount = 0
   private var _bytesPerSecond: Int?
   private var _dropAfterBytes: Int?
   private var _httpStatus: Int?
@@ -110,6 +111,9 @@ final class LocalAudioServer: @unchecked Sendable {
 
   var requests: [Request] { lock.withLock { _requests } }
 
+  /// Connection attempts while offline
+  var refusedConnectionCount: Int { lock.withLock { _refusedConnectionCount } }
+
   // MARK: Faults
 
   /// Offline resets all open connections and refuses new ones
@@ -149,7 +153,10 @@ final class LocalAudioServer: @unchecked Sendable {
   private func accept(_ connection: NWConnection) {
     let id = ObjectIdentifier(connection)
     let isAccepted = lock.withLock {
-      guard !_isOffline else { return false }
+      guard !_isOffline else {
+        _refusedConnectionCount += 1
+        return false
+      }
       connections[id] = connection
       return true
     }

@@ -251,23 +251,70 @@ final class PlayerIntegrationTest: XCTestCase {
     XCTAssertTrue(player.isPlaying)
   }
 
-  func testStream_LongOutage_ResumesWhenServerIsBack() async {
+  func testStream_OutageShorterThanStallTimeout_KeepsPlaying() async {
+    // reconnecting and refilling the buffer after the 4 s outage takes several seconds more
+    backendPlayer.stallTimeout = 20
     server.bytesPerSecond = Self.audioByteRate * 3 / 2
     let song = createSong(id: "song1")
     play([song])
     await wait("playback progresses", timeout: 10) { player.elapsedTime >= 3 }
 
-    // AudioStreaming keeps reconnecting without reporting an error, so the player stays on the song
+    // AudioStreaming reconnects on its own without reporting an error
     server.isOffline = true
-    try? await Task.sleep(for: .seconds(20))
+    try? await Task.sleep(for: .seconds(4))
     XCTAssertFalse(backendPlayer.isErrorOccurred)
-    XCTAssertEqual(player.currentlyPlaying?.id, song.id)
     let position = player.elapsedTime
 
     server.isOffline = false
     await wait("playback resumes", timeout: 15) { player.elapsedTime > position + 1 }
     XCTAssertEqual(player.currentlyPlaying?.id, song.id)
     XCTAssertTrue(player.isPlaying)
+    XCTAssertEqual(recorder.recoverCount, 0)
+  }
+
+  func testStream_LongOutage_PausesAfterStallTimeoutThenResumesAtPosition() async {
+    backendPlayer.stallTimeout = 3
+    server.bytesPerSecond = Self.audioByteRate * 3 / 2
+    let song = createSong(id: "song1")
+    play([song])
+    await wait("playback progresses", timeout: 10) { player.elapsedTime >= 3 }
+
+    server.isOffline = true
+    await wait("player pauses after the stall timeout", timeout: 20) { !player.isPlaying }
+    XCTAssertTrue(backendPlayer.isStallErrorOccurred)
+    XCTAssertEqual(recorder.recoverCount, 1, "no retries after a stall")
+    let position = backendPlayer.elapsedTimeBeforeErrorOccurred
+    XCTAssertGreaterThan(position, 2)
+    XCTAssertGreaterThan(server.refusedConnectionCount, 0, "AudioStreaming reconnected meanwhile")
+    // the torn down player stops reconnecting
+    try? await Task.sleep(for: .seconds(1))
+    let refused = server.refusedConnectionCount
+    await hold("stays paused without reconnecting", for: 7) {
+      !player.isPlaying && server.refusedConnectionCount == refused
+    }
+
+    server.isOffline = false
+    player.play()
+    await wait("playback resumes", timeout: 15) { player.isPlaying && player.elapsedTime >= 1 }
+    XCTAssertEqual(player.currentlyPlaying?.id, song.id)
+    XCTAssertGreaterThanOrEqual(player.elapsedTime, position - 1, "resumes instead of restarting")
+  }
+
+  func testStream_ServerDownAtStart_PausesAfterStallTimeout() async {
+    backendPlayer.stallTimeout = 3
+    server.isOffline = true
+    let song = createSong(id: "song1")
+    play([song])
+    await wait("player pauses after the stall timeout", timeout: 20) {
+      recorder.recoverCount == 1 && !player.isPlaying
+    }
+    XCTAssertTrue(backendPlayer.isStallErrorOccurred)
+    XCTAssertEqual(player.currentlyPlaying?.id, song.id)
+
+    server.isOffline = false
+    player.play()
+    await wait("playback starts", timeout: 15) { player.isPlaying && player.elapsedTime >= 1 }
+    XCTAssertEqual(player.currentlyPlaying?.id, song.id)
   }
 
   func testStream_ServerErrorDuringPlayback_PausesThenResumesAtPosition() async {

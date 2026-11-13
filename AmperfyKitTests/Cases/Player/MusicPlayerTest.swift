@@ -3355,6 +3355,61 @@ class MusicPlayerTest: XCTestCase {
     }
     XCTAssertEqual(mockAudioStreamingPlayer.mockElapsedTime, 200.0)
   }
+
+  func testStall_StreamWithoutProgress_PausesWithoutRetry() async {
+    wireErrorRecovery()
+    backendPlayer.stallTimeout = 1
+    await playAndWaitForPlayerStart([songToDownload])
+    mockAudioStreamingPlayer.mockElapsedTime = 42.0
+    let playCount = mockAudioStreamingPlayer.playCount
+    let end = Date().addingTimeInterval(5.0)
+    while !backendPlayer.isStallErrorOccurred, Date() < end {
+      try? await Task.sleep(for: .milliseconds(50))
+    }
+    XCTAssertTrue(backendPlayer.isStallErrorOccurred)
+    // the app's restarted player is a new idle instance, the mock would still be paused
+    mockAudioStreamingPlayer.isStopped = true
+    try? await Task.sleep(for: .milliseconds(300))
+    XCTAssertFalse(testPlayer.isPlaying)
+    XCTAssertEqual(mockAudioStreamingPlayer.playCount, playCount, "no retry after a stall")
+
+    // play resumes at the stall position
+    testPlayer.play()
+    let resumeEnd = Date().addingTimeInterval(3.0)
+    while mockAudioStreamingPlayer.mockElapsedTime != 42.0 || !testPlayer.isPlaying,
+          Date() < resumeEnd {
+      try? await Task.sleep(for: .milliseconds(20))
+    }
+    XCTAssertTrue(testPlayer.isPlaying)
+    XCTAssertEqual(mockAudioStreamingPlayer.mockElapsedTime, 42.0)
+    XCTAssertGreaterThan(mockAudioStreamingPlayer.playCount, playCount)
+  }
+
+  func testStall_NewSong_GetsItsOwnStallTimeout() async {
+    wireErrorRecovery()
+    backendPlayer.stallTimeout = 3
+    guard let otherStream = library.getSong(for: account, id: "5") else { XCTFail(); return }
+    await playAndWaitForPlayerStart([songToDownload])
+    try? await Task.sleep(for: .seconds(2))
+    // also at position 0, the new song doesn't inherit the stall time of the previous one
+    await playAndWaitForPlayerStart([otherStream])
+    try? await Task.sleep(for: .seconds(2.5))
+    XCTAssertFalse(backendPlayer.isStallErrorOccurred)
+    let end = Date().addingTimeInterval(4.0)
+    while !backendPlayer.isStallErrorOccurred, Date() < end {
+      try? await Task.sleep(for: .milliseconds(50))
+    }
+    XCTAssertTrue(backendPlayer.isStallErrorOccurred)
+  }
+
+  func testStall_CachedSongWithoutProgress_KeepsPlaying() async {
+    wireErrorRecovery()
+    backendPlayer.stallTimeout = 1
+    await playAndWaitForPlayerStart([songCached])
+    try? await Task.sleep(for: .seconds(2.5))
+    XCTAssertFalse(backendPlayer.isErrorOccurred)
+    XCTAssertTrue(testPlayer.isPlaying)
+  }
 }
 
 // MARK: - Continue Playback

@@ -223,6 +223,14 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
   /// errors the player stays paused and play resumes at the error position.
   func recoverFromPlaybackError() {
     guard let playable = currentlyPlaying else { return }
+    if backendAudioPlayer.isStallErrorOccurred {
+      // AudioStreaming has been reconnecting for the whole stall timeout, a retry adds nothing.
+      // Play resumes at the stall position.
+      os_log(.default, "Pause after the stream stalled")
+      resetErrorRecovery()
+      notifyItemPaused()
+      return
+    }
     let previous = errorRecovery?.playable == playable ? errorRecovery : nil
     let count = (previous?.count ?? 0) + 1
     // a report from the restarted player has no position yet, keep the one of the first report

@@ -79,6 +79,15 @@ public class AudioStreamingPlayer: AudioStreaming.AudioPlayer {
   }
 }
 
+// MARK: - StreamStallError
+
+/// A stream delivered no audio for a while although the player was playing
+struct StreamStallError: LocalizedError {
+  var errorDescription: String? {
+    "The stream delivered no audio. The connection to the server seems to be lost."
+  }
+}
+
 // MARK: - PlayType
 
 public enum PlayType {
@@ -143,6 +152,11 @@ class BackendAudioPlayer: NSObject {
   /// Seek target that the player hasn't reached yet, reported as elapsed time meanwhile
   private var pendingSeek: PendingSeek?
   private var timerElapsedTimeInterval: Timer?
+  /// Runs while playing, independent of the elapsed time timers, which only start once the
+  /// player reports the start of an item
+  private var stallTimer: Timer?
+  /// Position and time of the last playback progress of a stream
+  private var stallWatch: (position: Double, since: Date)?
   private var timerLyricsTimeInterval: Timer?
   private var volumePlayer: Float = 1.0
 
@@ -162,7 +176,10 @@ class BackendAudioPlayer: NSObject {
   public var isOfflineMode: Bool = false
   public var nextPlayablePreloadCB: NextPlayablePreloadCallback?
   public var triggerReinsertPlayableCB: TriggerReinsertPlayableCallback?
-  public private(set) var isPlaying: Bool = false
+  public private(set) var isPlaying: Bool = false {
+    didSet { updateStallTimer() }
+  }
+
   public private(set) var isErrorOccurred: Bool = false
   /// Playback position in seconds at the moment the last error occurred.
   /// Captured before `restartPlayer()` tears the engine down, so that error
@@ -174,6 +191,14 @@ class BackendAudioPlayer: NSObject {
   /// The current error is about the audio data (parsing or decoding), not about the connection.
   /// Cleared once playback runs again.
   public private(set) var isDataErrorOccurred = false
+  /// The last error was a stream that delivered no audio for `stallTimeout` while playing.
+  /// AudioStreaming kept reconnecting the whole time, so retrying makes no sense.
+  public private(set) var isStallErrorOccurred = false
+  /// AudioStreaming reconnects a lost stream endlessly without reporting an error.
+  /// Meanwhile the audio engine keeps running, which keeps the app alive in the background,
+  /// so playback resumes by itself after a dead zone (e.g. in the car). Without progress for
+  /// this long, the stream counts as failed and the player pauses instead of claiming to play.
+  var stallTimeout: TimeInterval = 5 * 60
   /// Identifies the latest request, an async preparation of an older one must not change its state
   private var playRequestID = 0
   public private(set) var playType: PlayType?
@@ -317,6 +342,40 @@ class BackendAudioPlayer: NSObject {
     timerLyricsTimeInterval?.invalidate()
   }
 
+  private func updateStallTimer() {
+    guard isPlaying else {
+      stallTimer?.invalidate()
+      stallTimer = nil
+      stallWatch = nil
+      return
+    }
+    guard stallTimer == nil else { return }
+    stallTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+      Task { @MainActor in
+        self?.checkForStall()
+      }
+    }
+  }
+
+  private func checkForStall() {
+    // cached files can't stall, a stream URL that is still being prepared has no player item yet
+    guard isPlaying, playType == .stream, currentPlayable != nil else {
+      stallWatch = nil
+      return
+    }
+    // the player's own position, a pending seek target doesn't count as progress
+    let position = streamTimeOffset + (player?.elapsedTime() ?? 0.0)
+    let now = Date()
+    guard let stallWatch, abs(position - stallWatch.position) < 0.05 else {
+      self.stallWatch = (position: position, since: now)
+      return
+    }
+    guard now.timeIntervalSince(stallWatch.since) >= stallTimeout else { return }
+    self.stallWatch = nil
+    os_log(.default, "Stream stalled for %.0f s at %.1f s", stallTimeout, position)
+    handleError(error: StreamStallError())
+  }
+
   private func checkForPreloadNextPlayerItem() {
     guard isAutoStartPlayback else { return }
     if let nextPreloadedPlayable {
@@ -383,6 +442,7 @@ class BackendAudioPlayer: NSObject {
       wasPlayingBeforeErrorOccurred = isPlaying
     }
     isErrorOccurred = true
+    isStallErrorOccurred = error is StreamStallError
     switch error as? AudioStreaming.AudioPlayerError {
     case .codecError, .streamParseBytesFailure:
       // the error belongs to the entry being read, which can already be the preloaded next one
@@ -462,6 +522,8 @@ class BackendAudioPlayer: NSObject {
   }
 
   private func restartStream(atSecond second: Double) {
+    // the restarted stream gets its own stall timeout
+    stallWatch = nil
     guard let playable = currentPlayable, let accountInfo = playable.account?.info,
           let streamingMaxBitrate = activeStreamingBitrate,
           let streamingTranscodingFormat = activeTranscodingFormat,
@@ -566,6 +628,7 @@ class BackendAudioPlayer: NSObject {
     wasPlayingBeforeErrorOccurred = false
     elapsedTimeBeforeErrorOccurred = 0.0
     isDataErrorOccurred = false
+    isStallErrorOccurred = false
   }
 
   func requestToPlay(
@@ -585,6 +648,8 @@ class BackendAudioPlayer: NSObject {
 
   private func handleRequest(playable: AbstractPlayable) {
     playRequestID += 1
+    // a new item gets its own stall timeout, also while playing continues
+    stallWatch = nil
     isPreparationFailed = false
     isPreloadInvalidated = false
     currentMetadataDuration = Double(playable.duration)
@@ -712,6 +777,7 @@ class BackendAudioPlayer: NSObject {
   }
 
   private func clearPlayer() {
+    stallWatch = nil
     isPreviousPlaylableFinshed = true
     isPreloadInvalidated = false
     currentPreparedUrl = ""
@@ -793,7 +859,12 @@ class BackendAudioPlayer: NSObject {
         else {
           throw BackendError.invalidUrl
         }
-        playType = .stream
+        // a radio preloaded as the next item doesn't change what is playing now
+        if queueType == .play {
+          playType = .stream
+        } else {
+          perloadedPlayType = .stream
+        }
         return streamUrl
       } else {
         guard let accountInfo = playable.account?.info else {

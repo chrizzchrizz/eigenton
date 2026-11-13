@@ -208,6 +208,7 @@ public class EventLogger {
 
   /// Transport level failures (server unreachable, connection lost, timeout), not errors returned by the server
   static func isNetworkError(_ error: Error) -> Bool {
+    if error is StreamStallError { return true }
     if let afError = error.asAFError {
       guard let underlyingError = afError.underlyingError else { return false }
       return isNetworkError(underlyingError)
