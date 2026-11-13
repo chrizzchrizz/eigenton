@@ -352,6 +352,8 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
   }
 
   private func seekToLastStoppedPlayTime() {
+    // nothing is in the player, keep the positions for the next attempt
+    guard !backendAudioPlayer.isPreparationFailed else { return }
     if let startPosition {
       self.startPosition = nil
       // the user may have skipped before the playable was prepared
@@ -453,8 +455,10 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
   // BackendAudioPlayerNotifiable
   func notifyErrorOccurred(error: Error) {
     // Radios are live streams and can't be seeked, they just reconnect.
+    // A failed preparation reports no position, a pending resume point stays for the next attempt.
     let resumeTime = backendAudioPlayer.elapsedTimeBeforeErrorOccurred
-    if let playable = currentlyPlaying, !playable.isRadio, resumeTime > 0 {
+    if let playable = currentlyPlaying, !playable.isRadio, resumeTime > 0,
+       !backendAudioPlayer.isPreparationFailed {
       errorResumePoint = (playable: playable, time: resumeTime)
     }
     notifierList = notifierList.filter { $0.value != nil }

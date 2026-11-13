@@ -169,6 +169,11 @@ class BackendAudioPlayer: NSObject {
   /// Captured before `restartPlayer()` tears the engine down, so that error
   /// recovery can resume where playback stopped instead of starting over.
   public private(set) var elapsedTimeBeforeErrorOccurred: Double = 0.0
+  /// The last requested item couldn't be prepared (e.g. no stream URL while offline), so there
+  /// is nothing in the player to seek in.
+  public private(set) var isPreparationFailed = false
+  /// Identifies the latest request, an async preparation of an older one must not change its state
+  private var playRequestID = 0
   public private(set) var playType: PlayType?
   private var perloadedPlayType: PlayType?
   public private(set) var activeStreamingBitrate: StreamingMaxBitratePreference?
@@ -573,6 +578,8 @@ class BackendAudioPlayer: NSObject {
   }
 
   private func handleRequest(playable: AbstractPlayable) {
+    playRequestID += 1
+    isPreparationFailed = false
     isPreloadInvalidated = false
     currentMetadataDuration = Double(playable.duration)
     currentPlayable = playable
@@ -647,6 +654,7 @@ class BackendAudioPlayer: NSObject {
         }
       }
 
+      let requestID = playRequestID
       Task { @MainActor in
         do {
           currentReplayGainValue = playable.replayGainTrackGain
@@ -656,6 +664,9 @@ class BackendAudioPlayer: NSObject {
           isPlaying = shouldPlaybackStart
           self.responder?.notifyItemPreparationFinished()
         } catch {
+          // a newer request replaced this one and reports its own result
+          guard requestID == playRequestID else { return }
+          isPreparationFailed = true
           self.responder?.notifyErrorOccurred(error: error)
           self.responder?.notifyItemPreparationFinished()
           self.eventLogger.report(topic: "Player", error: error)
@@ -663,12 +674,14 @@ class BackendAudioPlayer: NSObject {
       }
     } else {
       clearPlayer()
+      isPreparationFailed = true
       responder?.notifyItemPreparationFinished()
     }
   }
 
   private func reactToIncompatibleContentType(contentType: String, playableDisplayTitle: String) {
     clearPlayer()
+    isPreparationFailed = true
     eventLogger.info(
       topic: "Player Info",
       statusCode: .playerError,
@@ -681,6 +694,7 @@ class BackendAudioPlayer: NSObject {
 
   private func reactToInvalidRadioUrl(playableDisplayTitle: String) {
     clearPlayer()
+    isPreparationFailed = true
     eventLogger.info(
       topic: "Player Info",
       statusCode: .playerError,
@@ -723,6 +737,7 @@ class BackendAudioPlayer: NSObject {
     queueType: BackendAudioQueueType = .play
   ) {
     guard let fileURL = cacheProxy.getFileURL(forPlayable: playable) else {
+      if queueType == .play { isPreparationFailed = true }
       return
     }
     if queueType == .play {

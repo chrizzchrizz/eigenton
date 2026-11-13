@@ -63,8 +63,21 @@ class MOCK_AudioStreamingPlayer: AudioStreamingPlayer {
     }
   }
 
+  nonisolated(unsafe) private var _playCount = 0
+  private let _playCountLock = NSLock()
+  /// Number of started items
+  nonisolated public var playCount: Int {
+    get {
+      _playCountLock.withLock { _playCount }
+    }
+    set {
+      _playCountLock.withLock { _playCount = newValue }
+    }
+  }
+
   override func play(url: URL) {
     Self.delegateBackup = delegate
+    playCount += 1
     mockElapsedTime = 0.0
     isPlaying = true
     isStopped = false
@@ -235,6 +248,8 @@ final class MOCK_BackendApi: BackendApi {
   let serverApiVersion: String = ""
   let httpHeaders: [String: String] = [:]
   let isScrobbleOfStreamedSongsNeeded = false
+  /// Thrown when a stream URL is requested
+  nonisolated(unsafe) var streamUrlError: Error?
   func provideCredentials(credentials: LoginCredentials) {}
   func isAuthenticationValid(credentials: LoginCredentials) async throws {
     throw BackendError.notSupported
@@ -252,7 +267,10 @@ final class MOCK_BackendApi: BackendApi {
     maxBitrate: StreamingMaxBitratePreference,
     formatPreference: StreamingFormatPreference
   ) async throws
-    -> URL { Helper.testURL }
+    -> URL {
+    if let streamUrlError { throw streamUrlError }
+    return Helper.testURL
+  }
 
   func generateUrl(
     forStreamingPlayable playableInfo: AbstractPlayableInfo,
@@ -3065,10 +3083,16 @@ class MusicPlayerTest: XCTestCase {
   // whose reinsert sets the play state only after the second error report was handled.
 
   private func playCachedAndWaitForPlayerStart(_ playable: AbstractPlayable) async {
-    testPlayer.play(context: PlayContext(name: "", playables: [playable]))
-    // the player reports the start asynchronously, until then the item can't be continued
+    await playAndWaitForPlayerStart([playable])
+  }
+
+  private func playAndWaitForPlayerStart(_ playables: [AbstractPlayable]) async {
+    let playCount = mockAudioStreamingPlayer.playCount
+    testPlayer.play(context: PlayContext(name: "", playables: playables))
+    // the player reports the start asynchronously, until then the item can't be continued.
+    // The mock survives restartPlayer, so also wait for the new item to be started.
     let end = Date().addingTimeInterval(3.0)
-    while !backendPlayer.canBeContinued {
+    while mockAudioStreamingPlayer.playCount == playCount || !backendPlayer.canBeContinued {
       guard Date() < end else {
         XCTFail("the player did not report the start")
         return
@@ -3077,11 +3101,14 @@ class MusicPlayerTest: XCTestCase {
     }
   }
 
-  private func reportPlayerErrors(count: Int) async {
+  private func reportPlayerErrors(
+    count: Int,
+    error: AudioStreaming.AudioPlayerError = .networkError(.failure(NetworkError.serverError))
+  ) async {
     for _ in 0 ..< count {
       backendPlayer.audioPlayerUnexpectedError(
         player: mockAudioStreamingPlayer,
-        error: .networkError(.failure(NetworkError.serverError))
+        error: error
       )
     }
     // the errors are handled in main actor tasks, queued before this one
@@ -3150,6 +3177,31 @@ class MusicPlayerTest: XCTestCase {
     XCTAssertFalse(backendPlayer.isErrorOccurred)
     XCTAssertTrue(testPlayer.isPlaying)
     XCTAssertTrue(mockAudioStreamingPlayer.isPlaying)
+  }
+
+  func testPlayerError_FailedRetryPreparation_KeepsResumePosition() async {
+    await playAndWaitForPlayerStart([songToDownload])
+    mockAudioStreamingPlayer.mockElapsedTime = 200.0
+    await reportPlayerErrors(count: 1)
+
+    // the retry can't get a stream URL (e.g. still offline)
+    backendApi.streamUrlError = BackendError.notSupported
+    testPlayer.play(context: PlayContext(name: "", playables: [songToDownload]))
+    let failEnd = Date().addingTimeInterval(3.0)
+    while !backendPlayer.isPreparationFailed, Date() < failEnd {
+      try? await Task.sleep(for: .milliseconds(20))
+    }
+    XCTAssertTrue(backendPlayer.isPreparationFailed)
+
+    // the next attempt resumes at the error position
+    backendApi.streamUrlError = nil
+    await playAndWaitForPlayerStart([songToDownload])
+    // the resume seek is applied after the start was reported
+    let end = Date().addingTimeInterval(3.0)
+    while mockAudioStreamingPlayer.mockElapsedTime != 200.0, Date() < end {
+      try? await Task.sleep(for: .milliseconds(20))
+    }
+    XCTAssertEqual(mockAudioStreamingPlayer.mockElapsedTime, 200.0)
   }
 }
 
