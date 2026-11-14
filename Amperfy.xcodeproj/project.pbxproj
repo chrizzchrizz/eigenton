@@ -493,6 +493,7 @@
 		50CFB59A28D5009200A47D44 /* ArtworkDownloadSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50CFB59928D5009200A47D44 /* ArtworkDownloadSettingsView.swift */; };
 		50CFBC542E464EEF00EAA7BC /* AppDelegateMainMenuExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50CFBC532E464EDE00EAA7BC /* AppDelegateMainMenuExtension.swift */; };
 		50D7709F2E4F1D1C0075D3BF /* AmperfyAppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 50D7709E2E4F1D1C0075D3BF /* AmperfyAppIcon.icon */; };
+		B1E0A1C4000000000000A002 /* AmperfyAppIconBlue.icon in Resources */ = {isa = PBXBuildFile; fileRef = B1E0A1C4000000000000A001 /* AmperfyAppIconBlue.icon */; };
 		50D770A02E4F20000075D3BF /* AmperfyAppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 50D7709E2E4F1D1C0075D3BF /* AmperfyAppIcon.icon */; };
 		50DE29EB2B8FCEB700ABA78E /* LibraryNavigatorConfigurator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50DE29EA2B8FCEB700ABA78E /* LibraryNavigatorConfigurator.swift */; };
 		50DE29ED2B8FCFC500ABA78E /* LibraryDisplayType+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50DE29EC2B8FCFC500ABA78E /* LibraryDisplayType+Extension.swift */; };
@@ -1075,6 +1076,7 @@
 		50CFB59928D5009200A47D44 /* ArtworkDownloadSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkDownloadSettingsView.swift; sourceTree = "<group>"; };
 		50CFBC532E464EDE00EAA7BC /* AppDelegateMainMenuExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegateMainMenuExtension.swift; sourceTree = "<group>"; };
 		50D7709E2E4F1D1C0075D3BF /* AmperfyAppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AmperfyAppIcon.icon; sourceTree = "<group>"; };
+		B1E0A1C4000000000000A001 /* AmperfyAppIconBlue.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AmperfyAppIconBlue.icon; sourceTree = "<group>"; };
 		50D92CCA25E3ED700017E91D /* MappingModelV4toV5.xcmappingmodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcmappingmodel; path = MappingModelV4toV5.xcmappingmodel; sourceTree = "<group>"; };
 		50D92CCE25E3FE560017E91D /* MigrationPolicyV4toV5.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MigrationPolicyV4toV5.swift; sourceTree = "<group>"; };
 		50DB1181266502100033BFFA /* ArtistParserTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistParserTest.swift; sourceTree = "<group>"; };
@@ -1866,6 +1868,7 @@
 			isa = PBXGroup;
 			children = (
 				50D7709E2E4F1D1C0075D3BF /* AmperfyAppIcon.icon */,
+				B1E0A1C4000000000000A001 /* AmperfyAppIconBlue.icon */,
 				508385EE21C5965E00C4BB32 /* Assets.xcassets */,
 				50B053AC27BFADB200D9C1ED /* UIImageAssetsExtension.swift */,
 			);
@@ -2426,6 +2429,7 @@
 				50C16C2621E7CBA500F086F0 /* GenericTableCell.xib in Resources */,
 				508FDE3821F1E14F005A0724 /* NewPlaylistTableHeader.xib in Resources */,
 				50D7709F2E4F1D1C0075D3BF /* AmperfyAppIcon.icon in Resources */,
+				B1E0A1C4000000000000A002 /* AmperfyAppIconBlue.icon in Resources */,
 				5007CE4521EF639200BC5CBA /* PlaylistTableCell.xib in Resources */,
 				50CCD0572B6C38670073793B /* PlainDetailsVC.xib in Resources */,
 				508EBB282850C8D90053D9F0 /* Assets.xcassets in Resources */,
@@ -3168,6 +3172,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AmperfyAppIcon;
+				"ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES[sdk=iphone*]" = AmperfyAppIconBlue;
 				CODE_SIGN_ENTITLEMENTS = Amperfy/Amperfy.entitlements;
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Amperfy/Amperfy-Mac.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
@@ -3210,6 +3215,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AmperfyAppIcon;
+				"ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES[sdk=iphone*]" = AmperfyAppIconBlue;
 				CODE_SIGN_ENTITLEMENTS = Amperfy/Amperfy.entitlements;
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Amperfy/Amperfy-Mac.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";

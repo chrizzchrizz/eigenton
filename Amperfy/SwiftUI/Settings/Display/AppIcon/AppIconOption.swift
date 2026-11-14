@@ -37,5 +37,10 @@ struct AppIconOption: Identifiable {
       iconName: nil,
       previewName: "AmperfyAppIconPreview"
     ),
+    AppIconOption(
+      title: "Blue",
+      iconName: "AmperfyAppIconBlue",
+      previewName: "AmperfyAppIconBluePreview"
+    ),
   ]
 }
