@@ -1216,9 +1216,9 @@ final class ArtistSectionHeaderView: UIView {
     )
   }
 
-  /// Same size as the song titles in `PlayableTableCell` (16 pt, 14 pt on Mac).
+  /// Same size as the song titles in `PlayableTableCell` (16 pt, 13 pt on Mac).
   static var songTitleFont: UIFont {
-    UIFont.systemFont(ofSize: Self.isMac ? 14.0 : 16.0, weight: .semibold)
+    UIFont.systemFont(ofSize: Self.isMac ? 13.0 : 16.0, weight: .semibold)
   }
 
   private static var isMac: Bool {

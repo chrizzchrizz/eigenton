@@ -39,7 +39,7 @@
                                                 <constraints>
                                                     <constraint firstAttribute="height" constant="18" id="vsJ-7z-xj1"/>
                                                 </constraints>
-                                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                                <fontDescription key="fontDescription" type="system" pointSize="16"/>
                                                 <nil key="textColor"/>
                                                 <nil key="highlightedColor"/>
                                                 <variation key="default">
@@ -53,7 +53,7 @@
                                                     </mask>
                                                 </variation>
                                                 <variation key="userInterfaceIdiom=mac-widthClass=regular">
-                                                    <fontDescription key="fontDescription" type="system" pointSize="14"/>
+                                                    <fontDescription key="fontDescription" type="system" pointSize="13"/>
                                                 </variation>
                                             </label>
                                             <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Subtitle" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="hM0-yx-hsO" customClass="ScaledLabel" customModule="Amperfy" customModuleProvider="target" userLabel="Subtitle Label">
