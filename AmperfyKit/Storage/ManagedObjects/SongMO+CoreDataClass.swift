@@ -37,6 +37,8 @@ extension SongMO: CoreDataIdentifyable {
   static func getTitleAndArtistSearchPredicate(searchText: String) -> NSPredicate {
     guard !searchText.isEmpty else { return NSPredicate(value: true) }
     let searchWords = searchText.split(whereSeparator: \.isWhitespace).map { String($0) }
+    // only whitespace: no word to match, an empty AND predicate would match every song
+    guard !searchWords.isEmpty else { return NSPredicate(value: false) }
     return NSCompoundPredicate(andPredicateWithSubpredicates: searchWords.map { searchWord in
       NSCompoundPredicate(orPredicateWithSubpredicates: [
         NSPredicate(format: "%K contains[cd] %@", #keyPath(SongMO.title), searchWord),

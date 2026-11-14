@@ -250,4 +250,20 @@ class SongTest: XCTestCase {
     let noDuration = await CacheFileManager.estimateBitrate(fileURL: fileURL, durationInSec: 0)
     XCTAssertNil(noDuration)
   }
+
+  func testTitleAndArtistSearchPredicate() {
+    testSong.title = "Blue Moon"
+    library.saveContext()
+    let songMO = testSong.managedObject
+    let matches = { (searchText: String) in
+      SongMO.getTitleAndArtistSearchPredicate(searchText: searchText).evaluate(with: songMO)
+    }
+    XCTAssertTrue(matches(""))
+    XCTAssertTrue(matches("moon"))
+    XCTAssertTrue(matches(" blue  moon "))
+    XCTAssertFalse(matches("sun"))
+    // only whitespace must not match every song
+    XCTAssertFalse(matches(" "))
+    XCTAssertFalse(matches("  \t"))
+  }
 }
