@@ -83,6 +83,10 @@ class CommonCollectionSectionHeader: UICollectionReusableView {
     super.awakeFromNib()
     // once per header, registering on every reuse added another handler each time
     MainActor.assumeIsolated {
+      // same chapter title as the table lists, scaled by the label (`ScaledLabel`)
+      titleLabel.adjustsFontForContentSizeCategory = false
+      titleLabel.font = .librarySectionHeader
+      titleLabel.textColor = .label
       _ = registerForTraitChanges(
         [UITraitUserInterfaceStyle.self, UITraitHorizontalSizeClass.self],
         handler: { (self: Self, previousTraitCollection: UITraitCollection) in

@@ -114,19 +114,15 @@ final class TableSectionHeaderView: UIView {
   /// Shown at the trailing end of the title, e.g. a button
   private let accessoryView: UIView?
   private var isPinnedToTable = false
-  #if targetEnvironment(macCatalyst)
-    /// The title font of the header configuration at the default text size
-    private let unscaledFont: UIFont
-  #endif
 
   /// `topInset`: space above the title within the header, e.g. to separate it from the
   /// previous section when the table adds no padding above section headers
   init(title: String, accessoryView: UIView? = nil, topInset: CGFloat = 0) {
     self.accessoryView = accessoryView
     var configuration = UIListContentConfiguration.header()
-    #if targetEnvironment(macCatalyst)
-      self.unscaledFont = configuration.textProperties.font
-    #endif
+    // the chapter title of the library lists, like the album grid
+    configuration.textProperties.color = .label
+    configuration.textProperties.adjustsFontForContentSizeCategory = false
     super.init(frame: .zero)
     configuration.text = title
     configuration.directionalLayoutMargins.leading = 0
@@ -157,35 +153,29 @@ final class TableSectionHeaderView: UIView {
         accessoryView.centerYAnchor.constraint(equalTo: listContentView.centerYAnchor),
       ])
     }
-    #if targetEnvironment(macCatalyst)
-      registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (self: Self, _) in
-        self.applyTextSize()
-      }
-    #endif
+    applyTextSize()
+    registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (self: Self, _) in
+      self.applyTextSize()
+    }
   }
 
-  // iOS: the header text style follows Dynamic Type. Mac: has no Dynamic Type, the title is
-  // scaled with the in-app text size.
-  #if targetEnvironment(macCatalyst)
-    override func didMoveToWindow() {
-      super.didMoveToWindow()
-      // the traits of the window contain the in-app text size
-      guard window != nil else { return }
-      applyTextSize()
-    }
+  override func didMoveToWindow() {
+    super.didMoveToWindow()
+    // the traits of the window contain the in-app text size
+    guard window != nil else { return }
+    applyTextSize()
+  }
 
-    private func applyTextSize() {
-      guard var configuration = listContentView.configuration as? UIListContentConfiguration
-      else { return }
-      configuration.textProperties.font = TextScaling.scaledFont(
-        unscaledFont,
-        compatibleWith: traitCollection
-      )
-      // otherwise the content view resolves the text style font again, without the scaling
-      configuration.textProperties.adjustsFontForContentSizeCategory = false
-      listContentView.configuration = configuration
-    }
-  #endif
+  /// The title has a fixed size font, scaled with the user's text size (see `TextScaling`)
+  private func applyTextSize() {
+    guard var configuration = listContentView.configuration as? UIListContentConfiguration
+    else { return }
+    configuration.textProperties.font = TextScaling.scaledFixedSizeFont(
+      .librarySectionHeader,
+      compatibleWith: traitCollection
+    )
+    listContentView.configuration = configuration
+  }
 
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
@@ -290,8 +280,8 @@ class BasicTableViewController: KeyCommandTableViewController {
     0.0
   }
 
-  /// Section headers created from `tableView(_:titleForHeaderInSection:)` have a fixed text
-  /// size: use a text style that scales with the user's text size (see `TextScaling`)
+  /// Section headers created from `tableView(_:titleForHeaderInSection:)`: the chapter title of
+  /// the library lists, scaled with the user's text size (see `TextScaling`)
   override func tableView(
     _ tableView: UITableView,
     willDisplayHeaderView view: UIView,
@@ -303,10 +293,12 @@ class BasicTableViewController: KeyCommandTableViewController {
     if content.text == nil {
       content.text = tableView.dataSource?.tableView?(tableView, titleForHeaderInSection: section)
     }
-    let traits = header.traitCollection
-    let font = UIFont.preferredFont(forTextStyle: .headline, compatibleWith: traits)
-    content.textProperties.font = TextScaling.scaledFont(font, compatibleWith: traits)
-    content.textProperties.adjustsFontForContentSizeCategory = true
+    content.textProperties.font = TextScaling.scaledFixedSizeFont(
+      .librarySectionHeader,
+      compatibleWith: header.traitCollection
+    )
+    content.textProperties.color = .label
+    content.textProperties.adjustsFontForContentSizeCategory = false
     header.contentConfiguration = content
   }
 

@@ -348,6 +348,26 @@ enum TextScaling {
   }
 }
 
+// MARK: - Library section header font
+
+extension UIFont {
+  /// Chapter titles in the library lists and grids (initial, year, rating, added date): the
+  /// size of the headline (iOS) or title 2 (Mac) text style at the default text size, bold.
+  /// Unscaled, use it in a `ScaledLabel` or scale it with `TextScaling.scaledFixedSizeFont`.
+  @MainActor
+  static var librarySectionHeader: UIFont {
+    #if targetEnvironment(macCatalyst)
+      let textStyle = UIFont.TextStyle.title2
+    #else
+      let textStyle = UIFont.TextStyle.headline
+    #endif
+    let defaultTextSize = UITraitCollection(preferredContentSizeCategory: .large)
+    let size = UIFont.preferredFont(forTextStyle: textStyle, compatibleWith: defaultTextSize)
+      .pointSize
+    return UIFont.systemFont(ofSize: size, weight: .bold)
+  }
+}
+
 // MARK: - ScaledLabel
 
 /// Label whose text scales with the user's text size. Use it as custom class in xibs together
