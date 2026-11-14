@@ -26,16 +26,16 @@
                             <constraint firstAttribute="width" secondItem="eg7-pd-DMm" secondAttribute="height" multiplier="1:1" id="XER-Ms-xhJ"/>
                         </constraints>
                     </view>
-                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Podcast Episode with a very very very long title" textAlignment="natural" lineBreakMode="tailTruncation" numberOfLines="2" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="ZWe-re-U6e" adjustsFontForContentSizeCategory="YES" customClass="ScaledLabel" customModule="Amperfy" customModuleProvider="target">
+                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Podcast Episode with a very very very long title" textAlignment="natural" lineBreakMode="tailTruncation" numberOfLines="2" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="ZWe-re-U6e" customClass="ScaledLabel" customModule="Amperfy" customModuleProvider="target">
                         <rect key="frame" x="84" y="28" width="275" height="42"/>
                         <constraints>
                             <constraint firstAttribute="height" relation="greaterThanOrEqual" constant="42" id="K5Y-Cl-6p5"/>
                         </constraints>
-                        <fontDescription key="fontDescription" style="UICTFontTextStyleBody"/>
+                        <fontDescription key="fontDescription" type="system" pointSize="16"/>
                         <nil key="textColor"/>
                         <nil key="highlightedColor"/>
                         <variation key="userInterfaceIdiom=mac">
-                            <fontDescription key="fontDescription" style="UICTFontTextStyleTitle2"/>
+                            <fontDescription key="fontDescription" type="system" pointSize="13"/>
                         </variation>
                     </label>
                     <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="5. May - Cached " textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="g7h-Ca-aH3" userLabel="Info Label" adjustsFontForContentSizeCategory="YES" customClass="ScaledLabel" customModule="Amperfy" customModuleProvider="target">
