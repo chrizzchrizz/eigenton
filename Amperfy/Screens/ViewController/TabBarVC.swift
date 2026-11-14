@@ -128,7 +128,7 @@ class TabBarVC: UITabBarController {
       object: nil
     )
 
-    tabBarMinimizeBehavior = .onScrollDown
+    applyToolbarPlayerCollapseMode()
 
     miniPlayer = MiniPlayerView(player: appDelegate.player)
     miniPlayer!.configureForiOS()
@@ -271,6 +271,10 @@ class TabBarVC: UITabBarController {
 
   @objc
   func handleAutoCollapseToolbarPlayer(notification: Notification) {
+    applyToolbarPlayerCollapseMode()
+  }
+
+  private func applyToolbarPlayerCollapseMode() {
     tabBarMinimizeBehavior = appDelegate.storage.settings.user
       .isToolbarPlayerAutoCollapse ? .onScrollDown : .never
   }
