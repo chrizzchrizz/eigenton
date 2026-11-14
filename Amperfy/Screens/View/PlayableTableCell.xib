@@ -30,7 +30,7 @@
                             <view hidden="YES" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="gPA-kl-kqX" userLabel="Track Number Container">
                                 <rect key="frame" x="48" y="0.0" width="32" height="40"/>
                                 <subviews>
-                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="999" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="HnA-Bb-1UQ">
+                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="999" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="HnA-Bb-1UQ" customClass="ScaledLabel" customModule="Amperfy" customModuleProvider="target">
                                         <rect key="frame" x="12" y="1" width="20" height="22"/>
                                         <constraints>
                                             <constraint firstAttribute="height" constant="22" id="aX0-JY-siD"/>
@@ -58,7 +58,7 @@
                             <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" translatesAutoresizingMaskIntoConstraints="NO" id="ZWf-gf-epS">
                                 <rect key="frame" x="0.0" y="0.0" width="392" height="38"/>
                                 <subviews>
-                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Title" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="hPr-VQ-rTt">
+                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Title" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="hPr-VQ-rTt" customClass="ScaledLabel" customModule="Amperfy" customModuleProvider="target">
                                         <rect key="frame" x="0.0" y="0.0" width="392" height="22"/>
                                         <constraints>
                                             <constraint firstAttribute="height" constant="22" id="XXp-uK-dh5"/>
@@ -70,13 +70,10 @@
                                             <fontDescription key="fontDescription" type="system" pointSize="14"/>
                                         </variation>
                                     </label>
-                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Artist" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="nJe-7h-3tU">
+                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Artist" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="nJe-7h-3tU" customClass="ScaledLabel" customModule="Amperfy" customModuleProvider="target">
                                         <rect key="frame" x="0.0" y="22" width="392" height="16"/>
                                         <constraints>
-                                            <constraint firstAttribute="height" constant="16" id="Lp3-VV-zM5">
-                                                <variation key="widthClass=regular" constant="22"/>
-                                                <variation key="userInterfaceIdiom=mac-widthClass=regular" constant="16"/>
-                                            </constraint>
+                                            <constraint firstAttribute="height" constant="16" id="Lp3-VV-zM5"/>
                                         </constraints>
                                         <fontDescription key="fontDescription" type="system" pointSize="14"/>
                                         <color key="textColor" systemColor="secondaryLabelColor"/>
@@ -116,18 +113,13 @@
                                 <color key="tintColor" systemColor="secondaryLabelColor"/>
                                 <constraints>
                                     <constraint firstAttribute="width" secondItem="2Xe-ur-neX" secondAttribute="height" multiplier="1:1" id="4oP-Gd-Zjy"/>
-                                    <constraint firstAttribute="height" constant="15" id="FU5-gZ-NAG">
-                                        <variation key="widthClass=regular" constant="17"/>
-                                    </constraint>
+                                    <constraint firstAttribute="height" constant="15" id="FU5-gZ-NAG"/>
                                 </constraints>
                             </imageView>
-                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="99:59:59" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" minimumScaleFactor="0.69999999999999996" translatesAutoresizingMaskIntoConstraints="NO" id="XQO-xE-pLx" userLabel="Duration">
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="99:59:59" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" minimumScaleFactor="0.69999999999999996" translatesAutoresizingMaskIntoConstraints="NO" id="XQO-xE-pLx" customClass="ScaledLabel" customModule="Amperfy" customModuleProvider="target" userLabel="Duration">
                                 <rect key="frame" x="21" y="14" width="40" height="17"/>
                                 <constraints>
-                                    <constraint firstAttribute="width" constant="40" id="jIq-1R-vvd">
-                                        <variation key="widthClass=regular" constant="49"/>
-                                        <variation key="userInterfaceIdiom=mac-widthClass=regular" constant="40"/>
-                                    </constraint>
+                                    <constraint firstAttribute="width" constant="40" id="jIq-1R-vvd"/>
                                 </constraints>
                                 <fontDescription key="fontDescription" type="system" pointSize="14"/>
                                 <color key="textColor" systemColor="secondaryLabelColor"/>
@@ -206,6 +198,15 @@
             </tableViewCellContentView>
             <connections>
                 <outlet property="artistLabel" destination="nJe-7h-3tU" id="SlX-ew-mVM"/>
+                <outlet property="artistHeightConstraint" destination="Lp3-VV-zM5" id="Sc1-Ar-002"/>
+                <outlet property="cacheIconHeightConstraint" destination="FU5-gZ-NAG" id="Sc1-Ca-007"/>
+                <outlet property="durationWidthConstraint" destination="jIq-1R-vvd" id="Sc1-Du-006"/>
+                <outlet property="favoriteIconHeightConstraint" destination="DXc-FO-IFH" id="Sc1-Fh-008"/>
+                <outlet property="favoriteIconWidthConstraint" destination="pBm-6i-tZc" id="Sc1-Fw-009"/>
+                <outlet property="labelsHeightConstraint" destination="ayC-tn-eu2" id="Sc1-Lb-003"/>
+                <outlet property="titleHeightConstraint" destination="XXp-uK-dh5" id="Sc1-Ti-001"/>
+                <outlet property="trackNumberContainerWidthConstraint" destination="h6A-Tx-fcj" id="Sc1-Tw-005"/>
+                <outlet property="trackNumberHeightConstraint" destination="aX0-JY-siD" id="Sc1-Tn-004"/>
                 <outlet property="cacheIconImage" destination="2Xe-ur-neX" id="Wt7-D7-TTG"/>
                 <outlet property="deleteButton" destination="l8v-65-XtX" id="BlT-4f-Hok"/>
                 <outlet property="durationLabel" destination="XQO-xE-pLx" id="LV8-46-i0Q"/>

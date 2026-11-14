@@ -32,6 +32,12 @@ class BasicTableCell: UITableViewCell {
     TextScaling.scaledValue(contentHeight) + margin.top + margin.bottom
   }
 
+  /// A fixed size of the xib (e.g. a label height) at the default text size, scaled to the
+  /// text size of the cell. `maximum` limits sizes that must not grow without bound.
+  func scaledConstant(_ value: CGFloat, maximum: UIContentSizeCategory? = nil) -> CGFloat {
+    TextScaling.scaledValue(value, compatibleWith: traitCollection, maximum: maximum)
+  }
+
   required init?(coder: NSCoder) {
     super.init(coder: coder)
     self.layoutMargins = BasicTableCell.margin

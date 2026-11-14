@@ -293,6 +293,26 @@ enum TextScaling {
     #endif
   }
 
+  /// iOS: text style fonts are unchanged (Dynamic Type scales them), fonts with a fixed size
+  /// (e.g. "System 16" in a xib) are scaled like the body text style. Mac: like `scaledFont`.
+  static func scaledFixedSizeFont(
+    _ font: UIFont,
+    compatibleWith traits: UITraitCollection
+  )
+    -> UIFont {
+    #if targetEnvironment(macCatalyst)
+      return scaledFont(font, compatibleWith: traits)
+    #else
+      // system fonts carry a usage in this attribute too, only real text styles scale themselves
+      let usage = font.fontDescriptor.object(forKey: .textStyle) as? String
+      guard !(usage?.hasPrefix("UICTFontTextStyle") ?? false) else { return font }
+      return UIFontMetrics(forTextStyle: .body).scaledFont(
+        for: font,
+        compatibleWith: UITraitCollection(preferredContentSizeCategory: currentTextSize(traits))
+      )
+    #endif
+  }
+
   /// `value` at the default text size, scaled to the text size of `traits` (or the app's)
   static func scaledValue(
     _ value: CGFloat,
@@ -331,49 +351,58 @@ enum TextScaling {
 // MARK: - ScaledLabel
 
 /// Label whose text scales with the user's text size. Use it as custom class in xibs together
-/// with a text style font (incl. size class variations).
-/// - iOS/iPadOS: a plain `UILabel`, Dynamic Type scales the text style.
-/// - Mac Catalyst: every font that gets assigned (by the xib or code) is the unscaled base font,
-///   the label displays it scaled by `TextScaling`.
+/// with a text style font or a font with a fixed size (incl. size class variations).
+/// Every font that gets assigned (by the xib or code) is the unscaled base font, the label
+/// displays it scaled by `TextScaling.scaledFixedSizeFont`:
+/// - iOS/iPadOS: text styles are scaled by Dynamic Type, fixed sizes like the body text style.
+/// - Mac Catalyst: all fonts are scaled with the factors of the iOS text sizes.
 class ScaledLabel: UILabel {
-  #if targetEnvironment(macCatalyst)
-    private var unscaledFont: UIFont?
-    private var isRegisteredForTextSizeChanges = false
+  private var unscaledFont: UIFont?
+  private var isRegisteredForTextSizeChanges = false
 
-    override var font: UIFont! {
-      get { super.font }
-      set {
-        unscaledFont = newValue
-        guard newValue != nil else {
-          super.font = nil
-          return
-        }
-        applyScaledFont()
-      }
-    }
-
-    override func didMoveToWindow() {
-      super.didMoveToWindow()
-      if !isRegisteredForTextSizeChanges {
-        isRegisteredForTextSizeChanges = true
-        registerForTraitChanges(
-          [UITraitPreferredContentSizeCategory.self],
-          handler: { (self: Self, previousTraitCollection: UITraitCollection) in
-            self.applyScaledFont()
-          }
-        )
+  override var font: UIFont! {
+    get { super.font }
+    set {
+      unscaledFont = newValue
+      guard newValue != nil else {
+        super.font = nil
+        return
       }
       applyScaledFont()
     }
+  }
 
-    private func applyScaledFont() {
-      if unscaledFont == nil {
-        unscaledFont = super.font
-      }
-      guard let unscaledFont else { return }
-      super.font = TextScaling.scaledFont(unscaledFont, compatibleWith: traitCollection)
+  override func didMoveToWindow() {
+    super.didMoveToWindow()
+    // the text size comes from the window's traits, nothing to do when leaving it
+    guard window != nil else { return }
+    if !isRegisteredForTextSizeChanges {
+      isRegisteredForTextSizeChanges = true
+      registerForTraitChanges(
+        [UITraitPreferredContentSizeCategory.self],
+        handler: { (self: Self, previousTraitCollection: UITraitCollection) in
+          self.applyScaledFont()
+        }
+      )
     }
-  #endif
+    applyScaledFont()
+  }
+
+  private func applyScaledFont() {
+    if unscaledFont == nil {
+      unscaledFont = super.font
+    }
+    guard let unscaledFont else { return }
+    #if !targetEnvironment(macCatalyst)
+      // Dynamic Type already scales the font (e.g. a UIFontMetrics font) and assigns updates
+      // through this setter, scaling it again would scale it twice
+      guard !adjustsFontForContentSizeCategory else {
+        super.font = unscaledFont
+        return
+      }
+    #endif
+    super.font = TextScaling.scaledFixedSizeFont(unscaledFont, compatibleWith: traitCollection)
+  }
 }
 
 extension UICollectionView {

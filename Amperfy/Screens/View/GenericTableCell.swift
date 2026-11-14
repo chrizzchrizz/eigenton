@@ -39,11 +39,67 @@ class GenericTableCell: BasicTableCell {
   @IBOutlet
   weak var infoLabelWidthConstraint: NSLayoutConstraint!
 
-  static let rowHeight: CGFloat = 56.0 + margin.bottom + margin.top
-  static let rowHeightWithoutImage: CGFloat = 28.0 + margin.bottom + margin.top
+  // fixed sizes in the xib that scale with the text size (see `applyTextSize`)
+  @IBOutlet
+  private var titleHeightConstraint: NSLayoutConstraint!
+  @IBOutlet
+  private var subtitleHeightConstraint: NSLayoutConstraint!
+  @IBOutlet
+  private var infoHeightConstraint: NSLayoutConstraint!
+  @IBOutlet
+  private var labelsHeightConstraint: NSLayoutConstraint!
+  @IBOutlet
+  private var entityImageWidthConstraint: NSLayoutConstraint!
+  @IBOutlet
+  private var favoriteIconHeightConstraint: NSLayoutConstraint!
+
+  /// Both scale with the user's text size (see `TextScaling`)
+  static var rowHeight: CGFloat { scaledRowHeight(contentHeight: 56.0) }
+  static var rowHeightWithoutImage: CGFloat { scaledRowHeight(contentHeight: 28.0) }
 
   private var container: PlayableContainable?
   private weak var rootView: UITableViewController?
+
+  override func awakeFromNib() {
+    super.awakeFromNib()
+    // This must be called in Main thread
+    MainActor.assumeIsolated {
+      applyTextSize()
+      registerForTraitChanges([
+        UITraitPreferredContentSizeCategory.self,
+        UITraitHorizontalSizeClass.self,
+      ]) { (self: Self, _) in
+        self.applyTextSize()
+      }
+    }
+  }
+
+  /// Scales the fixed sizes of the xib with the user's text size, the fonts scale themselves
+  /// (`ScaledLabel`). The title, subtitle and labels heights are only installed in regular width.
+  private func applyTextSize() {
+    let isRegularWidth = traitCollection.horizontalSizeClass == .regular
+    titleHeightConstraint.constant = scaledConstant(18)
+    subtitleHeightConstraint.constant = scaledConstant(18)
+    infoHeightConstraint.constant = scaledConstant(isRegularWidth ? 18 : 15)
+    labelsHeightConstraint.constant = scaledConstant(35)
+    entityImageWidthConstraint.constant = scaledConstant(56)
+    favoriteIconHeightConstraint.constant = scaledConstant(12)
+    updateInfoLabelWidth()
+  }
+
+  /// Wide enough for the longest info text of the container type. Only installed in regular
+  /// width, where the width is required: it stops growing at XXXL to leave room for the title.
+  private func updateInfoLabelWidth() {
+    let width: CGFloat
+    switch container {
+    case is Album: width = 75
+    case is Artist: width = 230
+    case is Genre: width = 260
+    case is Podcast: width = 140
+    default: width = 200
+    }
+    infoLabelWidthConstraint.constant = scaledConstant(width, maximum: .extraExtraExtraLarge)
+  }
 
   func display(container: PlayableContainable, rootView: UITableViewController) {
     self.container = container
@@ -67,15 +123,7 @@ class GenericTableCell: BasicTableCell {
     favoriteIconImage.isHidden = !container.isFavorite
     favoriteIconImage.tintColor = .red
 
-    if container is Album {
-      infoLabelWidthConstraint.constant = 75
-    } else if container is Artist {
-      infoLabelWidthConstraint.constant = 230
-    } else if container is Genre {
-      infoLabelWidthConstraint.constant = 260
-    } else if container is Podcast {
-      infoLabelWidthConstraint.constant = 140
-    }
+    updateInfoLabelWidth()
     accessoryType = .disclosureIndicator
     backgroundColor = .systemBackground
   }

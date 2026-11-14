@@ -34,12 +34,10 @@
                                     <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" translatesAutoresizingMaskIntoConstraints="NO" id="HDj-Db-Qbv">
                                         <rect key="frame" x="0.0" y="0.0" width="369" height="35"/>
                                         <subviews>
-                                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Title" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="WHk-4e-H8f" userLabel="Title Label">
+                                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Title" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="WHk-4e-H8f" customClass="ScaledLabel" customModule="Amperfy" customModuleProvider="target" userLabel="Title Label">
                                                 <rect key="frame" x="0.0" y="9" width="181.5" height="18"/>
                                                 <constraints>
-                                                    <constraint firstAttribute="height" constant="16" id="vsJ-7z-xj1">
-                                                        <variation key="widthClass=regular" constant="18"/>
-                                                    </constraint>
+                                                    <constraint firstAttribute="height" constant="18" id="vsJ-7z-xj1"/>
                                                 </constraints>
                                                 <fontDescription key="fontDescription" type="system" pointSize="17"/>
                                                 <nil key="textColor"/>
@@ -58,12 +56,10 @@
                                                     <fontDescription key="fontDescription" type="system" pointSize="14"/>
                                                 </variation>
                                             </label>
-                                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Subtitle" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="hM0-yx-hsO" userLabel="Subtitle Label">
+                                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Subtitle" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="hM0-yx-hsO" customClass="ScaledLabel" customModule="Amperfy" customModuleProvider="target" userLabel="Subtitle Label">
                                                 <rect key="frame" x="188" y="9" width="181.5" height="18"/>
                                                 <constraints>
-                                                    <constraint firstAttribute="height" constant="15" id="dnN-rs-XET">
-                                                        <variation key="widthClass=regular" constant="18"/>
-                                                    </constraint>
+                                                    <constraint firstAttribute="height" constant="18" id="dnN-rs-XET"/>
                                                 </constraints>
                                                 <fontDescription key="fontDescription" type="system" pointSize="12"/>
                                                 <color key="textColor" systemColor="secondaryLabelColor"/>
@@ -99,12 +95,10 @@
                                         </variation>
                                         <variation key="userInterfaceIdiom=mac-widthClass=regular" alignment="center" axis="horizontal" distribution="fillEqually"/>
                                     </stackView>
-                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="5 Songs" textAlignment="right" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="Ah3-fC-zQQ" userLabel="Info Label">
+                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="5 Songs" textAlignment="right" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="Ah3-fC-zQQ" customClass="ScaledLabel" customModule="Amperfy" customModuleProvider="target" userLabel="Info Label">
                                         <rect key="frame" x="377" y="9" width="200" height="18"/>
                                         <constraints>
-                                            <constraint firstAttribute="height" constant="15" id="1Hs-Po-1o2">
-                                                <variation key="widthClass=regular" constant="18"/>
-                                            </constraint>
+                                            <constraint firstAttribute="height" constant="15" id="1Hs-Po-1o2"/>
                                             <constraint firstAttribute="width" constant="200" id="ser-uw-D7d"/>
                                         </constraints>
                                         <fontDescription key="fontDescription" type="system" pointSize="12"/>
@@ -163,6 +157,12 @@
             </tableViewCellContentView>
             <connections>
                 <outlet property="entityImage" destination="kaN-9u-M2i" id="5bm-e9-GSI"/>
+                <outlet property="entityImageWidthConstraint" destination="5oe-DH-jSb" id="Sc2-Im-005"/>
+                <outlet property="favoriteIconHeightConstraint" destination="EEJ-iQ-TQy" id="Sc2-Fv-006"/>
+                <outlet property="infoHeightConstraint" destination="1Hs-Po-1o2" id="Sc2-In-003"/>
+                <outlet property="labelsHeightConstraint" destination="y2Z-f4-QBV" id="Sc2-Lb-004"/>
+                <outlet property="subtitleHeightConstraint" destination="dnN-rs-XET" id="Sc2-St-002"/>
+                <outlet property="titleHeightConstraint" destination="vsJ-7z-xj1" id="Sc2-Ti-001"/>
                 <outlet property="favoriteIconImage" destination="aXK-mg-9Bz" id="3zx-0w-w5o"/>
                 <outlet property="infoLabel" destination="Ah3-fC-zQQ" id="YLL-zm-iRb"/>
                 <outlet property="infoLabelWidthConstraint" destination="ser-uw-D7d" id="lZc-8W-s88"/>

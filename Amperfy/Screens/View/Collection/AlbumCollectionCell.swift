@@ -50,6 +50,15 @@ class AlbumCollectionCell: BasicCollectionCell {
     TextScaling.scaledValue(height, compatibleWith: traits, maximum: maxContentSizeCategory)
   }
 
+  override func awakeFromNib() {
+    super.awakeFromNib()
+    // This must be called in Main thread
+    MainActor.assumeIsolated {
+      // the labels (`ScaledLabel`) take the text size from the traits, so they stop growing too
+      maximumContentSizeCategory = Self.maxContentSizeCategory
+    }
+  }
+
   private var container: PlayableContainable?
   private weak var rootView: UICollectionViewController?
   private weak var rootFlowLayout: UICollectionViewDelegateFlowLayout?

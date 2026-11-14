@@ -85,15 +85,36 @@ class PlayableTableCell: BasicTableCell {
   @IBOutlet
   weak var playOverButtonLeadingConstraint: NSLayoutConstraint!
 
+  // fixed sizes in the xib that scale with the text size (see `applyTextSize`)
+  @IBOutlet
+  private var titleHeightConstraint: NSLayoutConstraint!
+  @IBOutlet
+  private var artistHeightConstraint: NSLayoutConstraint!
+  @IBOutlet
+  private var labelsHeightConstraint: NSLayoutConstraint!
+  @IBOutlet
+  private var trackNumberHeightConstraint: NSLayoutConstraint!
+  @IBOutlet
+  private var trackNumberContainerWidthConstraint: NSLayoutConstraint!
+  @IBOutlet
+  private var durationWidthConstraint: NSLayoutConstraint!
+  @IBOutlet
+  private var cacheIconHeightConstraint: NSLayoutConstraint!
+  @IBOutlet
+  private var favoriteIconHeightConstraint: NSLayoutConstraint!
+  @IBOutlet
+  private var favoriteIconWidthConstraint: NSLayoutConstraint!
+
   private var ratingStackView: UIStackView?
   private var ratingStarViews: [UIImageView] = []
 
-  /// The cover is square and as high as the row content
-  static let rowHeight: CGFloat = 42 + margin.bottom + margin.top
+  /// The cover is square and as high as the row content. All row heights scale with the
+  /// user's text size (see `TextScaling`).
+  static var rowHeight: CGFloat { scaledRowHeight(contentHeight: 42) }
   /// For the song list, with a larger cover
-  static let rowHeightLarge: CGFloat = 56 + margin.bottom + margin.top
+  static var rowHeightLarge: CGFloat { scaledRowHeight(contentHeight: 56) }
   /// rows with the artist label hidden, only the title line remains
-  static let singleLineRowHeight: CGFloat = 40 + margin.bottom + margin.top
+  static var singleLineRowHeight: CGFloat { scaledRowHeight(contentHeight: 40) }
   private static let touchAnimation = 0.4
 
   /// Single rule for the cell and the row height of its table view.
@@ -139,9 +160,14 @@ class PlayableTableCell: BasicTableCell {
     super.awakeFromNib()
     // This must be called in Main thread
     MainActor.assumeIsolated {
+      applyTextSize()
       registerForTraitChanges([UITraitHorizontalSizeClass.self]) { (self: Self, _) in
         // duration, cache icon and label spacing depend on the size class, e.g. after resizing a window
+        self.applyTextSize()
         self.refreshCacheAndDuration(userSettings: self.appDelegate.storage.settings.user)
+      }
+      registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (self: Self, _) in
+        self.applyTextSize()
       }
       registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: Self, _) in
         self.playIndicator?.applyStyle()
@@ -316,6 +342,25 @@ class PlayableTableCell: BasicTableCell {
     tapGestureRecognizer.isEnabled = (displayMode == .normal)
     backgroundColor = .clear
     refresh()
+  }
+
+  /// Scales the fixed label, icon and duration sizes of the xib with the user's text size.
+  /// The fonts scale themselves (`ScaledLabel`), the cover follows the row height.
+  private func applyTextSize() {
+    let traits = traitCollection
+    let scaled = { (value: CGFloat) in self.scaledConstant(value) }
+    // iPad shows title and artist side by side with the same height, the Mac keeps the iPhone sizes
+    let isRegularWidth = traits.horizontalSizeClass == .regular
+    let isLargeRegularWidth = isRegularWidth && traits.userInterfaceIdiom != .mac
+    titleHeightConstraint.constant = scaled(22)
+    artistHeightConstraint.constant = scaled(isLargeRegularWidth ? 22 : 16)
+    labelsHeightConstraint.constant = scaled(38)
+    trackNumberHeightConstraint.constant = scaled(22)
+    trackNumberContainerWidthConstraint.constant = scaled(32)
+    durationWidthConstraint.constant = scaled(isLargeRegularWidth ? 49 : 40)
+    cacheIconHeightConstraint.constant = scaled(isRegularWidth ? 17 : 15)
+    favoriteIconHeightConstraint.constant = scaled(12)
+    favoriteIconWidthConstraint.constant = scaled(12)
   }
 
   private func configureStyle(playable: AbstractPlayable, newStyle: PlayableTableCellStyle) {
