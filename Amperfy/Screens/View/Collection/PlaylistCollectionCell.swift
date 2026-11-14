@@ -38,19 +38,26 @@ class PlaylistCollectionCell: UICollectionViewCell {
     traits.userInterfaceStyle == .dark ? .systemGray5 : .systemGray6
   }
 
-  /// Height of the text area below the cover relative to the tile width
-  /// (0.33 = a third of the width, 0.67 = two thirds). Change this to tune the tile height.
+  /// Height of the text area below the cover relative to the tile width at the default text
+  /// size (0.33 = a third of the width, 0.67 = two thirds). Change this to tune the tile height.
   static let textAreaHeightRatio: CGFloat = 0.45
 
-  /// Tile height for the given width (set by the layout): square cover plus the text area
-  static func height(forWidth width: CGFloat) -> CGFloat {
-    (width * (1 + textAreaHeightRatio)).rounded()
+  /// Tile height for the given width (set by the layout): square cover plus the text area,
+  /// which grows with the text size of `traits` like the labels of the album tiles
+  static func height(forWidth width: CGFloat, compatibleWith traits: UITraitCollection) -> CGFloat {
+    let textAreaHeight = TextScaling.scaledValue(
+      width * textAreaHeightRatio,
+      compatibleWith: traits,
+      maximum: AlbumCollectionCell.maxContentSizeCategory
+    )
+    return (width + textAreaHeight).rounded()
   }
 
   private let tileView = UIView()
   private let entityImage = EntityImageView(frame: .zero)
-  private let titleLabel = UILabel()
-  private let subtitleLabel = UILabel()
+  // same fonts as the album tiles (`AlbumCollectionCell`), scaled with the text size
+  private let titleLabel = ScaledLabel()
+  private let subtitleLabel = ScaledLabel()
 
   private var artwork: UIImage?
 
@@ -78,10 +85,12 @@ class PlaylistCollectionCell: UICollectionViewCell {
     }
     tileView.addSubview(entityImage)
 
-    titleLabel.font = .systemFont(ofSize: 13, weight: .semibold)
+    // the labels take the text size from the traits, so they stop growing like the album tiles
+    maximumContentSizeCategory = AlbumCollectionCell.maxContentSizeCategory
+    titleLabel.font = .systemFont(ofSize: 13, weight: .medium)
     titleLabel.numberOfLines = 1
     titleLabel.lineBreakMode = .byTruncatingTail
-    subtitleLabel.font = .systemFont(ofSize: 11)
+    subtitleLabel.font = .systemFont(ofSize: 13)
     subtitleLabel.numberOfLines = 2
     subtitleLabel.lineBreakMode = .byTruncatingTail
 

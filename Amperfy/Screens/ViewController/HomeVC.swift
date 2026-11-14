@@ -220,12 +220,15 @@ final class HomeVC: UICollectionViewController {
 
   private static func createLayout(sectionLookup: SectionLookup)
     -> UICollectionViewCompositionalLayout {
-    let layout = UICollectionViewCompositionalLayout { sectionIndex, _ in
+    let layout = UICollectionViewCompositionalLayout { sectionIndex, environment in
       guard let _ = HomeSection(rawValue: sectionIndex) else { return nil }
       // playlist tiles have a fixed aspect ratio, the other cells size themselves
       let groupHeight: NSCollectionLayoutDimension =
         showsPlaylistTiles(sectionLookup.section(at: sectionIndex))
-          ? .absolute(PlaylistCollectionCell.height(forWidth: itemWidth))
+          ? .absolute(PlaylistCollectionCell.height(
+            forWidth: itemWidth,
+            compatibleWith: environment.traitCollection
+          ))
           : .estimated(210)
 
       // Item: square image with title below
