@@ -114,13 +114,20 @@ final class TableSectionHeaderView: UIView {
   /// Shown at the trailing end of the title, e.g. a button
   private let accessoryView: UIView?
   private var isPinnedToTable = false
+  #if targetEnvironment(macCatalyst)
+    /// The title font of the header configuration at the default text size
+    private let unscaledFont: UIFont
+  #endif
 
   /// `topInset`: space above the title within the header, e.g. to separate it from the
   /// previous section when the table adds no padding above section headers
   init(title: String, accessoryView: UIView? = nil, topInset: CGFloat = 0) {
     self.accessoryView = accessoryView
-    super.init(frame: .zero)
     var configuration = UIListContentConfiguration.header()
+    #if targetEnvironment(macCatalyst)
+      self.unscaledFont = configuration.textProperties.font
+    #endif
+    super.init(frame: .zero)
     configuration.text = title
     configuration.directionalLayoutMargins.leading = 0
     configuration.directionalLayoutMargins.trailing = 0
@@ -150,7 +157,35 @@ final class TableSectionHeaderView: UIView {
         accessoryView.centerYAnchor.constraint(equalTo: listContentView.centerYAnchor),
       ])
     }
+    #if targetEnvironment(macCatalyst)
+      registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (self: Self, _) in
+        self.applyTextSize()
+      }
+    #endif
   }
+
+  // iOS: the header text style follows Dynamic Type. Mac: has no Dynamic Type, the title is
+  // scaled with the in-app text size.
+  #if targetEnvironment(macCatalyst)
+    override func didMoveToWindow() {
+      super.didMoveToWindow()
+      // the traits of the window contain the in-app text size
+      guard window != nil else { return }
+      applyTextSize()
+    }
+
+    private func applyTextSize() {
+      guard var configuration = listContentView.configuration as? UIListContentConfiguration
+      else { return }
+      configuration.textProperties.font = TextScaling.scaledFont(
+        unscaledFont,
+        compatibleWith: traitCollection
+      )
+      // otherwise the content view resolves the text style font again, without the scaling
+      configuration.textProperties.adjustsFontForContentSizeCategory = false
+      listContentView.configuration = configuration
+    }
+  #endif
 
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")

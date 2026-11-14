@@ -64,7 +64,11 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
       scopeButtonTitles: ["All", "Cached"]
     )
     tableView.register(nibName: PlayableTableCell.typeName)
-    tableView.reloadOnTextSizeChange { PlayableTableCell.rowHeightLarge }
+    tableView.reloadOnTextSizeChange { [weak self] in
+      // the reload after a text size change also picks up the new section header height
+      self?.applySectionHeaderHeight()
+      return PlayableTableCell.rowHeightLarge
+    }
     tableView.clipsToBounds = false
 
     let playShuffleInfoConfig = PlayShuffleInfoConfiguration(
@@ -178,6 +182,15 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
 
     tableView.sectionFooterHeight = 0.0
     tableView.estimatedSectionFooterHeight = 0.0
+    applySectionHeaderHeight()
+
+    tableView.reloadData()
+    updateRightBarButtonItems()
+    detailHeaderView?.refresh()
+  }
+
+  /// Only the rating sort has section headers, their height scales with the text size
+  private func applySectionHeaderHeight() {
     switch sortType {
     case .rating:
       tableView.sectionHeaderHeight = CommonScreenOperations.tableSectionHeightLarge
@@ -186,10 +199,6 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
       tableView.sectionHeaderHeight = 0.0
       tableView.estimatedSectionHeaderHeight = 0.0
     }
-
-    tableView.reloadData()
-    updateRightBarButtonItems()
-    detailHeaderView?.refresh()
   }
 
   override func viewWillAppear(_ animated: Bool) {

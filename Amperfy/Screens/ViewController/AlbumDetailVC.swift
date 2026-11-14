@@ -344,7 +344,8 @@ class AlbumDetailVC: SingleSnapshotFetchedResultsTableViewController<SongMO> {
     guard isDiscHeaderVisible, discTitle(inSection: section) != nil else { return 0.0 }
     return ArtistSectionHeaderView.height(
       bottomPadding: ArtistSectionHeaderView.contentSpacing,
-      font: ArtistSectionHeaderView.songTitleFont
+      font: ArtistSectionHeaderView.songTitleFont,
+      compatibleWith: tableView.traitCollection
     )
   }
 

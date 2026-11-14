@@ -519,13 +519,22 @@ class ArtistDetailVC: MultiSourceTableViewController {
     switch Section(rawValue: section) {
     case .albums:
       return albumsFetchedResultsController.sections?[0]
-        .numberOfObjects ?? 0 > 0 ? ArtistSectionHeaderView.height(bottomPadding: 0) : 0
+        .numberOfObjects ?? 0 > 0 ? ArtistSectionHeaderView.height(
+          bottomPadding: 0,
+          compatibleWith: tableView.traitCollection
+        ) : 0
     case .compilations:
       return compilationsFetchedResultsController.sections?[0]
-        .numberOfObjects ?? 0 > 0 ? ArtistSectionHeaderView.height(bottomPadding: 0) : 0
+        .numberOfObjects ?? 0 > 0 ? ArtistSectionHeaderView.height(
+          bottomPadding: 0,
+          compatibleWith: tableView.traitCollection
+        ) : 0
     case .topSongs:
       return topSongCount > 0 ?
-        ArtistSectionHeaderView.height(bottomPadding: ArtistSectionHeaderView.contentSpacing) : 0
+        ArtistSectionHeaderView.height(
+          bottomPadding: ArtistSectionHeaderView.contentSpacing,
+          compatibleWith: tableView.traitCollection
+        ) : 0
     default:
       return 0.0
     }
@@ -740,6 +749,7 @@ final class ArtistAlbumsGridVC: UICollectionViewController, UICollectionViewDele
   private static let sideInset: CGFloat = 16.0
   private static let topInset = ArtistSectionHeaderView.contentSpacing
   private static let bottomInset: CGFloat = 0.0
+  /// Height of the labels below the artwork at the default text size
   private static let labelsHeight: CGFloat = 50.0
 
   private let account: Account
@@ -782,6 +792,9 @@ final class ArtistAlbumsGridVC: UICollectionViewController, UICollectionViewDele
       UINib(nibName: AlbumCollectionCell.typeName, bundle: .main),
       forCellWithReuseIdentifier: AlbumCollectionCell.typeName
     )
+    registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (self: Self, _) in
+      self.collectionView.collectionViewLayout.invalidateLayout()
+    }
   }
 
   func reload() {
@@ -838,14 +851,22 @@ final class ArtistAlbumsGridVC: UICollectionViewController, UICollectionViewDele
     sizeForItemAt indexPath: IndexPath
   )
     -> CGSize {
-    Self.itemSize
+    itemSize
   }
 
-  private static let itemSize = CGSize(width: itemWidth, height: itemWidth + labelsHeight)
+  /// The labels below the artwork scale with the user's text size. Taken from the screen's
+  /// table, which sizes its row with `contentHeight` when the text size changes.
+  private var itemSize: CGSize {
+    let labelsHeight = AlbumCollectionCell.labelAreaHeight(
+      for: owner?.tableView.traitCollection ?? traitCollection,
+      defaultHeight: Self.labelsHeight
+    )
+    return CGSize(width: Self.itemWidth, height: Self.itemWidth + labelsHeight)
+  }
 
   /// Height of the row; the table row gets exactly this height.
   var contentHeight: CGFloat {
-    albumCount() > 0 ? Self.topInset + Self.itemSize.height + Self.bottomInset : 0
+    albumCount() > 0 ? Self.topInset + itemSize.height + Self.bottomInset : 0
   }
 
   // MARK: - Selection
@@ -946,6 +967,11 @@ final class ArtistTopSongsGridVC: UICollectionViewController, UICollectionViewDe
       ArtistTopSongsColumnCell.self,
       forCellWithReuseIdentifier: ArtistTopSongsColumnCell.reuseID
     )
+    // the row height of the songs scales with the user's text size
+    registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (self: Self, _) in
+      self.collectionView.collectionViewLayout.invalidateLayout()
+      self.collectionView.reloadData()
+    }
   }
 
   override func viewDidLayoutSubviews() {
@@ -1066,7 +1092,6 @@ final class ArtistTopSongsColumnCell: UICollectionViewCell, UITableViewDataSourc
     tableView.separatorStyle = .none // rows draw their own separators
     tableView.isScrollEnabled = false
     tableView.allowsSelection = false // the cells play on tap themselves
-    tableView.rowHeight = PlayableTableCell.rowHeight
     // the columns are narrow, so the songs use the two line layout of compact width
     tableView.traitOverrides.horizontalSizeClass = .compact
     tableView.sectionHeaderTopPadding = 0
@@ -1100,6 +1125,8 @@ final class ArtistTopSongsColumnCell: UICollectionViewCell, UITableViewDataSourc
     self.gridVC = gridVC
     // the same lines as the rows of the screen's table, which follow the artwork background
     tableView.separatorColor = gridVC.owner?.tableView.separatorColor
+    // scales with the user's text size
+    tableView.rowHeight = PlayableTableCell.rowHeight
     tableView.reloadData()
   }
 
@@ -1179,9 +1206,12 @@ final class ArtistTopSongsColumnCell: UICollectionViewCell, UITableViewDataSourc
 final class ArtistSectionHeaderView: UIView {
   private static let topPadding: CGFloat = 16.0
 
+  /// Unscaled, the title label scales it with the user's text size (`ScaledLabel`)
   private static var font: UIFont {
-    UIFont.systemFont(
-      ofSize: UIFont.preferredFont(forTextStyle: .title3).pointSize,
+    let defaultTextSize = UITraitCollection(preferredContentSizeCategory: .large)
+    return UIFont.systemFont(
+      ofSize: UIFont.preferredFont(forTextStyle: .title3, compatibleWith: defaultTextSize)
+        .pointSize,
       weight: .semibold
     )
   }
@@ -1199,14 +1229,21 @@ final class ArtistSectionHeaderView: UIView {
   /// The album grid adds it as its own top inset, the song rows get it from the header.
   static let contentSpacing: CGFloat = 8.0
 
-  /// Like on the home screen the header only is as high as its title.
-  static func height(bottomPadding: CGFloat, font: UIFont = font) -> CGFloat {
-    topPadding + ceil(font.lineHeight) + bottomPadding
+  /// Like on the home screen the header only is as high as its title, which scales with the
+  /// text size of `traits`.
+  static func height(
+    bottomPadding: CGFloat,
+    font: UIFont = font,
+    compatibleWith traits: UITraitCollection
+  )
+    -> CGFloat {
+    let scaledFont = TextScaling.scaledFixedSizeFont(font, compatibleWith: traits)
+    return topPadding + ceil(scaledFont.lineHeight) + bottomPadding
   }
 
   private static let sideInset: CGFloat = 16.0
 
-  private let titleLabel = UILabel()
+  private let titleLabel = ScaledLabel()
   private var pinnedLeading: NSLayoutConstraint?
   private var isPinnedToTable = false
 
@@ -1215,7 +1252,6 @@ final class ArtistSectionHeaderView: UIView {
     titleLabel.translatesAutoresizingMaskIntoConstraints = false
     titleLabel.text = title
     titleLabel.font = font
-    titleLabel.adjustsFontForContentSizeCategory = true
     titleLabel.textColor = .label
     addSubview(titleLabel)
     // fallback until the header is part of the table view, replaced by the table's safe area
