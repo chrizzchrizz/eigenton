@@ -639,7 +639,7 @@ extension AlbumsCollectionVC: UICollectionViewDelegateFlowLayout {
     referenceSizeForHeaderInSection section: Int
   )
     -> CGSize {
-    var headerTopHeight = section == 0 ? LibraryElementDetailTableHeaderView.frameHeight : 0.0
+    var headerTopHeight = section == 0 ? LibraryElementDetailTableHeaderView.listFrameHeight : 0.0
     #if targetEnvironment(macCatalyst)
       if section == 0 {
         headerTopHeight += MacLargeTitle.titleHeight

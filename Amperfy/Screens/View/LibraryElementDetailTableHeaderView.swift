@@ -53,6 +53,20 @@ class LibraryElementDetailTableHeaderView: UIView {
   static let frameHeight: CGFloat = 40.0 + margin.top + margin.bottom
   static let margin = UIView.defaultMarginMiddleElement
 
+  #if targetEnvironment(macCatalyst)
+    /// The Mac large title (see MacLargeTitle) brings its own spacing.
+    static let listTopPadding: CGFloat = 0.0
+    static let listFrameHeight: CGFloat = frameHeight
+  #else
+    /// Space between the large title and the buttons at the top of a list (like Music).
+    static let listTopPadding: CGFloat = 18.0
+    /// Space between the buttons and the first row at the top of a list (like Music).
+    private static let listBottomPadding: CGFloat = 26.0
+    private static let buttonHeight: CGFloat = 50.0
+    /// Height of the header at the top of a list, below the large title.
+    static let listFrameHeight: CGFloat = listTopPadding + buttonHeight + listBottomPadding
+  #endif
+
   private var config: PlayShuffleInfoConfiguration?
   /// Set when the screen has a custom background; buttons then invert against it.
   private var customBackgroundColor: UIColor?
@@ -87,14 +101,14 @@ class LibraryElementDetailTableHeaderView: UIView {
       x: 0,
       y: 0,
       width: rootView.view.bounds.size.width,
-      height: Self.frameHeight
+      height: Self.listFrameHeight
     ))
     let genericDetailTableHeaderView = ViewCreator<LibraryElementDetailTableHeaderView>
       .createFromNib(withinFixedFrame: CGRect(
         x: 0,
-        y: 0,
+        y: Self.listTopPadding,
         width: rootView.view.bounds.size.width,
-        height: Self.frameHeight
+        height: Self.listFrameHeight - Self.listTopPadding
       ))!
     #if targetEnvironment(macCatalyst)
       // aligned with the rows and the large title (see MacLargeTitle) via the table's margins

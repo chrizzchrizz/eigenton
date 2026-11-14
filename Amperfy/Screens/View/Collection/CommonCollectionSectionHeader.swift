@@ -62,9 +62,10 @@ class CommonCollectionSectionHeader: UICollectionReusableView {
     detailHeader = ViewCreator<LibraryElementDetailTableHeaderView>
       .createFromNib(withinFixedFrame: CGRect(
         x: 0,
-        y: topViewHeight,
+        y: topViewHeight + LibraryElementDetailTableHeaderView.listTopPadding,
         width: bounds.size.width,
-        height: LibraryElementDetailTableHeaderView.frameHeight
+        height: LibraryElementDetailTableHeaderView.listFrameHeight
+          - LibraryElementDetailTableHeaderView.listTopPadding
       ))
     detailHeader?.prepare(configuration: configuration)
     if let horizontalInset {
