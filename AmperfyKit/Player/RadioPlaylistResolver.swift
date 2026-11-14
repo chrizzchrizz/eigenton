@@ -64,6 +64,10 @@ enum RadioPlaylistResolver {
     defer { bytes.task.cancel() }
     if let httpResponse = response as? HTTPURLResponse,
        !(200 ..< 300).contains(httpResponse.statusCode) {
+      // a server error or rate limit may be temporary, the player's error handling retries it
+      if httpResponse.statusCode >= 500 || httpResponse.statusCode == 429 {
+        throw URLError(.badServerResponse)
+      }
       throw InvalidPlaylistError(url: url)
     }
     // the server may answer with the stream itself despite the playlist extension, often

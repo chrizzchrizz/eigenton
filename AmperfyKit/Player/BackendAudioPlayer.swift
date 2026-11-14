@@ -397,7 +397,12 @@ class BackendAudioPlayer: NSObject {
               try await insertStreamPlayable(playable: nextPreloadedPlayable, queueType: .queue)
             } catch {
               self.nextPreloadedPlayable = nil
-              self.eventLogger.report(topic: "Player", error: error)
+              // a broken radio playlist is reported once the radio is played
+              self.eventLogger.report(
+                topic: "Player",
+                error: error,
+                displayPopup: !(error is RadioPlaylistResolver.InvalidPlaylistError)
+              )
             }
           }
         }
@@ -795,6 +800,7 @@ class BackendAudioPlayer: NSObject {
     streamTimeOffset = 0.0
     pendingSeek = nil
     streamRestartRequest += 1
+    playRequestID += 1
     shouldPlayAfterStreamRestart = nil
     playType = nil
     perloadedPlayType = nil
@@ -854,6 +860,15 @@ class BackendAudioPlayer: NSObject {
     playable: AbstractPlayable,
     queueType: BackendAudioQueueType = .play
   ) async throws {
+    let requestID = playRequestID
+    // a newer play request replaced this one while the URL was generated (e.g. a slow radio
+    // playlist), it must not take over the player
+    @MainActor
+    func checkIsLatestPlayRequest() throws {
+      if queueType == .play, requestID != playRequestID {
+        throw CancellationError()
+      }
+    }
     let streamingMaxBitrate = streamingMaxBitrates.getActive(networkMonitor: networkMonitor)
     var streamingTranscodingFormat = streamingTranscodings.getActive(networkMonitor: networkMonitor)
     var httpHeaders: [String: String] = [:]
@@ -867,6 +882,7 @@ class BackendAudioPlayer: NSObject {
         }
         // stations are often set up with a .m3u or .pls link that only names the stream
         let streamUrl = try await RadioPlaylistResolver.resolve(url: radioUrl)
+        try checkIsLatestPlayRequest()
         // a radio preloaded as the next item doesn't change what is playing now
         if queueType == .play {
           playType = .stream
@@ -901,13 +917,8 @@ class BackendAudioPlayer: NSObject {
       }
     }
     let request = streamRestartRequest
-    let playRequest = playRequestID
     let streamUrl = try await provideUrl()
-    // a newer play request replaced this one while the URL was generated (e.g. a slow radio
-    // playlist), it must not take over the player
-    guard queueType == .queue || playRequest == playRequestID else {
-      throw CancellationError()
-    }
+    try checkIsLatestPlayRequest()
     // the preload might have been invalidated or replaced while the URL was generated
     if queueType == .queue, nextPreloadedPlayable != playable {
       return

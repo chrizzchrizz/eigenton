@@ -176,6 +176,17 @@ final class RadioPlaylistResolverTest: XCTestCase {
     } catch {}
   }
 
+  func testResolve_TemporaryServerError_ThrowsRetryableError() async {
+    server.httpStatus = 503
+    do {
+      _ = try await RadioPlaylistResolver.resolve(url: server.url(path: "/station.m3u"))
+      XCTFail("expected an error")
+    } catch {
+      // a temporary server error goes through the player's error handling, not the invalid URL path
+      XCTAssertFalse(error is RadioPlaylistResolver.InvalidPlaylistError)
+    }
+  }
+
   func testResolve_EmptyPlaylist_Throws() async {
     server.serve(path: "/station.m3u", data: Data("#EXTM3U\n".utf8), contentType: "audio/x-mpegurl")
     do {
