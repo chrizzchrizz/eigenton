@@ -125,6 +125,12 @@ public struct UserSettings: Sendable, Codable {
     set { _isShowMusicPlayerSkipButtons = newValue }
   }
 
+  private var _isToolbarPlayerAutoCollapse: Bool = true
+  public var isToolbarPlayerAutoCollapse: Bool {
+    get { _isToolbarPlayerAutoCollapse }
+    set { _isToolbarPlayerAutoCollapse = newValue }
+  }
+
   // limit in byte
   private var _cacheLimit: Int = 0
   public var cacheLimit: Int {
@@ -258,6 +264,13 @@ public struct UserSettings: Sendable, Codable {
   public var appearanceMode: UIUserInterfaceStyle {
     get { _appearanceMode }
     set { _appearanceMode = newValue }
+  }
+
+  /// In-app text size, nil: system text size (iOS) / default text size (macOS, no Dynamic Type)
+  private var _textSize: String?
+  public var textSize: UIContentSizeCategory? {
+    get { _textSize.map { UIContentSizeCategory(rawValue: $0) } }
+    set { _textSize = newValue?.rawValue }
   }
 
   private var _screenLockPreventionPreference: ScreenLockPreventionPreference = .defaultValue

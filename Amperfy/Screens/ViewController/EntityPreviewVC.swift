@@ -847,8 +847,7 @@ class EntityPreviewActionBuilder {
       guard let self else { return }
       // Used if the song is not cached, otherwise never called
       let downloadManagerProvider: () -> DownloadManageable? = { [weak self] in
-        guard let self = self,
-              let accountInfo = playable.account?.info
+        guard let self, let accountInfo = playable.account?.info
         else { return nil }
         return appDelegate
           .getMeta(accountInfo)

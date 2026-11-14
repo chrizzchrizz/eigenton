@@ -110,6 +110,13 @@ final class HomeVC: UICollectionViewController {
       refreshContinuePlaybackNavButton()
     }
 
+    registerForTraitChanges(
+      [UITraitPreferredContentSizeCategory.self],
+      handler: { (self: Self, previousTraitCollection: UITraitCollection) in
+        self.collectionView.collectionViewLayout.invalidateLayout()
+      }
+    )
+
     navigationController?.navigationBar.prefersLargeTitles = true
     navigationItem.rightBarButtonItem = editButton
     arrangeNavButtonsForMac()
@@ -221,15 +228,14 @@ final class HomeVC: UICollectionViewController {
           ? .absolute(PlaylistCollectionCell.height(forWidth: itemWidth))
           : .estimated(210)
 
-      // Item: square image with title below -> estimate height accommodates label
+      // Item: square image with title below
       let itemSize = NSCollectionLayoutSize(
         widthDimension: .fractionalWidth(1.0),
         heightDimension: .fractionalHeight(1.0)
       )
       let item = NSCollectionLayoutItem(layoutSize: itemSize)
 
-      // Group: fixed width to show large image; height estimated to fit image + label
-      // We'll use a vertical group containing the cell's content; the cell itself handles layout.
+      // Group: fixed width to show large image; height fits image + labels for the text size
       let groupSize = NSCollectionLayoutSize(
         widthDimension: .absolute(itemWidth),
         heightDimension: groupHeight
@@ -655,9 +661,14 @@ final class SectionHeaderView: UICollectionReusableView {
   }()
 
   private let titleLabel: UILabel = {
-    let lbl = UILabel()
+    let lbl = ScaledLabel()
     lbl.translatesAutoresizingMaskIntoConstraints = false
-    lbl.font = UIFont.preferredFont(forTextStyle: .title3).withWeight(.semibold)
+    // title 3 at the default text size, scaled with the user's text size
+    let defaultTraits = UITraitCollection(preferredContentSizeCategory: .large)
+    let font = UIFont.preferredFont(forTextStyle: .title3, compatibleWith: defaultTraits)
+      .withWeight(.semibold)
+    lbl.font = UIFontMetrics(forTextStyle: .title3).scaledFont(for: font)
+    lbl.adjustsFontForContentSizeCategory = true
     lbl.textColor = .label
     return lbl
   }()

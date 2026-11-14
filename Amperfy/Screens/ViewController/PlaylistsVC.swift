@@ -139,8 +139,7 @@ class PlaylistsVC: SingleSnapshotFetchedResultsTableViewController<PlaylistMO> {
     )
     setNavBarTitle(title: "Playlists")
     tableView.register(nibName: PlaylistTableCell.typeName)
-    tableView.rowHeight = PlaylistTableCell.rowHeight
-    tableView.estimatedRowHeight = PlaylistTableCell.rowHeight
+    tableView.reloadOnTextSizeChange { PlaylistTableCell.rowHeight }
     tableView.sectionFooterHeight = 0.0
     tableView.estimatedSectionFooterHeight = 0.0
     tableView.sectionHeaderHeight = 0.0

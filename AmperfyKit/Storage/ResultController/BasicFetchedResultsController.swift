@@ -533,7 +533,7 @@ extension BasicFetchedResultsController where ResultType == DownloadMO {
 public class CachedFetchedResultsController<ResultType>: BasicFetchedResultsController<ResultType>
   where ResultType: NSFetchRequestResult {
   let account: Account
-  var keepAllResultsUpdated = true
+  let keepAllResultsUpdated: Bool
   private var didFetchAll = false
   private var didFetchSearch = false
   private var lastSearchPredicateFormat: String?
@@ -566,9 +566,11 @@ public class CachedFetchedResultsController<ResultType>: BasicFetchedResultsCont
     account: Account,
     sectionIndexType: SectionIndexType = .defaultValue,
     isGroupedInAlphabeticSections: Bool,
-    customSectionNameKeyPath: String? = nil
+    customSectionNameKeyPath: String? = nil,
+    keepAllResultsUpdated: Bool = true
   ) {
     self.account = account
+    self.keepAllResultsUpdated = keepAllResultsUpdated
     self.sectionIndexType = sectionIndexType
     let sectionNameKeyPath: String? = isGroupedInAlphabeticSections ?
       (customSectionNameKeyPath ?? fetchRequest.sortDescriptors![0].key) : nil
@@ -578,8 +580,9 @@ public class CachedFetchedResultsController<ResultType>: BasicFetchedResultsCont
       sectionNameKeyPath: sectionNameKeyPath,
       // groups like the recently added sections are moved at app start (see
       // `LibraryStorage.updateAddedDateSections`) while no controller observes; a section
-      // cache would keep the old sections
-      cacheName: customSectionNameKeyPath == nil ?
+      // cache would keep the old sections. No delegate means no change tracking, so a
+      // persistent cache would go stale too
+      cacheName: customSectionNameKeyPath == nil && keepAllResultsUpdated ?
         "\(Self.typeName)-\(account.serverHash)-\(account.userHash)" : nil
     )
     allFetchResulsController.sectionIndexType = sectionIndexType
@@ -610,10 +613,6 @@ public class CachedFetchedResultsController<ResultType>: BasicFetchedResultsCont
     lastSearchPredicateFormat = predicateFormat
     searchFetchResulsController.fetchRequest.predicate = predicate
     searchFetchResulsController.fetch()
-  }
-
-  public static func deleteCache() {
-    NSFetchedResultsController<ResultType>.deleteCache(withName: Self.typeName)
   }
 
   override public func fetch() {

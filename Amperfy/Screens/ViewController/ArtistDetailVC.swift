@@ -171,6 +171,7 @@ class ArtistDetailVC: MultiSourceTableViewController {
     )
     addChild(topSongsGridVC)
     topSongsGridVC.didMove(toParent: self)
+    tableView.reloadOnTextSizeChange()
     tableView.sectionHeaderHeight = 0.0
     tableView.estimatedSectionHeaderHeight = 0.0
     tableView.sectionFooterHeight = 0.0

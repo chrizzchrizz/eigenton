@@ -33,6 +33,22 @@ class AlbumCollectionCell: BasicCollectionCell {
   weak var artworkImageWidthConstraint: NSLayoutConstraint!
 
   static let maxWidth: CGFloat = 250.0
+  /// The short labels below the artwork stop growing beyond this text size
+  static let maxContentSizeCategory: UIContentSizeCategory = .extraExtraExtraLarge
+
+  /// Height below the artwork that a layout reserves for the labels: `defaultHeight` at the
+  /// default text size, scaled for the given traits
+  static func labelAreaHeight(
+    for traits: UITraitCollection,
+    defaultHeight: CGFloat = 45.0
+  )
+    -> CGFloat {
+    scaledHeight(defaultHeight, for: traits)
+  }
+
+  private static func scaledHeight(_ height: CGFloat, for traits: UITraitCollection) -> CGFloat {
+    TextScaling.scaledValue(height, compatibleWith: traits, maximum: maxContentSizeCategory)
+  }
 
   private var container: PlayableContainable?
   private weak var rootView: UICollectionViewController?

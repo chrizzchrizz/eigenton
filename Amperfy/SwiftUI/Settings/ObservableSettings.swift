@@ -71,6 +71,8 @@ final class Settings: ObservableObject {
   @Published
   var isShowMusicPlayerSkipButtons = false
   @Published
+  var isToolbarPlayerAutoCollapse = true
+  @Published
   var swipeActionSettings = SwipeActionSettings(leading: [], trailing: [])
   @Published
   var cacheSizeLimit: Int = 0 // limit in byte
@@ -87,6 +89,8 @@ final class Settings: ObservableObject {
   var themePreference: ThemePreference = .defaultValue
   @Published
   var appearanceMode: UIUserInterfaceStyle = .unspecified
+  @Published
+  var textSize: UIContentSizeCategory?
 
   @Published
   var isEqualizerEnabled = false

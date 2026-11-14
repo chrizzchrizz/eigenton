@@ -107,6 +107,10 @@
 		507414A32F013C94007AEC5D /* PlayPausePlaybackAppEnum.swift in Sources */ = {isa = PBXBuildFile; fileRef = 507414A22F013C93007AEC5D /* PlayPausePlaybackAppEnum.swift */; };
 		5077F936221E6D0E0099CA91 /* DownloadsVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5077F935221E6D0E0099CA91 /* DownloadsVC.swift */; };
 		5078AFB22B40CA5E0038FD17 /* DisplaySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5078AFB12B40CA5E0038FD17 /* DisplaySettingsView.swift */; };
+		907A960F28CAA324B82D4903 /* SongsFetchedResultsControllerTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45B693103EB659F5851BB3CF /* SongsFetchedResultsControllerTest.swift */; };
+		FC37DE680FB3834C0B3233ED /* TextSizeSettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA4AEDAB7594899F5E00A721 /* TextSizeSettingsSection.swift */; };
+		63AD7E4A30A283B700BBC0E1 /* AppIconOption.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63AD7E4930A283B700BBC0E1 /* AppIconOption.swift */; };
+		F9A94F1437AE825A8E847487 /* AppIconSettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 768083A8CBFABC35772DCAED /* AppIconSettingsSection.swift */; };
 		5078AFB42B44AE260038FD17 /* AppIntentVocabulary.plist in Resources */ = {isa = PBXBuildFile; fileRef = 5078AFB32B44AE260038FD17 /* AppIntentVocabulary.plist */; };
 		50791E7828D25845006CE6E5 /* AccountSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50791E7728D25845006CE6E5 /* AccountSettingsView.swift */; };
 		50791E7A28D31090006CE6E5 /* ServerURLsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50791E7928D31090006CE6E5 /* ServerURLsSettingsView.swift */; };
@@ -814,6 +818,10 @@
 		5077F95222283FED0099CA91 /* RoundedImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoundedImage.swift; sourceTree = "<group>"; };
 		5077F954222C58A10099CA91 /* GenericXmlParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenericXmlParser.swift; sourceTree = "<group>"; };
 		5078AFB12B40CA5E0038FD17 /* DisplaySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplaySettingsView.swift; sourceTree = "<group>"; };
+		45B693103EB659F5851BB3CF /* SongsFetchedResultsControllerTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongsFetchedResultsControllerTest.swift; sourceTree = "<group>"; };
+		AA4AEDAB7594899F5E00A721 /* TextSizeSettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextSizeSettingsSection.swift; sourceTree = "<group>"; };
+		63AD7E4930A283B700BBC0E1 /* AppIconOption.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconOption.swift; sourceTree = "<group>"; };
+		768083A8CBFABC35772DCAED /* AppIconSettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconSettingsSection.swift; sourceTree = "<group>"; };
 		5078AFB32B44AE260038FD17 /* AppIntentVocabulary.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = AppIntentVocabulary.plist; sourceTree = "<group>"; };
 		50791E7728D25845006CE6E5 /* AccountSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSettingsView.swift; sourceTree = "<group>"; };
 		50791E7928D31090006CE6E5 /* ServerURLsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerURLsSettingsView.swift; sourceTree = "<group>"; };
@@ -1248,6 +1256,25 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		63AD7E4630A2838800BBC0E1 /* AppIcon */ = {
+			isa = PBXGroup;
+			children = (
+				63AD7E4930A283B700BBC0E1 /* AppIconOption.swift */,
+				768083A8CBFABC35772DCAED /* AppIconSettingsSection.swift */,
+			);
+			path = AppIcon;
+			sourceTree = "<group>";
+		};
+		378C2256545B2F4F1DDDCD55 /* Display */ = {
+			isa = PBXGroup;
+			children = (
+				63AD7E4630A2838800BBC0E1 /* AppIcon */,
+				5078AFB12B40CA5E0038FD17 /* DisplaySettingsView.swift */,
+				AA4AEDAB7594899F5E00A721 /* TextSizeSettingsSection.swift */,
+			);
+			path = Display;
+			sourceTree = "<group>";
+		};
 		50073BDB222EFEDC000130D8 /* Download */ = {
 			isa = PBXGroup;
 			children = (
@@ -1466,7 +1493,7 @@
 				50E77DB628D2163F00BDF882 /* SettingsView.swift */,
 				503BAF332E4A1EAC00AE50B4 /* SettingsTabView.swift */,
 				631C166C2C6D61110085F62E /* NavigationTarget.swift */,
-				5078AFB12B40CA5E0038FD17 /* DisplaySettingsView.swift */,
+				378C2256545B2F4F1DDDCD55 /* Display */,
 				50791E8428D36F1F006CE6E5 /* LibrarySettingsView.swift */,
 				504B441828D6F0920033982C /* LicenseSettingsView.swift */,
 				504B441C28D7A6330033982C /* XCallbackURLsSetttingsView.swift */,
@@ -1659,6 +1686,7 @@
 			children = (
 				5095F98F23CA94BC008B0805 /* ManagedObjects */,
 				AB890C7F92FDC39784593C50 /* DownloadTest.swift */,
+				45B693103EB659F5851BB3CF /* SongsFetchedResultsControllerTest.swift */,
 				5A1C0DE5A11F00D5E7A0B001 /* SwipeActionSettingsTest.swift */,
 				A8E1C0DE5E77100000000001 /* SettingsTest.swift */,
 			);
@@ -2650,6 +2678,9 @@
 				5007CE4721EF6A8E00BC5CBA /* PlaylistDetailVC.swift in Sources */,
 				50AAB9F32F0154EB004A39C6 /* SeekToPlaybackTimeIntent.swift in Sources */,
 				5078AFB22B40CA5E0038FD17 /* DisplaySettingsView.swift in Sources */,
+				FC37DE680FB3834C0B3233ED /* TextSizeSettingsSection.swift in Sources */,
+				63AD7E4A30A283B700BBC0E1 /* AppIconOption.swift in Sources */,
+				F9A94F1437AE825A8E847487 /* AppIconSettingsSection.swift in Sources */,
 				50DEEE07265E27070073FF20 /* DirectoryTableCell.swift in Sources */,
 				5019441B2B7A049A00082D2E /* PopupPlayer+Visuals.swift in Sources */,
 				505362D12C23682500846C53 /* AlbumsCollectionVC.swift in Sources */,
@@ -2955,6 +2986,7 @@
 				E296D6CAB3E6FA2348684FC6 /* PlayQueueSaveThrottleTest.swift in Sources */,
 				50BE5D4A2850F4C900156FC6 /* SongTest.swift in Sources */,
 				3E259BB6C3BA5E7278C240AF /* DownloadTest.swift in Sources */,
+				907A960F28CAA324B82D4903 /* SongsFetchedResultsControllerTest.swift in Sources */,
 				5A1C0DE5A11F00D5E7A0B002 /* SwipeActionSettingsTest.swift in Sources */,
 				A8E1C0DE5E77100000000002 /* SettingsTest.swift in Sources */,
 				50CEC6492D1F41A400D0E696 /* RadiosExampleParserTest.swift in Sources */,

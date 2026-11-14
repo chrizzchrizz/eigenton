@@ -102,6 +102,12 @@ struct DisplaySettingsView: View {
           "Color the background of album, artist and playlist screens with the main color of the artwork. The player always uses the artwork color."
         )
 
+        // Mac Catalyst compiles alternate icons but doesn't support switching them, so only show
+        // the picker when the system allows it and there is something to choose from.
+        if UIApplication.shared.supportsAlternateIcons, AppIconOption.all.count > 1 {
+          AppIconSettingsSection()
+        }
+
         #if !targetEnvironment(macCatalyst)
           SettingsSection(
             content: {
@@ -111,6 +117,8 @@ struct DisplaySettingsView: View {
             "Certain interactions provide haptic feedback. Long pressing to display the details menu will always trigger haptic feedback."
           )
         #endif
+
+        TextSizeSettingsSection()
 
         SettingsSection(
           content: {
@@ -182,6 +190,19 @@ struct DisplaySettingsView: View {
           footer:
           "The player shuffle button is displayed but non-interactive."
         )
+
+        #if !targetEnvironment(macCatalyst)
+          SettingsSection(
+            content: {
+              SettingsCheckBoxRow(
+                title: "Collapse Toolbar Player",
+                isOn: $settings.isToolbarPlayerAutoCollapse
+              )
+            },
+            footer:
+            "Collapse the toolbar player into a compact view when scrolling"
+          )
+        #endif
       }
     }
     .navigationTitle("Display")

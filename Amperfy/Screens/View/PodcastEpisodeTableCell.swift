@@ -48,7 +48,7 @@ class PodcastEpisodeTableCell: BasicTableCell {
   @IBOutlet
   weak var playProgressLabelPlayButtonDistance: NSLayoutConstraint!
 
-  static let rowHeight: CGFloat = 143.0 + margin.bottom + margin.top
+  static var rowHeight: CGFloat { scaledRowHeight(contentHeight: 143.0) }
 
   private var episode: PodcastEpisode?
   private weak var rootView: UIViewController?

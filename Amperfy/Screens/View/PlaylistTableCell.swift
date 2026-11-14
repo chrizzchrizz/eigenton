@@ -32,7 +32,7 @@ class PlaylistTableCell: BasicTableCell {
   @IBOutlet
   weak var infoLabel: UILabel!
 
-  static let rowHeight: CGFloat = 70.0 + margin.bottom + margin.top
+  static var rowHeight: CGFloat { scaledRowHeight(contentHeight: 70.0) }
 
   private var playlist: Playlist?
   private weak var rootView: UITableViewController?

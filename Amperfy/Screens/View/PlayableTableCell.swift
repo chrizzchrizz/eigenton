@@ -141,7 +141,7 @@ class PlayableTableCell: BasicTableCell {
     MainActor.assumeIsolated {
       registerForTraitChanges([UITraitHorizontalSizeClass.self]) { (self: Self, _) in
         // duration, cache icon and label spacing depend on the size class, e.g. after resizing a window
-        self.refreshCacheAndDuration()
+        self.refreshCacheAndDuration(userSettings: self.appDelegate.storage.settings.user)
       }
       registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: Self, _) in
         self.playIndicator?.applyStyle()
@@ -374,6 +374,9 @@ class PlayableTableCell: BasicTableCell {
 
   func refresh() {
     guard let playable = playable else { return }
+    let themePreference = appDelegate.storage.settings.accounts
+      .getSetting(playable.account?.info).read.themePreference
+    let userSettings = appDelegate.storage.settings.user
     titleLabel.text = playable.title
     // the second line shows the album instead of the artist, e.g. on the screen of that artist
     if isAlbumSubtitle, let albumName = playable.asSong?.album?.name {
@@ -391,24 +394,18 @@ class PlayableTableCell: BasicTableCell {
       newStyle: isDislayAlbumTrackNumberStyle ? .trackNumber : .artwork
     )
     entityImage.display(
-      theme: appDelegate.storage.settings.accounts.getSetting(playable.account?.info).read
-        .themePreference,
+      theme: themePreference,
       container: playable
     )
     configurePlayIndicator(playable: playable)
 
     if displayMode == .selection {
       let img = UIImageView(image: isMarked ? .checkmark : .circle)
-      img.tintColor = isMarked ? appDelegate.storage.settings.accounts
-        .getSetting(playable.account?.info).read
-        .themePreference
-        .asColor : .secondaryLabelColor
+      img.tintColor = isMarked ? themePreference.asColor : .secondaryLabelColor
       accessoryView = img
     } else if displayMode == .add {
       let img = UIImageView(image: isMarked ? .checkmark : .plusCircle)
-      img.tintColor = appDelegate.storage.settings.accounts.getSetting(playable.account?.info).read
-        .themePreference
-        .asColor
+      img.tintColor = themePreference.asColor
       accessoryView = img
     } else if displayMode == .reorder || playerIndexCb != nil {
       let img = UIImageView(image: .bars)
@@ -436,10 +433,10 @@ class PlayableTableCell: BasicTableCell {
     }
 
     refreshSubtitleColor()
-    refreshCacheAndDuration()
+    refreshCacheAndDuration(userSettings: userSettings)
 
     // Update rating display for songs (only if setting is enabled)
-    if appDelegate.storage.settings.user.isShowRating, let song = playable.asSong {
+    if userSettings.isShowRating, let song = playable.asSong {
       updateRatingDisplay(rating: song.rating)
     } else {
       ratingStackView?.isHidden = true
@@ -448,10 +445,10 @@ class PlayableTableCell: BasicTableCell {
 
   private func configureTrackNumberLabel() {
     guard let playable = playable else { return }
-    trackNumberLabel.text = playable.track > 0 ? "\(playable.track)" : ""
+    trackNumberLabel.text = playable.trackInDisc > 0 ? "\(playable.trackInDisc)" : ""
   }
 
-  func refreshCacheAndDuration() {
+  func refreshCacheAndDuration(userSettings: UserSettings) {
     guard let playable = playable else { return }
     favoriteIconImage.isHidden = !playable.isFavorite
 
@@ -459,7 +456,7 @@ class PlayableTableCell: BasicTableCell {
     let isDurationVisible = !playable.isRadio &&
       (
         traitCollection.horizontalSizeClass == .regular ||
-          appDelegate.storage.settings.user.isShowSongDuration
+          userSettings.isShowSongDuration
       )
     let isDisplayOptionButton = (playContextCb != nil) && (playerIndexCb == nil)
     optionsButton.isHidden = !isDisplayOptionButton
@@ -494,7 +491,7 @@ class PlayableTableCell: BasicTableCell {
     // needs more space if the stars are wider than that.
     let labelToAccessoriesGap = 8.0
     let songRating = playable.asSong?.rating ?? 0
-    let isRatingVisible = appDelegate.storage.settings.user.isShowRating && songRating > 0
+    let isRatingVisible = userSettings.isShowRating && songRating > 0
     let starWidth = CGFloat(songRating * 8 + 2)
     let ratingExtraSpace: CGFloat = (isRatingVisible && !isDurationVisible) ?
       max(0, starWidth - 30) : 0.0
@@ -528,7 +525,7 @@ class PlayableTableCell: BasicTableCell {
           let playable, playable.uniqueID == downloadNotification.id
     else { return }
     isDownloadRunning = (notification.name == .downloadStarted)
-    refreshCacheAndDuration()
+    refreshCacheAndDuration(userSettings: appDelegate.storage.settings.user)
   }
 
   private func refreshSubtitleColor() {

@@ -43,6 +43,12 @@ struct SupportSettingsView: View {
               UIApplication.shared.open(url)
             }
           }
+          ShareLink(
+            item: AmperfyLogExport(),
+            preview: SharePreview(AmperfyLogExport.fileName)
+          ) {
+            Text("Export log")
+          }
         }
 
         SettingsSection {
@@ -62,6 +68,24 @@ struct SupportSettingsView: View {
     .onAppear {
       appDelegate.userStatistics.visited(.settingsSupport)
     }
+  }
+}
+
+// MARK: - AmperfyLogExport
+
+/// The support log as `EigentonLog.json`, collected only when a share destination asks for it.
+struct AmperfyLogExport: Transferable {
+  static let fileName = "EigentonLog.json"
+
+  static var transferRepresentation: some TransferRepresentation {
+    DataRepresentation(exportedContentType: .json) { _ in
+      let data = await MainActor.run {
+        LogData.collectInformation(amperfyData: AmperKit.shared).asJSONData()
+      }
+      guard let data else { throw CocoaError(.fileWriteUnknown) }
+      return data
+    }
+    .suggestedFileName(fileName)
   }
 }
 
