@@ -85,14 +85,16 @@ class AlbumCollectionCell: BasicCollectionCell {
     container: PlayableContainable,
     rootView: UICollectionViewController,
     rootFlowLayout: UICollectionViewDelegateFlowLayout,
-    initialIndexPath: IndexPath
+    initialIndexPath: IndexPath,
+    subtitle: String? = nil
   ) {
     self.rootFlowLayout = rootFlowLayout
     itemWidth = nil
     apply(
       container: container,
       rootView: rootView,
-      initialIndexPath: initialIndexPath
+      initialIndexPath: initialIndexPath,
+      subtitle: subtitle
     )
   }
 
@@ -100,12 +102,13 @@ class AlbumCollectionCell: BasicCollectionCell {
     container: PlayableContainable,
     rootView: UICollectionViewController,
     initialIndexPath: IndexPath,
-    isImageCircular: Bool = false
+    isImageCircular: Bool = false,
+    subtitle: String? = nil
   ) {
     self.container = container
     self.rootView = rootView
     titleLabel.text = container.name
-    subtitleLabel.text = container.subtitle
+    subtitleLabel.text = subtitle ?? container.subtitle
     entityImage.display(
       theme: appDelegate.storage.settings.accounts.getSetting(container.account?.info).read
         .themePreference,

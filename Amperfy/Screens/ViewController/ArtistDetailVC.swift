@@ -837,7 +837,9 @@ final class ArtistAlbumsGridVC: UICollectionViewController, UICollectionViewDele
         container: album,
         rootView: self,
         rootFlowLayout: self,
-        initialIndexPath: indexPath
+        initialIndexPath: indexPath,
+        // the release year instead of the artist, which is known on this screen
+        subtitle: album.year > 0 ? "\(album.year)" : ""
       )
     }
     return cell
