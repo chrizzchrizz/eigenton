@@ -75,7 +75,15 @@ class MOCK_AudioStreamingPlayer: AudioStreamingPlayer {
     }
   }
 
+  /// URLs handed to the player, in order
+  nonisolated(unsafe) private var _playedURLs = [URL]()
+  nonisolated(unsafe) private var _queuedURLs = [URL]()
+  private let _urlsLock = NSLock()
+  nonisolated public var playedURLs: [URL] { _urlsLock.withLock { _playedURLs } }
+  nonisolated public var queuedURLs: [URL] { _urlsLock.withLock { _queuedURLs } }
+
   override func play(url: URL) {
+    _urlsLock.withLock { _playedURLs.append(url) }
     Self.delegateBackup = delegate
     playCount += 1
     mockElapsedTime = 0.0
@@ -100,7 +108,10 @@ class MOCK_AudioStreamingPlayer: AudioStreamingPlayer {
     isStopped = true
   }
 
-  override func queue(url: URL) {}
+  override func queue(url: URL) {
+    _urlsLock.withLock { _queuedURLs.append(url) }
+  }
+
   override func seek(to time: Double) {
     mockElapsedTime = time
   }
@@ -1078,7 +1089,8 @@ class MusicPlayerTest: XCTestCase {
 
   func testPlayMulitpleSongs_WaitingQueuePlaying() {
     mockMusicPlayable.expectationDidStartPlaying = expectation(description: "download is triggered")
-    mockMusicPlayable.expectationDidStartPlaying!.expectedFulfillmentCount = 2
+    // two play requests in a row, only the newer one starts playing
+    mockMusicPlayable.expectationDidStartPlaying!.expectedFulfillmentCount = 1
     prepareWithCachedPlaylist()
     playerData.setCurrentIndex(1)
     guard let songId0 = library.getSong(
@@ -1112,7 +1124,8 @@ class MusicPlayerTest: XCTestCase {
 
   func testPlayMulitpleSongs_WaitingQueuePlaying2() {
     mockMusicPlayable.expectationDidStartPlaying = expectation(description: "download is triggered")
-    mockMusicPlayable.expectationDidStartPlaying!.expectedFulfillmentCount = 2
+    // two play requests in a row, only the newer one starts playing
+    mockMusicPlayable.expectationDidStartPlaying!.expectedFulfillmentCount = 1
     prepareWithCachedPlaylist()
     playerData.setCurrentIndex(1)
     guard let songId0 = library.getSong(
@@ -1197,7 +1210,8 @@ class MusicPlayerTest: XCTestCase {
 
   func testPlaySong_WaitingQueuePlaying9() {
     mockMusicPlayable.expectationDidStartPlaying = expectation(description: "download is triggered")
-    mockMusicPlayable.expectationDidStartPlaying?.expectedFulfillmentCount = 2
+    // two play requests in a row, only the newer one starts playing
+    mockMusicPlayable.expectationDidStartPlaying?.expectedFulfillmentCount = 1
     prepareWithCachedPlaylist()
     playerData.setCurrentIndex(1)
     guard let songId0 = library.getSong(
@@ -1285,7 +1299,8 @@ class MusicPlayerTest: XCTestCase {
 
   func testPlayMulitpleSongs_WaitingQueuePlaying5() {
     mockMusicPlayable.expectationDidStartPlaying = expectation(description: "download is triggered")
-    mockMusicPlayable.expectationDidStartPlaying!.expectedFulfillmentCount = 2
+    // two play requests in a row, only the newer one starts playing
+    mockMusicPlayable.expectationDidStartPlaying!.expectedFulfillmentCount = 1
     prepareWithCachedPlaylist()
     playerData.setCurrentIndex(1)
     guard let songId0 = library.getSong(
@@ -1946,7 +1961,8 @@ class MusicPlayerTest: XCTestCase {
 
   func testPauseRadio() {
     mockMusicPlayable.expectationDidStartPlaying = expectation(description: "DidStartPlaying")
-    mockMusicPlayable.expectationDidStartPlaying!.expectedFulfillmentCount = 2
+    // two play requests in a row, only the newer one starts playing
+    mockMusicPlayable.expectationDidStartPlaying!.expectedFulfillmentCount = 1
 
     let radios = library.getRadios(for: account)
     XCTAssertEqual(radios.count, 4)
@@ -2078,7 +2094,8 @@ class MusicPlayerTest: XCTestCase {
 
   func testPlayNext_StartPlayIfPaused() {
     mockMusicPlayable.expectationDidStartPlaying = expectation(description: "download is triggered")
-    mockMusicPlayable.expectationDidStartPlaying!.expectedFulfillmentCount = 2
+    // two play requests in a row, only the newer one starts playing
+    mockMusicPlayable.expectationDidStartPlaying!.expectedFulfillmentCount = 1
     prepareWithCachedPlaylist()
     testPlayer.play(playerIndex: PlayerIndex(queueType: .next, index: 3))
     testMusicPlayer.pause()
@@ -2090,7 +2107,8 @@ class MusicPlayerTest: XCTestCase {
 
   func testPlayNext_IsPlayingStaysTrue() {
     mockMusicPlayable.expectationDidStartPlaying = expectation(description: "download is triggered")
-    mockMusicPlayable.expectationDidStartPlaying!.expectedFulfillmentCount = 2
+    // two play requests in a row, only the newer one starts playing
+    mockMusicPlayable.expectationDidStartPlaying!.expectedFulfillmentCount = 1
     prepareWithCachedPlaylist()
     testPlayer.play(playerIndex: PlayerIndex(queueType: .next, index: 3))
     testPlayer.playNext()

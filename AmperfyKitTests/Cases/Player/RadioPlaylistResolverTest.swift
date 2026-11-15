@@ -22,6 +22,8 @@
 @testable import AmperfyKit
 import XCTest
 
+// MARK: - RadioPlaylistResolverTest
+
 final class RadioPlaylistResolverTest: XCTestCase {
   let base = URL(string: "https://radio.example/stream/station.m3u")!
 
@@ -229,6 +231,44 @@ final class RadioPlaylistResolverTest: XCTestCase {
     XCTAssertEqual(resolved.absoluteString, "http://stream.example/live")
   }
 
+  func testResolve_HTMLPageBehindPlaylistExtension_ThrowsInvalidPlaylist() async {
+    server.serve(
+      path: "/station.m3u",
+      data: Data("<!DOCTYPE html>\n<html>\n<body>Station moved</body>\n</html>\n".utf8),
+      contentType: "text/html; charset=utf-8"
+    )
+    do {
+      _ = try await RadioPlaylistResolver.resolve(url: server.url(path: "/station.m3u"))
+      XCTFail("expected an error")
+    } catch {
+      XCTAssertTrue(error is RadioPlaylistResolver.InvalidPlaylistError)
+    }
+  }
+
+  func testResolve_HTMLPageWithoutContentType_ThrowsInvalidPlaylist() async {
+    server.serve(
+      path: "/station.pls",
+      data: Data("<html><head><title>Login</title></head></html>".utf8),
+      contentType: "application/octet-stream"
+    )
+    do {
+      _ = try await RadioPlaylistResolver.resolve(url: server.url(path: "/station.pls"))
+      XCTFail("expected an error")
+    } catch {
+      XCTAssertTrue(error is RadioPlaylistResolver.InvalidPlaylistError)
+    }
+  }
+
+  func testResolve_M3UTitleContainingPlaylistHeader_IsParsedAsM3U() async throws {
+    server.serve(
+      path: "/station.m3u",
+      data: Data("#EXTM3U\n#EXTINF:-1,Best of [Playlist] Radio\nhttp://stream.example/live\n".utf8),
+      contentType: "audio/x-mpegurl"
+    )
+    let resolved = try await RadioPlaylistResolver.resolve(url: server.url(path: "/station.m3u"))
+    XCTAssertEqual(resolved.absoluteString, "http://stream.example/live")
+  }
+
   func testResolve_NotFound_ThrowsInvalidPlaylist() async {
     do {
       _ = try await RadioPlaylistResolver.resolve(url: server.url(path: "/missing.m3u"))
@@ -242,5 +282,160 @@ final class RadioPlaylistResolverTest: XCTestCase {
     XCTAssertEqual(RadioPlaylistResolver.format(ofContent: "[playlist]\nFile1=http://a"), .pls)
     XCTAssertEqual(RadioPlaylistResolver.format(ofContent: "File1=http://a\n"), .pls)
     XCTAssertEqual(RadioPlaylistResolver.format(ofContent: "#EXTM3U\nhttp://a\n"), .m3u)
+    XCTAssertEqual(
+      RadioPlaylistResolver.format(ofContent: "\u{FEFF}[Playlist]\r\nFile1=http://a"),
+      .pls
+    )
+    XCTAssertEqual(
+      RadioPlaylistResolver.format(ofContent: "numberofentries=1\nFile2=http://a"),
+      .pls
+    )
+    XCTAssertEqual(
+      RadioPlaylistResolver.format(ofContent: "#EXTM3U\n#EXTINF:-1,My [Playlist]\nhttp://a\n"),
+      .m3u
+    )
+    XCTAssertEqual(RadioPlaylistResolver.format(ofContent: "http://a/file1=b\n"), .m3u)
+  }
+
+  func testLooksLikeMarkup() {
+    XCTAssertTrue(RadioPlaylistResolver.looksLikeMarkup(Data("  <!DOCTYPE html>".utf8)))
+    XCTAssertTrue(RadioPlaylistResolver.looksLikeMarkup(Data("\u{FEFF}<?xml version".utf8)))
+    XCTAssertFalse(RadioPlaylistResolver.looksLikeMarkup(Data("#EXTM3U\n".utf8)))
+    XCTAssertFalse(RadioPlaylistResolver.looksLikeMarkup(Data([0xFF, 0xFB, 0x90, 0x64])))
+  }
+}
+
+// MARK: - RadioPlaylistPlayerTest
+
+/// The player side of radio playlists: requests and preloads that wait for a playlist
+@MainActor
+final class RadioPlaylistPlayerTest: XCTestCase {
+  var cdHelper: CoreDataHelper!
+  var library: LibraryStorage!
+  var account: Account!
+  var mockAudioStreamingPlayer: MOCK_AudioStreamingPlayer!
+  var backendPlayer: BackendAudioPlayer!
+  var server: LocalAudioServer!
+  var nextPlayable: AbstractPlayable?
+
+  override func setUp() async throws {
+    server = LocalAudioServer()
+    try await server.start()
+
+    cdHelper = CoreDataHelper()
+    library = cdHelper.createSeededStorage()
+    account = library.getAccount(info: TestAccountInfo.create1())
+    mockAudioStreamingPlayer = MOCK_AudioStreamingPlayer()
+    let storage = PersistentStorage(
+      coreDataManager: MOCK_CoreDataManager(persistentContainer: cdHelper.persistentContainer)
+    )
+    let backendApi = MOCK_BackendApi()
+    backendPlayer = BackendAudioPlayer(
+      createAudioStreamingPlayerCB: { self.mockAudioStreamingPlayer },
+      audioSessionHandler: AudioSessionHandler(),
+      eventLogger: EventLogger(storage: storage),
+      getBackendApiCB: { _ in backendApi },
+      networkMonitor: MOCK_NetworkMonitor(),
+      cacheProxy: library,
+      userStatistics: library.getUserStatistics(appVersion: "")
+    )
+    backendPlayer.nextPlayablePreloadCB = { [weak self] in self?.nextPlayable }
+  }
+
+  override func tearDown() async throws {
+    server.stop()
+    server = nil
+  }
+
+  func url(path: String) -> URL {
+    server.url(path: path)
+  }
+
+  var requestCount: Int {
+    server.requests.count
+  }
+
+  func createRadio(url: URL) -> Radio {
+    let radio = library.createRadio(account: account)
+    radio.url = url.absoluteString
+    return radio
+  }
+
+  /// A radio behind a .m3u link, answered after `delay`
+  func createPlaylistRadio(path: String, stream: URL, delay: TimeInterval = 0) -> Radio {
+    server.serve(
+      path: path,
+      data: Data("\(stream.absoluteString)\n".utf8),
+      contentType: "audio/x-mpegurl"
+    )
+    if delay > 0 {
+      server.delayResponses(path: path, by: delay)
+    }
+    return createRadio(url: url(path: path))
+  }
+
+  func play(_ playable: AbstractPlayable) {
+    backendPlayer.requestToPlay(playable: playable, playbackRate: .one, autoStartPlayback: true)
+  }
+
+  func waitUntil(
+    timeout: TimeInterval = 3,
+    _ condition: @escaping () -> Bool
+  ) async {
+    let deadline = Date().addingTimeInterval(timeout)
+    while !condition(), Date() < deadline {
+      try? await Task.sleep(nanoseconds: 20_000_000)
+    }
+  }
+
+  func wait(seconds: TimeInterval) async {
+    try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+  }
+
+  func testPlay_SlowPlaylistReplacedByNewerRequest_DoesNotTakeOver() async {
+    let slowStream = url(path: "/slow.mp3")
+    let slowRadio = createPlaylistRadio(path: "/slow.m3u", stream: slowStream, delay: 0.3)
+    let fastStream = url(path: "/fast.mp3")
+    play(slowRadio)
+    play(createRadio(url: fastStream))
+    await waitUntil { self.mockAudioStreamingPlayer.playedURLs.contains(fastStream) }
+    // the slow playlist answers after the newer request started
+    await wait(seconds: 0.6)
+    XCTAssertEqual(mockAudioStreamingPlayer.playedURLs, [fastStream])
+  }
+
+  func testPlay_PreloadedRadioStillLoadingWhenSongEnds_IsPlayed() async {
+    play(createRadio(url: url(path: "/current.mp3")))
+    let nextStream = url(path: "/next.mp3")
+    let nextRadio = createPlaylistRadio(path: "/next.m3u", stream: nextStream, delay: 0.3)
+    nextPlayable = nextRadio
+    backendPlayer.preloadNextPlayable()
+    // the current item ends before the playlist of the preload is read
+    play(nextRadio)
+    await waitUntil { self.mockAudioStreamingPlayer.playedURLs.contains(nextStream) }
+    XCTAssertEqual(mockAudioStreamingPlayer.playedURLs.last, nextStream)
+    // the late preload must not be queued behind the stream that is playing now
+    await wait(seconds: 0.4)
+    XCTAssertTrue(mockAudioStreamingPlayer.queuedURLs.isEmpty)
+  }
+
+  func testPreload_FailedPlaylist_NotRepeatedUntilNextRequest() async {
+    play(createRadio(url: url(path: "/current.mp3")))
+    server.httpStatus = 503
+    nextPlayable = createPlaylistRadio(path: "/next.m3u", stream: url(path: "/next.mp3"))
+    backendPlayer.preloadNextPlayable()
+    await waitUntil { self.requestCount == 1 }
+    await wait(seconds: 0.1)
+    // further timer ticks within the preload window
+    backendPlayer.preloadNextPlayable()
+    backendPlayer.preloadNextPlayable()
+    await wait(seconds: 0.2)
+    XCTAssertEqual(requestCount, 1)
+
+    // a new request allows the next preload to try again
+    play(createRadio(url: url(path: "/other.mp3")))
+    backendPlayer.preloadNextPlayable()
+    await waitUntil { self.requestCount == 2 }
+    XCTAssertEqual(requestCount, 2)
   }
 }
