@@ -88,14 +88,6 @@ extension Int64 {
 }
 
 extension Int {
-  public mutating func setOtherRandomValue(in targetRange: ClosedRange<Int>) {
-    var newValue = 0
-    repeat {
-      newValue = Int.random(in: targetRange)
-    } while newValue == self
-    self = newValue
-  }
-
   public func roundDownToFractionOf(_ value: Int) -> Int {
     (self / value) * value
   }
@@ -128,31 +120,9 @@ extension Int {
     formatter.unitsStyle = .abbreviated
     return formatter.string(from: TimeInterval(self))!
   }
-
-  public var asMinuteString: String {
-    let formatter = DateComponentsFormatter()
-    formatter.allowedUnits = [.minute]
-    formatter.unitsStyle = .short
-    return formatter.string(from: TimeInterval(self))!
-  }
-
-  public var asDayString: String {
-    let formatter = DateComponentsFormatter()
-    formatter.allowedUnits = [.day]
-    formatter.unitsStyle = .short
-    return formatter.string(from: TimeInterval(self))!
-  }
 }
 
 extension String {
-  public func isFoundBy(searchText: String) -> Bool {
-    lowercased().contains(searchText.lowercased())
-  }
-
-  public func isContainedIn(_ container: [String]) -> Bool {
-    container.contains(self)
-  }
-
   public var asIso8601Date: Date? {
     let dateFormatter = ISO8601DateFormatter()
     return dateFormatter.date(from: self)
@@ -187,10 +157,6 @@ extension String {
     return (components[0] * 60 * 24) + (components[1] * 60) + components[2]
   }
 
-  public static var defaultSectionInital: String.Element {
-    "?"
-  }
-
   public var sectionInitial: String {
     guard !isEmpty else { return "?" }
     let initial = String(
@@ -217,11 +183,6 @@ extension String {
   public static func generateRandomString(ofLength length: Int) -> String {
     let letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     return String((0 ..< length).map { _ in letters.randomElement()! })
-  }
-
-  public func deletingPrefix(_ prefix: String) -> String {
-    guard hasPrefix(prefix) else { return self }
-    return String(dropFirst(prefix.count))
   }
 
   private var html2AttributedString: NSAttributedString? {
@@ -343,46 +304,8 @@ extension UIColor {
     UIColor(displayP3Red: 0 / 255, green: 122 / 255, blue: 1.0, alpha: 1.0)
   }
 
-  public static var gold: UIColor {
-    UIColor(displayP3Red: 241 / 255, green: 194 / 255, blue: 66 / 255, alpha: 1.0)
-  }
-
-  public static var labelColor: UIColor {
-    if #available(iOS 13.0, *) {
-      return UIColor.label
-    } else {
-      return UIColor.black
-    }
-  }
-
   public static var redHeart: UIColor {
     .red.withAlphaComponent(0.8)
-  }
-
-  public static var fillColor: UIColor {
-    if #available(iOS 13.0, *) {
-      return UIColor.systemFill
-    } else {
-      return UIColor(displayP3Red: 217 / 255, green: 214 / 255, blue: 209 / 255, alpha: 1.0)
-    }
-  }
-
-  public static var secondaryLabelColor: UIColor {
-    if #available(iOS 13.0, *) {
-      return UIColor.secondaryLabel
-    } else {
-      return UIColor.systemGray
-    }
-  }
-}
-
-extension UIActivityIndicatorView {
-  public static var defaultStyle: Style {
-    if #available(iOS 13.0, *) {
-      return .medium
-    } else {
-      return .gray
-    }
   }
 }
 
@@ -476,16 +399,6 @@ extension Array {
   }
 }
 
-extension Array where Element: Equatable {
-  public func allIndices(of element: Element) -> [Int] {
-    enumerated().filter {
-      $0.element == element
-    }.map {
-      $0.offset
-    }
-  }
-}
-
 extension Array where Element: Hashable {
   /// The elements without duplicates, followed by the ones of `allElements` missing (e.g. new cases).
   /// Used to complete an order arranged by the user.
@@ -496,27 +409,7 @@ extension Array where Element: Hashable {
   }
 }
 
-extension Array where Element == String {
-  public func sortAlphabeticallyAscending() -> [String] {
-    sorted { $0.localizedStandardCompare($1) == ComparisonResult.orderedAscending }
-  }
-
-  public func sortAlphabeticallyDescending() -> [String] {
-    sorted { $0.localizedStandardCompare($1) == ComparisonResult.orderedDescending }
-  }
-}
-
 extension UIView {
-  public func setGradientBackground(colorTop: UIColor, colorBottom: UIColor) {
-    let gradientLayer = CAGradientLayer()
-    gradientLayer.colors = [colorBottom.cgColor, colorTop.cgColor]
-    gradientLayer.startPoint = CGPoint(x: 0.5, y: 1.0)
-    gradientLayer.endPoint = CGPoint(x: 0.5, y: 0.0)
-    gradientLayer.locations = [0, 1]
-    gradientLayer.frame = bounds
-    layer.insertSublayer(gradientLayer, at: 0)
-  }
-
   public var screenshot: UIImage? {
     UIGraphicsBeginImageContextWithOptions(layer.frame.size, false, 0)
     defer {

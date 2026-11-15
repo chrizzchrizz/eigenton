@@ -284,12 +284,6 @@ public struct AmperfyImage: Sendable {
 
 @MainActor
 extension UIImage {
-  public static func symbolImageSize(scale: UIImage.SymbolScale) -> CGSize {
-    let config = UIImage.SymbolConfiguration(scale: scale)
-    let image = UIImage(systemName: AmperfyImage.plus.systemName, withConfiguration: config)!
-    return image.size
-  }
-
   public static let airplayaudio = UIImage.create(systemName: AmperfyImage.airplayaudio.systemName)
   public static let album = UIImage.create(systemName: AmperfyImage.album.systemName)
   public static let antenna = UIImage.create(systemName: AmperfyImage.antenna.systemName)
@@ -545,12 +539,6 @@ extension UIImage {
     )
     buildView.layoutIfNeeded()
     return buildView.screenshot ?? UIImage()
-  }
-
-  public func styleForNavigationBar(pointSize: CGFloat, tintColor: UIColor) -> UIImage {
-    let navBarSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: pointSize)
-    let img = applyingSymbolConfiguration(navBarSymbolConfiguration) ?? UIImage()
-    return img.withTintColor(tintColor)
   }
 }
 

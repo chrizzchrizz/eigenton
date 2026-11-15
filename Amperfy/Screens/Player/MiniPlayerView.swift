@@ -193,6 +193,7 @@ class MiniPlayerView: UIView {
     )
     button.imageView?.tintColor = .label
     button.showsMenuAsPrimaryAction = true
+    button.accessibilityLabel = "More"
     return button
   }()
 
@@ -287,6 +288,7 @@ class MiniPlayerView: UIView {
     let button = UIButton(configuration: config)
     button.tintColor = .label
     button.addTarget(self, action: #selector(Self.lyricsPressed), for: .touchUpInside)
+    button.accessibilityLabel = "Lyrics"
     return button
   }()
 
@@ -352,6 +354,7 @@ class MiniPlayerView: UIView {
     let button = UIButton(configuration: config)
     button.tintColor = .label
     button.addTarget(self, action: #selector(Self.airplayButtonPushed), for: .touchUpInside)
+    button.accessibilityLabel = "AirPlay"
     return button
   }()
 
@@ -806,6 +809,9 @@ class MiniPlayerView: UIView {
     addGestureRecognizer(tapGesture)
 
     miniPlayerGotTouchedView.translatesAutoresizingMaskIntoConstraints = false
+    miniPlayerGotTouchedView.isAccessibilityElement = true
+    miniPlayerGotTouchedView.accessibilityLabel = "Open Player"
+    miniPlayerGotTouchedView.accessibilityTraits = .button
     artworkImage.translatesAutoresizingMaskIntoConstraints = false
     titleLabel.translatesAutoresizingMaskIntoConstraints = false
     subtitleLabel.translatesAutoresizingMaskIntoConstraints = false

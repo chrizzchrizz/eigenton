@@ -273,7 +273,7 @@ public class MetaManager {
     )
     return BackgroundLibrarySyncer(
       storage: storage.async,
-      mainStorage: storage.main,
+      account: account,
       settings: storage.settings,
       networkMonitor: networkMonitor,
       librarySyncer: librarySyncer,
@@ -293,11 +293,20 @@ public class MetaManager {
     )
   }()
 
+  private var isStarted = false
+
   public func startManagerAfterSync(player: PlayerFacade) {
     os_log("Start background manager after sync", log: self.log, type: .info)
+    // Already started at launch while its initial sync was resumed: only the background
+    // library sync is left
+    guard !isStarted else {
+      startBackgroundLibrarySyncerIfNoResumePending()
+      return
+    }
+    isStarted = true
     playableDownloadManager.start()
     artworkDownloadManager.start()
-    backgroundLibrarySyncer.start()
+    startBackgroundLibrarySyncerIfNoResumePending()
     let scrobbler = createScrobbleSyncer(player: player)
     player.addNotifier(notifier: scrobbler)
     player.addNotifier(notifier: createPlayQueueSyncer(player: player))
@@ -305,18 +314,34 @@ public class MetaManager {
 
   public func startManagerForNormalOperation(player: PlayerFacade) {
     os_log("Start background manager for normal operation", log: self.log, type: .info)
-    duplicateEntitiesResolver.start()
+    guard !isStarted else { return }
+    isStarted = true
+    // Not while the active account's initial sync can be resumed (only the active account is
+    // resumed): it would run alongside the resume's writes, so it waits until a launch after
+    // that sync has completed or was skipped
+    let isResumeCandidate = account.info == storage.settings.accounts.active
+      && storage.settings.accounts.getSetting(account.info).read.isInitialSyncResumable
+    if !isResumeCandidate {
+      duplicateEntitiesResolver.start()
+    }
     artworkDownloadManager.start()
     playableDownloadManager.start()
-    backgroundLibrarySyncer.start()
+    startBackgroundLibrarySyncerIfNoResumePending()
     let scrobbler = createScrobbleSyncer(player: player)
     player.addNotifier(notifier: scrobbler)
     scrobbler.start()
     player.addNotifier(notifier: createPlayQueueSyncer(player: player))
   }
 
+  private func startBackgroundLibrarySyncerIfNoResumePending() {
+    guard !storage.settings.accounts.getSetting(account.info).read.isInitialSyncResumable
+    else { return }
+    backgroundLibrarySyncer.start()
+  }
+
   public func stopManager() {
     os_log("Start meta managers", log: self.log, type: .info)
+    isStarted = false
     scrobbleSyncer?.stop()
     scrobbleSyncer = nil
     playQueueSyncer = nil

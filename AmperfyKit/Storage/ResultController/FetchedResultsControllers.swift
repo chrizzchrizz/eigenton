@@ -1037,19 +1037,6 @@ public class PlaylistSelectorFetchedResultsController: CachedFetchedResultsContr
   }
 }
 
-// MARK: - ErrorLogFetchedResultsController
-
-public class ErrorLogFetchedResultsController: BasicFetchedResultsController<LogEntryMO> {
-  public init(coreDataCompanion: CoreDataCompanion, isGroupedInAlphabeticSections: Bool) {
-    let fetchRequest = LogEntryMO.creationDateSortedFetchRequest
-    super.init(
-      coreDataCompanion: coreDataCompanion,
-      fetchRequest: fetchRequest,
-      isGroupedInAlphabeticSections: isGroupedInAlphabeticSections
-    )
-  }
-}
-
 // MARK: - MusicFolderFetchedResultsController
 
 public class MusicFolderFetchedResultsController: CachedFetchedResultsController<MusicFolderMO> {
