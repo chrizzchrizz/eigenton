@@ -35,6 +35,12 @@ class ArtistDetailVC: MultiSourceTableViewController {
   }
 
   private static let topSongsLimit = 25
+  /// How long the top songs section waits for the server before the local list is shown
+  private static let serverTopSongsTimeout: Duration = .milliseconds(1500)
+  /// The server's top songs per artist while the app runs, so a revisit shows them at once without
+  /// asking the server again. Only the object IDs are kept, so the songs can turn back into faults.
+  /// Empty answers are not kept: without network or with Ampache the server is not asked at all.
+  private static var serverTopSongsCache = [NSManagedObjectID: [NSManagedObjectID]]()
   private static let titleFontSizeIncrease: CGFloat = 10
 
   fileprivate let artist: Artist
@@ -57,8 +63,11 @@ class ArtistDetailVC: MultiSourceTableViewController {
   private var topSongsGridVC: ArtistTopSongsGridVC!
   private var similarContentFooter: SimilarContentFooterView?
   private var isLoadingSimilarContent = false
-  /// Top songs ranked by the server; replace the locally computed ones as soon as they arrive.
+  /// Top songs ranked by the server; replace the locally computed ones when known at first display.
   private var serverTopSongs = [Song]()
+  /// Until the server answered or the timeout passed, the top songs section keeps the space of the
+  /// list empty, so the displayed list is not replaced by another one and the albums do not move.
+  private var isWaitingForServerTopSongs = false
   private var isLoadingServerTopSongs = false
   private var didLoadServerTopSongs = false
   private var isLoadingArtistURL = false
@@ -66,10 +75,18 @@ class ArtistDetailVC: MultiSourceTableViewController {
   private var artistURL: URL?
   /// The search filters the local songs only, so the server's list is not shown while searching.
   private var isSearchingTopSongs = false
+  private enum TopSongsSource {
+    /// waiting for the server, the space of the list is kept empty
+    case pending
+    case server
+    case local
+  }
+
   /// Offline, the server's songs are mostly not playable, so the local list is shown.
-  private var isShowingServerTopSongs: Bool {
-    !serverTopSongs.isEmpty && !isSearchingTopSongs
-      && !appDelegate.storage.settings.user.isOfflineMode
+  private var topSongsSource: TopSongsSource {
+    if isSearchingTopSongs || appDelegate.storage.settings.user.isOfflineMode { return .local }
+    if isWaitingForServerTopSongs { return .pending }
+    return serverTopSongs.isEmpty ? .local : .server
   }
 
   init(account: Account, artist: Artist) {
@@ -180,6 +197,18 @@ class ArtistDetailVC: MultiSourceTableViewController {
     tableView.backgroundColor = .clear
 
     configureSearchController(placeholder: "Albums and Songs", scopeButtonTitles: ["All", "Cached"])
+    if let cachedSongIDs = Self.serverTopSongsCache[artist.managedObject.objectID] {
+      // songs deleted from the library since then are dropped
+      let context = appDelegate.storage.main.context
+      serverTopSongs = cachedSongIDs.compactMap { objectID in
+        guard let songMO = try? context.existingObject(with: objectID) as? SongMO,
+              !songMO.isDeleted else { return nil }
+        return Song(managedObject: songMO)
+      }
+      didLoadServerTopSongs = true
+    } else {
+      isWaitingForServerTopSongs = !appDelegate.storage.settings.user.isOfflineMode
+    }
     let artist = artist
     let playShuffleInfoConfig = PlayShuffleInfoConfiguration(
       infoCB: {
@@ -337,9 +366,17 @@ class ArtistDetailVC: MultiSourceTableViewController {
 
   /// The server knows the popular songs of an artist (e.g. from Last.fm), the play counts of the
   /// local library only reflect what has been played. A failing or empty answer keeps the local list.
+  /// A displayed list is never replaced: an answer after the timeout only fills the cache, which the
+  /// next visit shows.
   private func loadServerTopSongs() {
     guard !didLoadServerTopSongs, !isLoadingServerTopSongs else { return }
     isLoadingServerTopSongs = true
+    if isWaitingForServerTopSongs {
+      Task { @MainActor [weak self] in
+        try? await Task.sleep(for: Self.serverTopSongsTimeout)
+        self?.stopWaitingForServerTopSongs()
+      }
+    }
     Task { @MainActor [weak self] in
       guard let self else { return }
       defer { isLoadingServerTopSongs = false }
@@ -349,13 +386,24 @@ class ArtistDetailVC: MultiSourceTableViewController {
           .requestTopSongs(artist: artist, count: Self.topSongsLimit)
           .filter { $0.artist == artist }
         didLoadServerTopSongs = true
-        guard !songs.isEmpty else { return }
-        serverTopSongs = songs
-        reloadSectionsAndGrids([.topSongs])
+        if !songs.isEmpty {
+          Self.serverTopSongsCache[artist.managedObject.objectID] = songs
+            .map(\.managedObject.objectID)
+        }
+        stopWaitingForServerTopSongs(with: songs)
       } catch {
         appDelegate.eventLogger.report(topic: "Top Songs", error: error, displayPopup: false)
+        stopWaitingForServerTopSongs()
       }
     }
+  }
+
+  /// Shows the top songs section, with the server's songs if they arrived in time.
+  private func stopWaitingForServerTopSongs(with songs: [Song] = []) {
+    guard isWaitingForServerTopSongs else { return }
+    isWaitingForServerTopSongs = false
+    serverTopSongs = songs
+    reloadSectionsAndGrids([.topSongs])
   }
 
   private func loadSimilarContent() {
@@ -409,22 +457,41 @@ class ArtistDetailVC: MultiSourceTableViewController {
   /// The top songs of the server, otherwise the most played songs of the local library.
   /// The fetched results controller ignores a fetch limit, so the songs are limited here.
   private var topSongs: [Song] {
-    if isShowingServerTopSongs {
+    switch topSongsSource {
+    case .pending:
+      return []
+    case .server:
       return Array(serverTopSongs.prefix(Self.topSongsLimit))
+    case .local:
+      return (topSongsFetchedResultsController.fetchedObjects ?? [])
+        .prefix(Self.topSongsLimit)
+        .map { Song(managedObject: $0) }
     }
-    return (topSongsFetchedResultsController.fetchedObjects ?? [])
-      .prefix(Self.topSongsLimit)
-      .map { Song(managedObject: $0) }
   }
 
   private var topSongCount: Int {
-    if isShowingServerTopSongs {
+    switch topSongsSource {
+    case .pending:
+      return 0
+    case .server:
       return min(serverTopSongs.count, Self.topSongsLimit)
+    case .local:
+      return localTopSongCount
     }
-    return min(
-      topSongsFetchedResultsController.sections?[0].numberOfObjects ?? 0,
-      Self.topSongsLimit
-    )
+  }
+
+  private var localTopSongCount: Int {
+    min(topSongsFetchedResultsController.sections?[0].numberOfObjects ?? 0, Self.topSongsLimit)
+  }
+
+  /// While waiting, the section is shown empty with the height the local list would take.
+  private var isTopSongsSectionShown: Bool {
+    topSongsSource == .pending ? localTopSongCount > 0 : topSongCount > 0
+  }
+
+  private var topSongsRowHeight: CGFloat {
+    guard topSongsSource == .pending else { return topSongsGridVC.contentHeight }
+    return ArtistTopSongsGridVC.contentHeight(songCount: localTopSongCount)
   }
 
   /// Plays the displayed top songs, starting with the selected one.
@@ -473,7 +540,7 @@ class ArtistDetailVC: MultiSourceTableViewController {
       return (compilationsFetchedResultsController.sections?[0].numberOfObjects ?? 0) > 0 ? 1 : 0
     case .topSongs:
       // all top songs are shown in one horizontally scrolling row
-      return topSongCount > 0 ? 1 : 0
+      return isTopSongsSectionShown ? 1 : 0
     default:
       return 0
     }
@@ -530,7 +597,7 @@ class ArtistDetailVC: MultiSourceTableViewController {
           compatibleWith: tableView.traitCollection
         ) : 0
     case .topSongs:
-      return topSongCount > 0 ?
+      return isTopSongsSectionShown ?
         ArtistSectionHeaderView.height(
           bottomPadding: ArtistSectionHeaderView.contentSpacing,
           compatibleWith: tableView.traitCollection
@@ -551,7 +618,7 @@ class ArtistDetailVC: MultiSourceTableViewController {
     case .compilations:
       return compilationsGridVC.contentHeight
     case .topSongs:
-      return topSongsGridVC.contentHeight
+      return topSongsRowHeight
     default:
       return 0.0
     }
@@ -568,7 +635,7 @@ class ArtistDetailVC: MultiSourceTableViewController {
     case .compilations:
       return compilationsGridVC.contentHeight
     case .topSongs:
-      return topSongsGridVC.contentHeight
+      return topSongsRowHeight
     default:
       return 0.0
     }
@@ -601,6 +668,8 @@ class ArtistDetailVC: MultiSourceTableViewController {
   @objc
   private func offlineModeChanged() {
     guard isViewLoaded else { return }
+    // the displayed list must not switch again when going back online
+    isWaitingForServerTopSongs = false
     reloadSectionsAndGrids([.topSongs])
   }
 
@@ -642,7 +711,7 @@ class ArtistDetailVC: MultiSourceTableViewController {
       // the server's list does not change with the local songs, only their values can
       reloadGrid(
         in: .topSongs,
-        isStructuralChange: isStructuralChange && !isShowingServerTopSongs
+        isStructuralChange: isStructuralChange && topSongsSource != .server
       )
     default:
       break
@@ -1001,6 +1070,10 @@ final class ArtistTopSongsGridVC: UICollectionViewController, UICollectionViewDe
     min(songCount(), Self.rowsPerColumn)
   }
 
+  static func contentHeight(songCount: Int) -> CGFloat {
+    CGFloat(min(songCount, rowsPerColumn)) * PlayableTableCell.rowHeight
+  }
+
   private var columnWidth: CGFloat {
     let availableWidth = collectionView.bounds.width
     guard columnCount > 1 else { return availableWidth }
@@ -1009,7 +1082,7 @@ final class ArtistTopSongsGridVC: UICollectionViewController, UICollectionViewDe
 
   /// Height of the row; the table row gets exactly this height.
   var contentHeight: CGFloat {
-    CGFloat(rowCount) * PlayableTableCell.rowHeight
+    Self.contentHeight(songCount: songCount())
   }
 
   // MARK: - Data source
