@@ -568,39 +568,16 @@ class EntityPreviewActionBuilder {
       "\(libraryEntity.rating) Star\(libraryEntity.rating > 1 ? "s" : "")"
     let menuIcon = libraryEntity
       .rating == 0 ? UIImage.starEmpty : UIImage.starFill
-    let children = [
-      UIAction(title: "No Rating", image: .ban) { action in self.setRating(rating: 0) },
+    // five stars only, the palette has no room for a sixth item; tapping the current rating
+    // removes it, like in Apple Music
+    let children = (1 ... 5).map { stars in
       UIAction(
-        title: "1 Star",
-        image: libraryEntity.rating >= 1 ? .starFill : .starEmpty
+        title: "\(stars) Star\(stars > 1 ? "s" : "")",
+        image: libraryEntity.rating >= stars ? .starFill : .starEmpty
       ) { action in
-        self.setRating(rating: 1)
-      },
-      UIAction(
-        title: "2 Stars",
-        image: libraryEntity.rating >= 2 ? .starFill : .starEmpty
-      ) { action in self
-        .setRating(rating: 2)
-      },
-      UIAction(
-        title: "3 Stars",
-        image: libraryEntity.rating >= 3 ? .starFill : .starEmpty
-      ) { action in self
-        .setRating(rating: 3)
-      },
-      UIAction(
-        title: "4 Stars",
-        image: libraryEntity.rating >= 4 ? .starFill : .starEmpty
-      ) { action in self
-        .setRating(rating: 4)
-      },
-      UIAction(
-        title: "5 Stars",
-        image: libraryEntity.rating >= 5 ? .starFill : .starEmpty
-      ) { action in self
-        .setRating(rating: 5)
-      },
-    ]
+        self.setRating(rating: libraryEntity.rating == stars ? 0 : stars)
+      }
+    }
 
     return UIMenu(
       title: "Rating: \(rating)",
