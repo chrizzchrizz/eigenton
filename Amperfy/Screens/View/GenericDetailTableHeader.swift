@@ -61,6 +61,16 @@ class GenericDetailTableHeader: UIView {
   var playShuffleInfoView: LibraryElementDetailTableHeaderView?
   var isEditing = false
 
+  /// Album rating below the info text, display only
+  private let ratingRow = UIView()
+  private let ratingStack = UIStackView()
+  private var ratingStarViews: [UIImageView] = []
+  private var ratingLeadingConstraint: NSLayoutConstraint?
+  private var ratingCenterXConstraint: NSLayoutConstraint?
+  private static let ratingStarSize: CGFloat = 12
+  private static let ratingTopPadding: CGFloat = 8
+  private static var ratingRowHeight: CGFloat { ratingStarSize + ratingTopPadding }
+
   static let frameHeightCompact: CGFloat = 440.0
   static let frameHeightRegular: CGFloat = 340.0
   static func frameHeight(traitCollection: UITraitCollection) -> CGFloat {
@@ -110,6 +120,7 @@ class GenericDetailTableHeader: UIView {
     // Fix attributed text ignores tint
     subtitleLabel.textColor = .tintColor
     infoLabel.setContentCompressionResistancePriority(.required, for: .vertical)
+    setupRatingRow()
     layoutMargins = UIView.defaultMarginTopElement
     if let playShuffleInfoConfig = config?.playShuffleInfoConfig {
       playShuffleInfoView = ViewCreator<LibraryElementDetailTableHeaderView>.createFromNib()
@@ -133,6 +144,66 @@ class GenericDetailTableHeader: UIView {
         self.applyTraitCollectionChange()
       }
     )
+  }
+
+  private func setupRatingRow() {
+    ratingRow.isHidden = true
+    guard let infoStack = infoLabel.superview as? UIStackView,
+          let infoIndex = infoStack.arrangedSubviews.firstIndex(of: infoLabel)
+    else { return }
+    ratingStack.axis = .horizontal
+    ratingStack.alignment = .center
+    ratingStack.translatesAutoresizingMaskIntoConstraints = false
+    for _ in 0 ..< 5 {
+      let starView = UIImageView(image: .starFill)
+      starView.contentMode = .scaleAspectFit
+      starView.translatesAutoresizingMaskIntoConstraints = false
+      NSLayoutConstraint.activate([
+        starView.widthAnchor.constraint(equalToConstant: Self.ratingStarSize),
+        starView.heightAnchor.constraint(equalToConstant: Self.ratingStarSize),
+      ])
+      ratingStarViews.append(starView)
+      ratingStack.addArrangedSubview(starView)
+    }
+    ratingRow.translatesAutoresizingMaskIntoConstraints = false
+    ratingRow.addSubview(ratingStack)
+    infoStack.insertArrangedSubview(ratingRow, at: infoIndex + 1)
+    // left aligned in regular width, centered in compact width like the info text
+    ratingLeadingConstraint = ratingStack.leadingAnchor.constraint(equalTo: ratingRow.leadingAnchor)
+    ratingCenterXConstraint = ratingStack.centerXAnchor.constraint(equalTo: ratingRow.centerXAnchor)
+    NSLayoutConstraint.activate([
+      ratingRow.leadingAnchor.constraint(equalTo: infoStack.leadingAnchor),
+      ratingRow.trailingAnchor.constraint(equalTo: infoStack.trailingAnchor),
+      ratingStack.topAnchor.constraint(equalTo: ratingRow.topAnchor, constant: Self.ratingTopPadding),
+      ratingStack.bottomAnchor.constraint(equalTo: ratingRow.bottomAnchor),
+    ])
+    ratingRow.isAccessibilityElement = true
+  }
+
+  /// Rating of an album, 0 if it isn't shown
+  private var displayedRating: Int {
+    guard !isEditing, appDelegate.storage.settings.user.isShowRating,
+          let album = config?.entityContainer as? Album
+    else { return 0 }
+    return album.rating
+  }
+
+  private func refreshRating() {
+    let rating = displayedRating
+    for (index, starView) in ratingStarViews.enumerated() {
+      starView.isHidden = index >= rating
+      starView.tintColor = infoLabel.textColor
+    }
+    ratingRow.accessibilityLabel = "\(rating) Star\(rating > 1 ? "s" : "")"
+    let isVisible = rating > 0
+    guard ratingRow.isHidden == isVisible else { return }
+    ratingRow.isHidden = !isVisible
+    // the compact header height includes the rating row
+    applyTraitCollectionChange()
+    // the table only picks up a new header height when the header is set again
+    if let tableView = config?.tableView, let headerView = tableView.tableHeaderView {
+      tableView.tableHeaderView = headerView
+    }
   }
 
   private let coverShadowView = CoverShadowView()
@@ -168,6 +239,7 @@ class GenericDetailTableHeader: UIView {
     let secondaryColor = color.withAlphaComponent(0.8)
     infoLabel.textColor = secondaryColor
     descriptionLabel.textColor = secondaryColor
+    refreshRating()
   }
 
   func refresh() {
@@ -212,6 +284,7 @@ class GenericDetailTableHeader: UIView {
       nameTextField.isHidden = true
     }
 
+    refreshRating()
     updateCoverEditOverlay()
     playShuffleInfoView?.refresh()
   }
@@ -290,6 +363,13 @@ class GenericDetailTableHeader: UIView {
     nameTextField.textAlignment = textAlignment
     subtitleLabel.textAlignment = textAlignment
     infoLabel.textAlignment = textAlignment
+    let isCompact = traitCollection.horizontalSizeClass == .compact
+    // deactivate first, both at once would conflict
+    let ratingAlignment = [ratingLeadingConstraint, ratingCenterXConstraint].compactMap { $0 }
+    NSLayoutConstraint.deactivate(ratingAlignment)
+    NSLayoutConstraint.activate([isCompact ? ratingCenterXConstraint : ratingLeadingConstraint]
+      .compactMap { $0 })
+    let ratingRowHeight = ratingRow.isHidden ? 0 : Self.ratingRowHeight
 
     var height = (traitCollection.horizontalSizeClass == .compact) ?
       GenericDetailTableHeader.frameHeightCompact :
@@ -297,7 +377,7 @@ class GenericDetailTableHeader: UIView {
     if traitCollection.horizontalSizeClass == .compact {
       if config.playShuffleInfoConfig == nil {
         titlePlayButtonContainerHeightConstraint.constant = Self
-          .titlePlayButtonContainerHeightWithoutButtons
+          .titlePlayButtonContainerHeightWithoutButtons + ratingRowHeight
         height -=
           (
             Self.titlePlayButtonContainerHeightCompact - Self
@@ -305,8 +385,9 @@ class GenericDetailTableHeader: UIView {
           )
       } else {
         titlePlayButtonContainerHeightConstraint.constant = Self
-          .titlePlayButtonContainerHeightCompact
+          .titlePlayButtonContainerHeightCompact + ratingRowHeight
       }
+      height += ratingRowHeight
     }
     if config.descriptionText != nil {
       height += GenericDetailTableHeader.frameHeightForDescription

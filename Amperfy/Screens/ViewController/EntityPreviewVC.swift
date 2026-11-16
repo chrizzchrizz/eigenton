@@ -613,6 +613,8 @@ class EntityPreviewActionBuilder {
   private func setRating(rating: Int) {
     guard appDelegate.storage.settings.user.isOnlineMode,
           let account = entityContainer.account else { return }
+    // e.g. the album rating in the detail header and the stars of the song rows
+    defer { reloadRootView() }
     if let song = (entityContainer as? AbstractPlayable)?.asSong {
       song.rating = rating
       appDelegate.storage.main.saveContext()
