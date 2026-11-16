@@ -95,8 +95,6 @@ class PlayableTableCell: BasicTableCell {
   @IBOutlet
   private var trackNumberContainerWidthConstraint: NSLayoutConstraint!
   @IBOutlet
-  private var durationWidthConstraint: NSLayoutConstraint!
-  @IBOutlet
   private var cacheIconHeightConstraint: NSLayoutConstraint!
   @IBOutlet
   private var favoriteIconHeightConstraint: NSLayoutConstraint!
@@ -104,6 +102,9 @@ class PlayableTableCell: BasicTableCell {
   private var favoriteIconWidthConstraint: NSLayoutConstraint!
 
   private var ratingStackView: UIStackView?
+  /// visible gap between the trailing accessories (stars, cache icon, duration, options)
+  private static let accessoryGapRegular: CGFloat = 16
+  private static let accessoryGapCompact: CGFloat = 10
   private var ratingStarViews: [UIImageView] = []
 
   /// The cover is square and as high as the row content. All row heights scale with the
@@ -205,8 +206,23 @@ class PlayableTableCell: BasicTableCell {
       deleteButton.tintColor = .red
       playOverButton.layer.cornerRadius = CornerRadius.small.asCGFloat
       selectionStyle = .none
+      setupTrailingAccessories()
       setupRatingStars()
       resetForReuse()
+    }
+  }
+
+  private func setupTrailingAccessories() {
+    // the duration is as wide as its text, so the gaps around it don't depend on the text width
+    durationLabel.setContentHuggingPriority(.required, for: .horizontal)
+    // with a large text size the duration shrinks its font instead of pushing the title away
+    durationLabel.setContentCompressionResistancePriority(.defaultHigh + 10, for: .horizontal)
+    durationLabel.adjustsFontSizeToFitWidth = true
+    if let accessoriesStack = durationLabel.superview {
+      accessoriesStack.widthAnchor.constraint(
+        lessThanOrEqualTo: contentView.widthAnchor,
+        multiplier: 0.5
+      ).isActive = true
     }
   }
 
@@ -349,7 +365,6 @@ class PlayableTableCell: BasicTableCell {
     labelsHeightConstraint.constant = scaled(38)
     trackNumberHeightConstraint.constant = scaled(22)
     trackNumberContainerWidthConstraint.constant = scaled(32)
-    durationWidthConstraint.constant = scaled(isLargeRegularWidth ? 49 : 40)
     cacheIconHeightConstraint.constant = scaled(isRegularWidth ? 17 : 15)
     favoriteIconHeightConstraint.constant = scaled(12)
     favoriteIconWidthConstraint.constant = scaled(12)
@@ -527,12 +542,40 @@ class PlayableTableCell: BasicTableCell {
     if isDurationVisible {
       durationLabel.text = playable.duration.asColonDurationString
     }
+    refreshAccessorySpacing()
+  }
+
+  /// Equal visible gaps between the trailing accessories. The ellipsis sits inside the wider
+  /// options button, its empty space is subtracted from the gap before it.
+  private func refreshAccessorySpacing() {
+    guard let accessoriesStack = cacheIconImage.superview as? UIStackView else { return }
+    let gap = traitCollection.horizontalSizeClass == .regular ?
+      Self.accessoryGapRegular : Self.accessoryGapCompact
+    let gapBeforeOptions = optionsButton.isHidden ? gap : max(0, gap - optionsButtonImageInset)
+    accessoriesStack.spacing = gap
+    accessoriesStack.setCustomSpacing(
+      durationLabel.isHidden ? gapBeforeOptions : gap,
+      after: cacheIconImage
+    )
+    accessoriesStack.setCustomSpacing(gapBeforeOptions, after: durationLabel)
+  }
+
+  /// Empty space left of the ellipsis inside the fixed width options button. The xib shifts the
+  /// image 2 pt to the left (right image inset of 4 pt).
+  private var optionsButtonImageInset: CGFloat {
+    let buttonWidth = optionsButton.constraints
+      .first { $0.firstAttribute == .width && $0.secondItem == nil }?.constant ?? 0
+    let imageWidth = optionsButton.currentImage?.size.width ?? 0
+    guard buttonWidth > 0, imageWidth > 0 else { return 0 }
+    return max(0, (buttonWidth - imageWidth) / 2 - 2)
   }
 
   /// Shows the arrow if the playable is cached and an animated dotted arrow while it is downloading.
   private func refreshCacheIcon(playable: AbstractPlayable) {
     let isDownloading = !playable.isCached && isDownloadRunning
-    cacheIconImage.isHidden = !playable.isCached && !isDownloading
+    // keeps its space when invisible, except for playables that can't be cached
+    cacheIconImage.isHidden = playable.isRadio
+    cacheIconImage.alpha = (playable.isCached || isDownloading) ? 1 : 0
     guard isDownloading != isCacheIconAnimating else { return }
     isCacheIconAnimating = isDownloading
     if isDownloading {

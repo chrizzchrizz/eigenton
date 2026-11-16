@@ -118,9 +118,6 @@
                             </imageView>
                             <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="99:59:59" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" minimumScaleFactor="0.69999999999999996" translatesAutoresizingMaskIntoConstraints="NO" id="XQO-xE-pLx" customClass="ScaledLabel" customModule="Amperfy" customModuleProvider="target" userLabel="Duration">
                                 <rect key="frame" x="21" y="14" width="40" height="17"/>
-                                <constraints>
-                                    <constraint firstAttribute="width" constant="40" id="jIq-1R-vvd"/>
-                                </constraints>
                                 <fontDescription key="fontDescription" type="system" pointSize="14"/>
                                 <color key="textColor" systemColor="secondaryLabelColor"/>
                                 <nil key="highlightedColor"/>
@@ -200,7 +197,6 @@
                 <outlet property="artistLabel" destination="nJe-7h-3tU" id="SlX-ew-mVM"/>
                 <outlet property="artistHeightConstraint" destination="Lp3-VV-zM5" id="Sc1-Ar-002"/>
                 <outlet property="cacheIconHeightConstraint" destination="FU5-gZ-NAG" id="Sc1-Ca-007"/>
-                <outlet property="durationWidthConstraint" destination="jIq-1R-vvd" id="Sc1-Du-006"/>
                 <outlet property="favoriteIconHeightConstraint" destination="DXc-FO-IFH" id="Sc1-Fh-008"/>
                 <outlet property="favoriteIconWidthConstraint" destination="pBm-6i-tZc" id="Sc1-Fw-009"/>
                 <outlet property="labelsHeightConstraint" destination="ayC-tn-eu2" id="Sc1-Lb-003"/>
