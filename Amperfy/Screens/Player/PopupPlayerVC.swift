@@ -655,11 +655,11 @@ extension PopupPlayerVC: UIGestureRecognizerDelegate {
     return !isInList && !isControl(at: location)
   }
 
-  /// Sliders, buttons and the rating keep their touches, also if the finger drifts downwards.
+  /// Sliders and buttons keep their touches, also if the finger drifts downwards.
   private func isControl(at location: CGPoint) -> Bool {
     var hitView = view.hitTest(location, with: nil)
     while let current = hitView, current !== view {
-      if current is UIControl || current is RatingView {
+      if current is UIControl {
         return true
       }
       hitView = current.superview
