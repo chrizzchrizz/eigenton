@@ -46,6 +46,18 @@ struct SettingsView: View {
     appDelegate.configureLockScreenPrevention()
   }
 
+  /// On iPhone and iPad Settings is a sheet on the main window. The account switch and the sync
+  /// after a login replace the main window's root, so the sheet is closed first and the action
+  /// runs on the main window, as it did from the former account menu.
+  func performOnMainWindow(_ action: @escaping (UIViewController?) -> ()) {
+    let mainRoot = AppDelegate.mainSceneDelegate?.window?.rootViewController
+    if let mainRoot, mainRoot.presentedViewController != nil {
+      mainRoot.dismiss(animated: true) { action(mainRoot) }
+    } else {
+      action(mainRoot)
+    }
+  }
+
   func addAccountPressed() {
     var loginVC = AppStoryboard.Main.segueToLogin()
     #if targetEnvironment(macCatalyst)
@@ -53,18 +65,9 @@ struct SettingsView: View {
       loginVC = UINavigationController(rootViewController: loginVC)
     #endif
     loginVC.modalPresentationStyle = .formSheet
-    // present from the window the user is working in (Settings is its own window on Mac)
-    let keyWindow = UIApplication.shared.connectedScenes
-      .compactMap { $0 as? UIWindowScene }
-      .flatMap(\.windows)
-      .first { $0.isKeyWindow }
-    // topViewController stops at the tab bar / split view, but on iPad and iPhone Settings is
-    // presented on top of it: follow the presented chain, otherwise the presentation is rejected
-    var presenter = AppDelegate.topViewController(base: keyWindow?.rootViewController)
-    while let presented = presenter?.presentedViewController, !presented.isBeingDismissed {
-      presenter = presented
+    performOnMainWindow { mainRoot in
+      AppDelegate.topViewController(base: mainRoot)?.present(loginVC, animated: true)
     }
-    presenter?.present(loginVC, animated: true)
   }
 
   func accountRow(_ accountInfo: AccountInfo) -> some View {
@@ -73,7 +76,9 @@ struct SettingsView: View {
     let isActive = (accountInfo == settings.activeAccountInfo)
     return Button {
       guard !isActive else { return }
-      appDelegate.switchAccount(accountInfo: accountInfo)
+      performOnMainWindow { _ in
+        appDelegate.switchAccount(accountInfo: accountInfo)
+      }
     } label: {
       HStack {
         Label {
@@ -91,9 +96,9 @@ struct SettingsView: View {
           Image(systemName: "checkmark")
         }
       }
+      .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
-    .contentShape(Rectangle())
   }
 
   func navigationLink(_ item: NavigationTarget) -> some View {
