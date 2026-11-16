@@ -573,9 +573,12 @@ class PlayableTableCell: BasicTableCell {
   /// Shows the arrow if the playable is cached and an animated dotted arrow while it is downloading.
   private func refreshCacheIcon(playable: AbstractPlayable) {
     let isDownloading = !playable.isCached && isDownloadRunning
-    // keeps its space when invisible, except for playables that can't be cached
-    cacheIconImage.isHidden = playable.isRadio
-    cacheIconImage.alpha = (playable.isCached || isDownloading) ? 1 : 0
+    let isVisible = playable.isCached || isDownloading
+    // In regular width (iPad, Mac) the icon keeps its space when invisible, so the stars stay
+    // aligned. Compact width has no room to spare. Playables that can't be cached never need it.
+    let isSpaceKept = traitCollection.horizontalSizeClass == .regular && !playable.isRadio
+    cacheIconImage.isHidden = !isVisible && !isSpaceKept
+    cacheIconImage.alpha = isVisible ? 1 : 0
     guard isDownloading != isCacheIconAnimating else { return }
     isCacheIconAnimating = isDownloading
     if isDownloading {
