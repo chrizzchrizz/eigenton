@@ -75,8 +75,6 @@ class PlayableTableCell: BasicTableCell {
   @IBOutlet
   weak var favoriteTrailingConstraint: NSLayoutConstraint!
   @IBOutlet
-  weak var labelTrailingCellConstraint: NSLayoutConstraint!
-  @IBOutlet
   weak var optionsButton: UIButton!
   @IBOutlet
   weak var deleteButton: UIButton!
@@ -215,7 +213,6 @@ class PlayableTableCell: BasicTableCell {
   private func setupRatingStars() {
     let stackView = UIStackView()
     stackView.axis = .horizontal
-    stackView.spacing = -2 // Negative spacing to put stars closer together
     stackView.alignment = .center
     stackView.distribution = .fill
     stackView.translatesAutoresizingMaskIntoConstraints = false
@@ -225,8 +222,7 @@ class PlayableTableCell: BasicTableCell {
       let starView = UIImageView()
       starView.contentMode = .scaleAspectFit
       starView.translatesAutoresizingMaskIntoConstraints = false
-      starView.image = .starEmpty
-      starView.tintColor = UIColor(red: 0.882, green: 0.686, blue: 0.255, alpha: 1.0) // #e1af41
+      starView.image = .starFill
       let starSize: CGFloat = 10
       NSLayoutConstraint.activate([
         starView.widthAnchor.constraint(equalToConstant: starSize),
@@ -236,23 +232,19 @@ class PlayableTableCell: BasicTableCell {
       stackView.addArrangedSubview(starView)
     }
 
-    contentView.addSubview(stackView)
-
-    NSLayoutConstraint.activate([
-      stackView.trailingAnchor.constraint(equalTo: optionsButton.trailingAnchor, constant: -8),
-      stackView.topAnchor.constraint(equalTo: optionsButton.bottomAnchor, constant: -8),
-    ])
+    // left of the cache icon in the trailing accessories stack, collapses when hidden
+    if let accessoriesStack = cacheIconImage.superview as? UIStackView,
+       let cacheIconIndex = accessoriesStack.arrangedSubviews.firstIndex(of: cacheIconImage) {
+      accessoriesStack.insertArrangedSubview(stackView, at: cacheIconIndex)
+    }
 
     ratingStackView = stackView
   }
 
   private func updateRatingDisplay(rating: Int) {
-    // Show the LAST N stars (right-aligned) instead of first N
-    // This keeps stars right-justified regardless of rating
-    let startIndex = 5 - rating
+    // hidden stars collapse in the stack view
     for (index, starView) in ratingStarViews.enumerated() {
-      starView.isHidden = index < startIndex
-      starView.image = .starFill
+      starView.isHidden = index >= rating
     }
 
     // Only show rating if song has a rating > 0
@@ -528,20 +520,8 @@ class PlayableTableCell: BasicTableCell {
       }
     }
 
-    // The cache icon, duration and options button are arranged in a stack view, hidden ones
-    // collapse. The labels end before that stack.
-    // Stars are positioned at optionsButton.trailingAnchor - 8, extending left.
-    // Each star is 10pt with -2pt spacing: width = rating * 8 + 2
-    // Without the duration the stack is only as wide as the options button (34pt), so the title
-    // needs more space if the stars are wider than that.
-    let labelToAccessoriesGap = 8.0
-    let songRating = playable.asSong?.rating ?? 0
-    let isRatingVisible = userSettings.isShowRating && songRating > 0
-    let starWidth = CGFloat(songRating * 8 + 2)
-    let ratingExtraSpace: CGFloat = (isRatingVisible && !isDurationVisible) ?
-      max(0, starWidth - 30) : 0.0
-    labelTrailingCellConstraint.constant = labelToAccessoriesGap + ratingExtraSpace
-
+    // The rating stars, cache icon, duration and options button are arranged in a stack view,
+    // hidden ones collapse. The labels end before that stack.
     refreshCacheIcon(playable: playable)
     durationLabel.isHidden = !isDurationVisible
     if isDurationVisible {
@@ -576,6 +556,9 @@ class PlayableTableCell: BasicTableCell {
   private func refreshSubtitleColor() {
     // follows the title's font color
     favoriteIconImage.tintColor = contentColorOverride ?? UIColor.label
+    for starView in ratingStarViews {
+      starView.tintColor = contentColorOverride ?? UIColor.label
+    }
     if let contentColor = contentColorOverride {
       // screens with a custom background color need explicit, readable text colors
       let secondaryColor = contentColor.withAlphaComponent(0.7)

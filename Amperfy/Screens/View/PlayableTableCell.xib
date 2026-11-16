@@ -214,7 +214,6 @@
                 <outlet property="favoriteIconImage" destination="ww2-RJ-EgX" id="Mbz-hq-RMS"/>
                 <outlet property="favoriteTitleAlignConstraint" destination="Fv2-Ty-001" id="Fv3-Ol-001"/>
                 <outlet property="favoriteTrailingConstraint" destination="Fv1-Tr-001" id="Fv4-Tc-001"/>
-                <outlet property="labelTrailingCellConstraint" destination="46w-nK-8d4" id="LaG-cJ-Yxk"/>
                 <outlet property="labelsCenterYConstraint" destination="1M6-yt-wX0" id="LcY-Ct-001"/>
                 <outlet property="optionsButton" destination="SRF-Yt-kwz" id="9u4-Zj-nMb"/>
                 <outlet property="playOverButton" destination="euv-dS-9Rx" id="eqN-n0-Q30"/>
