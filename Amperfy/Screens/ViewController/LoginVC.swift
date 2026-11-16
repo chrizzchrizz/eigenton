@@ -45,6 +45,8 @@ final class LocalNetworkAuthorization {
 
   func trigger() {
     guard browser == nil else { return }
+    // access may have been changed in Settings since the last browse: the new state reports it
+    isDenied = false
     let browser = NWBrowser(
       for: .bonjour(type: Self.serviceType, domain: nil),
       using: NWParameters()
@@ -54,10 +56,11 @@ final class LocalNetworkAuthorization {
         guard let self else { return }
         switch state {
         case let .waiting(error):
-          self.isDenied = error == .dns(DNSServiceErrorType(kDNSServiceErr_PolicyDenied))
+          self.isDenied = Self.isPolicyDenied(error)
         case .ready:
           self.isDenied = false
-        case .failed:
+        case let .failed(error):
+          self.isDenied = Self.isPolicyDenied(error)
           self.stop()
         default:
           break
@@ -71,6 +74,10 @@ final class LocalNetworkAuthorization {
   func stop() {
     browser?.cancel()
     browser = nil
+  }
+
+  private static func isPolicyDenied(_ error: NWError) -> Bool {
+    error == .dns(DNSServiceErrorType(kDNSServiceErr_PolicyDenied))
   }
 }
 
