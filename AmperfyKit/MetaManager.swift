@@ -278,7 +278,8 @@ public class MetaManager {
       networkMonitor: networkMonitor,
       librarySyncer: librarySyncer,
       playableDownloadManager: playableDownloadManager, autoDownloadLibrarySyncer: autoSyncer,
-      eventLogger: eventLogger
+      eventLogger: eventLogger,
+      notificationHandler: notificationHandler
     )
   }()
 
