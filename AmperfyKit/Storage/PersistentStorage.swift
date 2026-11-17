@@ -178,35 +178,12 @@ public class PersistentStorage {
 
   init(coreDataManager: CoreDataManagable) {
     self.coreDataManager = coreDataManager
-    self.notifiedOfflineMode = AmperfySettings().user.isOfflineMode
   }
 
   // deprecated
   public var legacySettings = LegacySettings()
 
-  private var _settings = AmperfySettings()
-  // AmperfySettings writes through to UserDefaults before this setter runs,
-  // so the previous offline mode has to be remembered here
-  private var notifiedOfflineMode: Bool
-  public var settings: AmperfySettings {
-    get { _settings }
-    set {
-      _settings = newValue
-      // posted after the write access to _settings has ended, so observers can read settings again;
-      // every writer of isOfflineMode (settings, quick actions, intents, x-callback) gets notified
-      let isOfflineMode = newValue.user.isOfflineMode
-      guard isOfflineMode != notifiedOfflineMode else { return }
-      notifiedOfflineMode = isOfflineMode
-      // observers update UI, so always deliver on the main thread
-      if Thread.isMainThread {
-        NotificationCenter.default.post(name: .offlineModeChanged, object: nil)
-      } else {
-        DispatchQueue.main.async {
-          NotificationCenter.default.post(name: .offlineModeChanged, object: nil)
-        }
-      }
-    }
-  }
+  public var settings = AmperfySettings()
 
   @MainActor
   public lazy var main: CoreDataCompanion = {
