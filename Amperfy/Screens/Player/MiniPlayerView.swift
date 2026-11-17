@@ -87,7 +87,7 @@ class MiniPlayerView: UIView {
   fileprivate lazy var titleLabel: UILabel = {
     let label = MarqueeLabel(frame: .zero)
     label.applyAmperfyStyle()
-    label.textAlignment = .center
+    label.textAlignment = .natural
     label.backgroundColor = .clear
     label.numberOfLines = 1
     label.textColor = .label
@@ -98,7 +98,7 @@ class MiniPlayerView: UIView {
     let label = MarqueeLabel(frame: .zero)
     label.applyAmperfyStyle()
     label.backgroundColor = .clear
-    label.textAlignment = .center
+    label.textAlignment = .natural
     label.numberOfLines = 1
     label.textColor = .secondaryLabel
     return label
