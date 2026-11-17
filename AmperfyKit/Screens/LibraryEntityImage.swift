@@ -196,6 +196,8 @@ public class LibraryEntityImage: RoundedImage {
   private let appDelegate: AmperKit
 
   private var entity: AbstractLibraryEntity?
+  /// Shown while the artwork of `entity` is not downloaded, e.g. the album of a song
+  private var fallbackEntity: AbstractLibraryEntity?
   private var standaloneArtwork: Artwork?
   private var backupArtworkType: ArtworkType?
   private var accountNotificationHandler: AccountNotificationHandler?
@@ -260,16 +262,26 @@ public class LibraryEntityImage: RoundedImage {
   }
 
   public func display(entity: AbstractLibraryEntity) {
+    display(entity: entity, fallbackEntity: nil)
+  }
+
+  private func display(entity: AbstractLibraryEntity, fallbackEntity: AbstractLibraryEntity?) {
     self.entity = entity
+    self.fallbackEntity = fallbackEntity
     standaloneArtwork = nil
     backupArtworkType = entity.getDefaultArtworkType()
     refresh()
   }
 
-  public func displayAndUpdate(entity: AbstractLibraryEntity) {
-    guard self.entity != entity else { return }
+  /// `fallbackEntity` is shown until the artwork of `entity` is downloaded; it is not downloaded
+  /// itself, so it should be one whose artwork is usually there already (e.g. the album of a song).
+  public func displayAndUpdate(
+    entity: AbstractLibraryEntity,
+    fallbackEntity: AbstractLibraryEntity? = nil
+  ) {
+    guard self.entity != entity || self.fallbackEntity != fallbackEntity else { return }
 
-    display(entity: entity)
+    display(entity: entity, fallbackEntity: fallbackEntity)
     if let artwork = entity.artwork, let accountInfo = entity.account?.info {
       appDelegate.getMeta(accountInfo).artworkDownloadManager.download(object: artwork)
     }
@@ -280,6 +292,7 @@ public class LibraryEntityImage: RoundedImage {
     guard standaloneArtwork != artwork else { return }
 
     entity = nil
+    fallbackEntity = nil
     standaloneArtwork = artwork
     backupArtworkType = artworkType
     refresh()
@@ -297,12 +310,14 @@ public class LibraryEntityImage: RoundedImage {
     isWaitingForLayout = false
     self.image = image
     entity = nil
+    fallbackEntity = nil
     standaloneArtwork = nil
   }
 
   public func display(artworkType: ArtworkType) {
     backupArtworkType = artworkType
     entity = nil
+    fallbackEntity = nil
     standaloneArtwork = nil
     refresh()
   }
@@ -318,17 +333,27 @@ public class LibraryEntityImage: RoundedImage {
     )
   }
 
-  private var entityImagePathToDisplay: String? {
-    var artworkDisplayPreference = appDelegate.storage.settings.accounts.activeSetting.read
-      .artworkDisplayPreference
+  private var artworkDisplayPreference: ArtworkDisplayPreference {
     if let accountInfo = entity?.account?.info ?? standaloneArtwork?.account?.info {
-      artworkDisplayPreference = appDelegate.storage.settings.accounts.getSetting(accountInfo).read
+      return appDelegate.storage.settings.accounts.getSetting(accountInfo).read
         .artworkDisplayPreference
     }
+    return appDelegate.storage.settings.accounts.activeSetting.read.artworkDisplayPreference
+  }
+
+  private var entityImagePathToDisplay: String? {
+    let artworkDisplayPreference = artworkDisplayPreference
     if let entity {
-      return entity.imagePath(setting: artworkDisplayPreference)
+      return entity.imagePath(setting: artworkDisplayPreference) ??
+        fallbackImagePath(setting: artworkDisplayPreference)
     }
     return standaloneArtwork?.imagePath
+  }
+
+  /// Only server artworks are shown in place of others, so none with "ID3 tag only".
+  private func fallbackImagePath(setting: ArtworkDisplayPreference) -> String? {
+    guard setting != .id3TagOnly else { return nil }
+    return fallbackEntity?.imagePath(setting: setting)
   }
 
   override public func layoutSubviews() {
@@ -546,6 +571,17 @@ public class LibraryEntityImage: RoundedImage {
           setting: appDelegate.storage.settings.accounts.getSetting(accountInfo).read
             .artworkDisplayPreference
         ) else { return }
+        self.reloadDownloadedImage(imagePath: imagePath)
+      }
+    }
+    // downloaded by others, e.g. the album grid; a shared artwork is reloaded above
+    if let fallbackArtwork = fallbackEntity?.artwork, fallbackArtwork != entity.artwork,
+       fallbackArtwork.uniqueID == downloadNotification.id {
+      Task { @MainActor in
+        let setting = self.artworkDisplayPreference
+        // only while the entity's own artwork is missing, a load of it is not restarted
+        guard entity == self.entity, entity.imagePath(setting: setting) == nil,
+              let imagePath = self.fallbackImagePath(setting: setting) else { return }
         self.reloadDownloadedImage(imagePath: imagePath)
       }
     }

@@ -1212,6 +1212,8 @@ final class ArtistTopSongsColumnCell: UICollectionViewCell, UITableViewDataSourc
           let song = gridVC.song(firstIndex + indexPath.row) else { return cell }
     cell.contentColorOverride = gridVC.contentColor()
     cell.hidesEdgeSeparators = true
+    // the album covers are mostly downloaded already for the album grid below
+    cell.isAlbumArtworkFallback = true
     cell.display(
       playable: song,
       playContextCb: { [weak self, weak gridVC] cell in

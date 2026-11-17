@@ -268,6 +268,7 @@ class PlayableTableCell: BasicTableCell {
   }
 
   func resetForReuse() {
+    isAlbumArtworkFallback = false
     playIndicator?.reset()
     deleteButton.isHidden = true
     playOverButton.isHidden = true
@@ -306,6 +307,10 @@ class PlayableTableCell: BasicTableCell {
     )
     isNotificationRegistered = true
   }
+
+  /// Shows the album artwork until the song's own artwork is downloaded, e.g. where many songs of
+  /// albums with already downloaded covers appear at once.
+  var isAlbumArtworkFallback = false
 
   /// Black or white color for secondary texts (track number, artist, duration) on custom backgrounds.
   var contentColorOverride: UIColor? {
@@ -447,7 +452,8 @@ class PlayableTableCell: BasicTableCell {
     )
     entityImage.display(
       theme: themePreference,
-      container: playable
+      container: playable,
+      fallbackEntity: isAlbumArtworkFallback ? playable.asSong?.album : nil
     )
     configurePlayIndicator(playable: playable)
 

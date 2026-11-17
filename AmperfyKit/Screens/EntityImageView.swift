@@ -197,15 +197,19 @@ open class EntityImageView: UIView {
     super.layoutSubviews()
   }
 
+  /// `fallbackEntity` is shown while the single artwork of `container` is not downloaded yet;
+  /// ignored for quad and standalone artworks.
   public func display(
     theme: ThemePreference,
     container: PlayableContainable,
-    cornerRadius: CornerRadius = .small
+    cornerRadius: CornerRadius = .small,
+    fallbackEntity: AbstractLibraryEntity? = nil
   ) {
     display(
       theme: theme,
       collection: container.getArtworkCollection(theme: theme),
-      cornerRadius: cornerRadius
+      cornerRadius: cornerRadius,
+      fallbackEntity: fallbackEntity
     )
   }
 
@@ -231,7 +235,8 @@ open class EntityImageView: UIView {
   private func display(
     theme: ThemePreference,
     collection: ArtworkCollection,
-    cornerRadius: CornerRadius = .small
+    cornerRadius: CornerRadius = .small,
+    fallbackEntity: AbstractLibraryEntity? = nil
   ) {
     layer.cornerRadius = cornerRadius.asCGFloat
     quadImages.forEach { $0.isHidden = true }
@@ -258,7 +263,7 @@ open class EntityImageView: UIView {
         quadImages[index].display(entity: entity)
       }
     case let .single(entity):
-      singleImage.displayAndUpdate(entity: entity)
+      singleImage.displayAndUpdate(entity: entity, fallbackEntity: fallbackEntity)
     case let .standalone(artwork):
       singleImage.displayAndUpdate(
         artwork: artwork,
