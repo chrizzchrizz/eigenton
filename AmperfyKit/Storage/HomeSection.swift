@@ -58,6 +58,7 @@ public enum HomeSection: Int, Sendable, CaseIterable, Codable {
   case genreFolk
   case genrePop
   case genreRock
+  case moreLikeAlbums
 
   static let defaultValue: [HomeSection] = [
     .randomAlbums,
@@ -72,6 +73,7 @@ public enum HomeSection: Int, Sendable, CaseIterable, Codable {
   public static let displayOrder: [HomeSection] = [
     .lastTimePlayedPlaylists,
     .recentlyPlayedAlbums,
+    .moreLikeAlbums,
     .newestAlbums,
     .favoriteAlbums,
     .favoriteArtists,
@@ -137,6 +139,11 @@ public enum HomeSection: Int, Sendable, CaseIterable, Codable {
     fixedDecade != nil || fixedGenreGroup != nil
   }
 
+  /// Sections that are hidden on Home and in CarPlay as long as they have no content.
+  public var isHiddenWhenEmpty: Bool {
+    isFixedDecadeOrGenre || self == .moreLikeAlbums
+  }
+
   /// Title of the section header on the home screen.
   public var headerTitle: String {
     if let fixedDecade { return HomeSection.decadeHeaderTitle(for: fixedDecade) }
@@ -166,6 +173,7 @@ public enum HomeSection: Int, Sendable, CaseIterable, Codable {
     case .compilations: return "Compilations"
     case .favoriteAlbums: return "Favorite Albums"
     case .favoriteArtists: return "Favorite Artists"
+    case .moreLikeAlbums: return "More Like a Recently Played Album"
     default:
       if let fixedDecade { return "Decade: \(fixedDecade)s" }
       if let fixedGenreGroup { return "Genre: \(fixedGenreGroup.name)" }

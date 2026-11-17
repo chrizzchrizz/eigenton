@@ -308,6 +308,11 @@ final class HomeVC: UICollectionViewController {
       forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader,
       withReuseIdentifier: SectionHeaderView.reuseID
     )
+    collectionView.register(
+      MoreLikeHeaderView.self,
+      forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader,
+      withReuseIdentifier: MoreLikeHeaderView.reuseID
+    )
     #if targetEnvironment(macCatalyst)
       macLargeTitle.register()
     #endif
@@ -350,14 +355,17 @@ final class HomeVC: UICollectionViewController {
           return self?.macLargeTitle.header(for: indexPath)
         }
       #endif
-      guard let self,
-            kind == UICollectionView.elementKindSectionHeader,
-            let header = collectionView.dequeueReusableSupplementaryView(
-              ofKind: kind,
-              withReuseIdentifier: SectionHeaderView.reuseID,
-              for: indexPath
-            ) as? SectionHeaderView,
-            let section = dataSource.snapshot().sectionIdentifiers.element(at: indexPath.section)
+      guard let self, kind == UICollectionView.elementKindSectionHeader else { return nil }
+      if dataSource.snapshot().sectionIdentifiers
+        .element(at: indexPath.section) == .moreLikeAlbums {
+        return moreLikeHeader(at: indexPath)
+      }
+      guard let header = collectionView.dequeueReusableSupplementaryView(
+        ofKind: kind,
+        withReuseIdentifier: SectionHeaderView.reuseID,
+        for: indexPath
+      ) as? SectionHeaderView,
+        let section = dataSource.snapshot().sectionIdentifiers.element(at: indexPath.section)
       else {
         return nil
       }
@@ -410,10 +418,7 @@ final class HomeVC: UICollectionViewController {
 
   private func applySnapshot(animated: Bool = true) {
     var snapshot = NSDiffableDataSourceSnapshot<HomeSection, HomeItem>()
-    // decade and genre sections are hidden as long as they have no albums
-    let sections = sharedHome.orderedVisibleSections.filter {
-      !$0.isFixedDecadeOrGenre || !(sharedHome.data[$0] ?? []).isEmpty
-    }
+    let sections = sharedHome.shownSections
     snapshot.appendSections(sections)
     for section in sections {
       // Ids are stable per entity, so a repeated entity would be a duplicate identifier (assert).
@@ -421,6 +426,13 @@ final class HomeVC: UICollectionViewController {
       let items = (sharedHome.data[section] ?? []).filter { seenIds.insert($0.id).inserted }
       snapshot.appendItems(items, toSection: section)
     }
+    // the "More like" header shows the album the section was loaded for, which changes with the items
+    if snapshot.sectionIdentifiers.contains(.moreLikeAlbums),
+       dataSource.snapshot().sectionIdentifiers.contains(.moreLikeAlbums),
+       shownMoreLikeSourceAlbumID != sharedHome.moreLikeSourceAlbum?.id {
+      snapshot.reloadSections([.moreLikeAlbums])
+    }
+    shownMoreLikeSourceAlbumID = sharedHome.moreLikeSourceAlbum?.id
     let oldItems = dataSource.snapshot().itemIdentifiers
     let oldItemsById = Dictionary(oldItems.map { ($0.id, $0) }) { first, _ in first }
     let changedItems = snapshot.itemIdentifiers.filter {
@@ -430,6 +442,41 @@ final class HomeVC: UICollectionViewController {
     }
     snapshot.reconfigureItems(changedItems)
     dataSource.apply(snapshot, animatingDifferences: animated)
+  }
+
+  /// Album the "More like" header showed with the last applied snapshot
+  private var shownMoreLikeSourceAlbumID: String?
+
+  private func moreLikeHeader(at indexPath: IndexPath) -> UICollectionReusableView? {
+    guard let header = collectionView.dequeueReusableSupplementaryView(
+      ofKind: UICollectionView.elementKindSectionHeader,
+      withReuseIdentifier: MoreLikeHeaderView.reuseID,
+      for: indexPath
+    ) as? MoreLikeHeaderView else { return nil }
+    // the section is only in the snapshot together with its album, but a missing header crashes
+    guard let album = sharedHome.moreLikeSourceAlbum else {
+      header.clear()
+      return header
+    }
+    header.topInset = indexPath.section == 0 ? Self.firstSectionTopSpacing : 0
+    header.display(
+      album: album,
+      theme: appDelegate.storage.settings.accounts.getSetting(account.info).read.themePreference,
+      onTap: { [weak self] in
+        guard let self else { return }
+        navigationController?.pushViewController(
+          AppStoryboard.Main.segueToAlbumDetail(account: account, album: album),
+          animated: true
+        )
+        navigationController?.navigationBar.prefersLargeTitles = false
+      },
+      onRefresh: { [weak self] in
+        self?.sharedHome.updateMoreLikeAlbums(pickNewAlbum: true) { [weak self] in
+          self?.scrollSectionToStart(.moreLikeAlbums)
+        }
+      }
+    )
+    return header
   }
 
   @objc
@@ -636,16 +683,19 @@ extension HomeVC {
 final class SectionHeaderView: UICollectionReusableView {
   static let reuseID = "SectionHeaderView"
 
-  private let refreshButton: UIButton = {
+  private let refreshButton = SectionHeaderView.makeRefreshButton()
+  private let titleLabel = SectionHeaderView.makeTitleLabel()
+
+  static func makeRefreshButton() -> UIButton {
     let btn = UIButton(type: .system)
     btn.translatesAutoresizingMaskIntoConstraints = false
     btn.setImage(UIImage.refresh, for: .normal)
     btn.isHidden = true
     btn.accessibilityLabel = "Refresh Randoms"
     return btn
-  }()
+  }
 
-  private let titleLabel: UILabel = {
+  static func makeTitleLabel() -> UILabel {
     let lbl = ScaledLabel()
     lbl.translatesAutoresizingMaskIntoConstraints = false
     // title 3 at the default text size, scaled with the user's text size
@@ -656,7 +706,24 @@ final class SectionHeaderView: UICollectionReusableView {
     lbl.adjustsFontForContentSizeCategory = true
     lbl.textColor = .label
     return lbl
-  }()
+  }
+
+  /// `title` followed by a chevron, for headers that open something on tap
+  static func titleWithChevron(_ title: String) -> NSAttributedString {
+    let result = NSMutableAttributedString(string: title)
+    let pointSize = UIFont.preferredFont(forTextStyle: .subheadline).pointSize + 2
+    let config = UIImage.SymbolConfiguration(
+      pointSize: pointSize,
+      weight: .semibold,
+      scale: .small
+    )
+    let attachment = NSTextAttachment()
+    attachment.image = UIImage(systemName: "chevron.right", withConfiguration: config)?
+      .withTintColor(.secondaryLabel, renderingMode: .alwaysOriginal)
+    result.append(NSAttributedString(string: " "))
+    result.append(NSAttributedString(attachment: attachment))
+    return result
+  }
 
   var showsRefreshButton: Bool {
     get { !refreshButton.isHidden }
@@ -684,21 +751,9 @@ final class SectionHeaderView: UICollectionReusableView {
       titleLabel.attributedText = nil
       return
     }
-    let result = NSMutableAttributedString(string: title)
-    if tapHandler != nil {
-      let pointSize = UIFont.preferredFont(forTextStyle: .subheadline).pointSize + 2
-      let config = UIImage.SymbolConfiguration(
-        pointSize: pointSize,
-        weight: .semibold,
-        scale: .small
-      )
-      let attachment = NSTextAttachment()
-      attachment.image = UIImage(systemName: "chevron.right", withConfiguration: config)?
-        .withTintColor(.secondaryLabel, renderingMode: .alwaysOriginal)
-      result.append(NSAttributedString(string: " "))
-      result.append(NSAttributedString(attachment: attachment))
-    }
-    titleLabel.attributedText = result
+    titleLabel.attributedText = tapHandler != nil
+      ? Self.titleWithChevron(title)
+      : NSAttributedString(string: title)
   }
 
   private var tapHandler: (() -> ())?
@@ -756,6 +811,116 @@ final class SectionHeaderView: UICollectionReusableView {
       refreshButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: 0),
       refreshButton.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
     ])
+  }
+}
+
+// MARK: - MoreLikeHeaderView
+
+/// Header of the "More like" section: cover, "More like" and the name of the album the section
+/// shows similar albums for, followed by a chevron. A tap opens that album.
+final class MoreLikeHeaderView: UICollectionReusableView {
+  static let reuseID = "MoreLikeHeaderView"
+  private static let maxCoverSize: CGFloat = 40
+
+  private let coverView: EntityImageView = {
+    let view = EntityImageView(frame: CGRect(x: 0, y: 0, width: 40, height: 40))
+    view.translatesAutoresizingMaskIntoConstraints = false
+    view.isUserInteractionEnabled = false
+    return view
+  }()
+
+  private let captionLabel: UILabel = {
+    let lbl = UILabel()
+    lbl.font = .preferredFont(forTextStyle: .callout)
+    lbl.adjustsFontForContentSizeCategory = true
+    lbl.textColor = .secondaryLabel
+    lbl.text = "More like"
+    return lbl
+  }()
+
+  private let titleLabel = SectionHeaderView.makeTitleLabel()
+  private let refreshButton = SectionHeaderView.makeRefreshButton()
+  private var onTap: (() -> ())?
+  private var onRefresh: (() -> ())?
+
+  /// Extra space above the header, e.g. between the large navigation title and the first section.
+  var topInset: CGFloat = 0 {
+    didSet { textTopConstraint.constant = topInset }
+  }
+
+  private lazy var textStack: UIStackView = {
+    let stack = UIStackView(arrangedSubviews: [captionLabel, titleLabel])
+    stack.axis = .vertical
+    stack.translatesAutoresizingMaskIntoConstraints = false
+    stack.isUserInteractionEnabled = false
+    return stack
+  }()
+
+  private lazy var textTopConstraint = textStack.topAnchor.constraint(equalTo: topAnchor)
+
+  override init(frame: CGRect) {
+    super.init(frame: frame)
+    addSubview(coverView)
+    addSubview(textStack)
+    addSubview(refreshButton)
+    refreshButton.isHidden = false
+    refreshButton.accessibilityLabel = "Show Albums Like Another Album"
+    refreshButton.addAction(UIAction { [weak self] _ in self?.onRefresh?() }, for: .touchUpInside)
+    addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(headerTapped)))
+    isAccessibilityElement = false
+    textStack.isAccessibilityElement = true
+    textStack.accessibilityTraits = .button
+    // the cover is as high as the two lines of text, up to a limit for large text sizes
+    let coverHeight = coverView.heightAnchor.constraint(equalTo: textStack.heightAnchor)
+    coverHeight.priority = .defaultHigh
+    NSLayoutConstraint.activate([
+      coverView.leadingAnchor.constraint(equalTo: leadingAnchor),
+      coverView.centerYAnchor.constraint(equalTo: textStack.centerYAnchor),
+      coverView.widthAnchor.constraint(equalTo: coverView.heightAnchor),
+      coverView.heightAnchor.constraint(lessThanOrEqualToConstant: Self.maxCoverSize),
+      coverHeight,
+      textStack.leadingAnchor.constraint(equalTo: coverView.trailingAnchor, constant: 12),
+      textStack.trailingAnchor.constraint(
+        lessThanOrEqualTo: refreshButton.leadingAnchor,
+        constant: -8
+      ),
+      textTopConstraint,
+      textStack.bottomAnchor.constraint(equalTo: bottomAnchor),
+      refreshButton.trailingAnchor.constraint(equalTo: trailingAnchor),
+      refreshButton.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
+    ])
+  }
+
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
+  }
+
+  func display(
+    album: Album,
+    theme: ThemePreference,
+    onTap: @escaping () -> (),
+    onRefresh: @escaping () -> ()
+  ) {
+    self.onTap = onTap
+    self.onRefresh = onRefresh
+    coverView.isHidden = false
+    coverView.display(theme: theme, container: album, cornerRadius: .small)
+    titleLabel.attributedText = SectionHeaderView.titleWithChevron(album.name)
+    textStack.accessibilityLabel = "More like \(album.name)"
+  }
+
+  /// Shows nothing and does nothing on tap, for a reused header without album.
+  func clear() {
+    onTap = nil
+    onRefresh = nil
+    coverView.isHidden = true
+    titleLabel.attributedText = nil
+    textStack.accessibilityLabel = nil
+  }
+
+  @objc
+  private func headerTapped() {
+    onTap?()
   }
 }
 

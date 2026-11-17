@@ -41,9 +41,15 @@ extension CarPlaySceneDelegate {
     homeTab.updateSections([CPListSection(items: createHomeImageRows())])
     // a shown section list follows its section (e.g. after a refresh), but only if its own data
     // changed: a rebuild decodes all its images again
-    if let homeSectionTemplate, let homeSectionTemplateSection,
-       previousData[homeSectionTemplateSection] != requestedData[homeSectionTemplateSection],
-       interfaceController?.templates.contains(homeSectionTemplate) == true {
+    // the title of a list can't change: a "More like" list showing another album is replaced
+    if let homeSectionTemplate, homeSectionTemplateSection == .moreLikeAlbums,
+       homeSectionTemplate.title != sharedHome.headerTitle(for: .moreLikeAlbums),
+       interfaceController?.topTemplate === homeSectionTemplate {
+      replaceHomeSectionList(section: .moreLikeAlbums)
+    } else if let homeSectionTemplate, let homeSectionTemplateSection,
+              previousData[homeSectionTemplateSection] !=
+              requestedData[homeSectionTemplateSection],
+              interfaceController?.templates.contains(homeSectionTemplate) == true {
       homeSectionTemplate.updateSections(createHomeSectionListSections(
         section: homeSectionTemplateSection
       ))
@@ -54,17 +60,16 @@ extension CarPlaySceneDelegate {
   private func createHomeImageRows() -> [CPListImageRowItem] {
     guard let sharedHome else { return [] }
     homeImageRowArtworkTargets = [:]
-    // like in the app home, decade and genre sections are hidden as long as they have no albums
-    // (other sections stay, e.g. to refresh an empty random section)
-    return sharedHome.orderedVisibleSections
-      .filter { !$0.isFixedDecadeOrGenre || !(sharedHome.data[$0] ?? []).isEmpty }
+    // the same sections as the app home (e.g. decade and genre sections only with albums;
+    // other sections stay when empty, e.g. to refresh an empty random section)
+    return sharedHome.shownSections
       .map { section in
         let containables = (sharedHome.data[section] ?? [])
           .prefix(Self.homeImageRowMaxElements)
           .map { $0.playableContainable }
         let elements = containables.map { createHomeImageRowElement(for: $0) }
         let row = CPListImageRowItem(
-          text: section.headerTitle,
+          text: sharedHome.headerTitle(for: section),
           elements: elements,
           allowsMultipleLines: true
         )
@@ -119,7 +124,7 @@ extension CarPlaySceneDelegate {
 
   private func pushHomeSectionList(section: HomeSection, completion: @escaping () -> ()) {
     let template = CPListTemplate(
-      title: section.headerTitle,
+      title: sharedHome?.headerTitle(for: section) ?? section.headerTitle,
       sections: createHomeSectionListSections(section: section)
     )
     homeSectionTemplate = template
@@ -127,6 +132,14 @@ extension CarPlaySceneDelegate {
     Task { @MainActor in
       let _ = try? await interfaceController?.pushTemplate(template, animated: true)
       completion()
+    }
+  }
+
+  /// Pops the shown section list and pushes it again, e.g. for a new title.
+  private func replaceHomeSectionList(section: HomeSection) {
+    Task { @MainActor in
+      let _ = try? await interfaceController?.popTemplate(animated: false)
+      pushHomeSectionList(section: section, completion: {})
     }
   }
 
@@ -168,6 +181,8 @@ extension CarPlaySceneDelegate {
         sharedHome.updateRandomGenres()
       case .randomSongs:
         sharedHome.updateRandomSongs(isOfflineMode: isOfflineMode)
+      case .moreLikeAlbums:
+        sharedHome.updateMoreLikeAlbums(pickNewAlbum: true)
       default:
         // decade and genre sections ("Albums from the 90s", "Rock") are random sections too
         if section.isFixedDecadeOrGenre {

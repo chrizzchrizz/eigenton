@@ -110,6 +110,17 @@ class HomeManager: NSObject {
   private var podcastsFetchedController: PodcastFetchedResultsController?
   private var radiosFetchedController: RadiosFetchedResultsController?
 
+  /// Recently played album the "More like" section shows similar albums for
+  private(set) var moreLikeSourceAlbum: Album?
+  private var moreLikeTask: Task<(), Never>?
+  /// A pick was requested while another one was running (e.g. the recently played albums got
+  /// synced meanwhile): it runs once the running pick ends without similar albums.
+  private var isMoreLikeRetryPending = false
+  /// Number of recently played albums the "More like" album is picked from
+  private static let moreLikeCandidateCount = 20
+  /// Recently played albums tried one after the other until one has similar albums
+  private static let moreLikeMaxAttempts = 3
+
   init(
     account: Account,
     storage: PersistentStorage,
@@ -131,6 +142,15 @@ class HomeManager: NSObject {
   private func notifySnapshotChange() {
     guard !isFillingAllSections else { return }
     applySnapshotCB?()
+  }
+
+  /// Visible sections that are shown: sections hidden when empty only appear with content, and
+  /// "More like" is hidden in offline mode (its albums are kept for going back online).
+  var shownSections: [HomeSection] {
+    orderedVisibleSections.filter { section in
+      if section == .moreLikeAlbums, isOfflineMode { return false }
+      return !section.isHiddenWhenEmpty || !(data[section] ?? []).isEmpty
+    }
   }
 
   func createFetchController() {
@@ -218,6 +238,11 @@ class HomeManager: NSObject {
     if orderedVisibleSections.contains(where: { $0 == .randomSongs }) {
       updateRandomSongs(isOfflineMode: isOfflineMode)
     }
+    if orderedVisibleSections.contains(where: { $0 == .moreLikeAlbums }) {
+      updateMoreLikeAlbums()
+    } else {
+      clearMoreLikeAlbums()
+    }
     let fixedSections = orderedVisibleSections.filter(\.isFixedDecadeOrGenre)
     if !fixedSections.isEmpty {
       for section in fixedSections {
@@ -302,7 +327,9 @@ class HomeManager: NSObject {
         }
       }
     }
-    if orderedVisibleSections.contains(where: { $0 == .recentlyPlayedAlbums }) {
+    let isMoreLikeVisible = orderedVisibleSections.contains(where: { $0 == .moreLikeAlbums })
+    if isMoreLikeVisible ||
+      orderedVisibleSections.contains(where: { $0 == .recentlyPlayedAlbums }) {
       Task { @MainActor in
         do {
           try await self.getMeta(self.account.info).librarySyncer
@@ -312,6 +339,13 @@ class HomeManager: NSObject {
             )
         } catch {
           self.eventLogger.report(topic: "Recent Albums Sync", error: error)
+        }
+        // the "More like" album is picked from the recently played albums, which may only
+        // be known now (first start, or nothing had similar albums before); the section may
+        // have been removed in the meantime
+        if isMoreLikeVisible,
+           self.orderedVisibleSections.contains(where: { $0 == .moreLikeAlbums }) {
+          self.updateMoreLikeAlbums()
         }
       }
     }
@@ -483,6 +517,110 @@ class HomeManager: NSObject {
     data[.randomSongs] = randomSongs.compactMap {
       HomeItem(section: .randomSongs, playableContainable: $0)
     }
+    notifySnapshotChange()
+  }
+
+  /// Picks a random recently played album and shows the albums similar to it.
+  /// Keeps the shown albums unless `pickNewAlbum` is set, so returning to Home or switching the
+  /// offline mode doesn't change the section. Recently played albums without similar albums
+  /// (e.g. the server's external agent knows nothing about them) are skipped.
+  /// The similar albums come from the server: nothing is requested in offline mode (the section
+  /// is hidden then, see `shownSections`) and for Ampache, which has no similar albums.
+  /// `onLoaded` is called once new albums are shown.
+  func updateMoreLikeAlbums(pickNewAlbum: Bool = false, onLoaded: (() -> ())? = nil) {
+    guard account.apiType != .ampache else {
+      clearMoreLikeAlbums()
+      return
+    }
+    guard storage.settings.user.isOnlineMode else {
+      moreLikeTask?.cancel()
+      moreLikeTask = nil
+      isMoreLikeRetryPending = false
+      return
+    }
+    if pickNewAlbum {
+      moreLikeTask?.cancel()
+      moreLikeTask = nil
+      isMoreLikeRetryPending = false
+    } else if !(data[.moreLikeAlbums] ?? []).isEmpty {
+      return
+    } else if moreLikeTask != nil {
+      isMoreLikeRetryPending = true
+      return
+    }
+    var candidates = storage.main.library.getRecentAlbums(
+      for: account,
+      count: Self.moreLikeCandidateCount
+    )
+    // a new pick should show a different album, if there is another one
+    if pickNewAlbum, let current = moreLikeSourceAlbum, candidates.count > 1 {
+      candidates.removeAll { $0.id == current.id }
+    }
+    let attempts = candidates.shuffled().prefix(Self.moreLikeMaxAttempts)
+    guard !attempts.isEmpty else { return }
+    let librarySyncer = getMeta(account.info).librarySyncer
+    moreLikeTask = Task { @MainActor [weak self] in
+      for candidate in attempts {
+        let similarAlbums: [Album]
+        do {
+          similarAlbums = try await librarySyncer.requestSimilarAlbums(
+            album: candidate,
+            count: 40
+          )
+        } catch {
+          guard !Task.isCancelled else { return }
+          // similar albums are optional: only logged, never shown
+          self?.eventLogger.report(topic: "More Like Albums", error: error, displayPopup: false)
+          continue
+        }
+        guard let self, !Task.isCancelled else { return }
+        let albums = Self.moreLikeAlbums(similarAlbums, to: candidate)
+        guard !albums.isEmpty else { continue }
+        moreLikeTask = nil
+        isMoreLikeRetryPending = false
+        moreLikeSourceAlbum = candidate
+        data[.moreLikeAlbums] = albums.map {
+          HomeItem(section: .moreLikeAlbums, playableContainable: $0)
+        }
+        notifySnapshotChange()
+        onLoaded?()
+        return
+      }
+      guard let self, !Task.isCancelled else { return }
+      moreLikeTask = nil
+      if isMoreLikeRetryPending {
+        isMoreLikeRetryPending = false
+        updateMoreLikeAlbums()
+      }
+    }
+  }
+
+  /// Albums of other artists first: the similar songs the albums come from are often from the
+  /// same artist, which is not much of a recommendation. Those only fill up the section.
+  private static func moreLikeAlbums(_ albums: [Album], to source: Album) -> [Album] {
+    let candidates = albums.filter { $0.id != source.id }
+    let sourceArtistID = source.artist?.id
+    let otherArtists = candidates
+      .filter { sourceArtistID == nil || $0.artist?.id != sourceArtistID }
+    let sameArtist = candidates.filter { sourceArtistID != nil && $0.artist?.id == sourceArtistID }
+    return Array((otherArtists + sameArtist).prefix(sectionMaxItemCount))
+  }
+
+  /// Title of a section as one line of text (CarPlay), with the album of the "More like" section.
+  func headerTitle(for section: HomeSection) -> String {
+    if section == .moreLikeAlbums, let moreLikeSourceAlbum {
+      return "More like \(moreLikeSourceAlbum.name)"
+    }
+    return section.headerTitle
+  }
+
+  private func clearMoreLikeAlbums() {
+    moreLikeTask?.cancel()
+    moreLikeTask = nil
+    isMoreLikeRetryPending = false
+    moreLikeSourceAlbum = nil
+    guard data[.moreLikeAlbums] != nil else { return }
+    data[.moreLikeAlbums] = nil
     notifySnapshotChange()
   }
 
