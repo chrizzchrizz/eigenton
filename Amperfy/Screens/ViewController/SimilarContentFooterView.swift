@@ -169,25 +169,75 @@ class SimilarContentFooterView: UIView {
 
   var hasContent: Bool { !artistsSection.isHidden || !albumsSection.isHidden }
 
-  /// Requests the artists similar to `artist` and the albums similar to `album`.
+  private weak var tableView: UITableView?
+  private var artistsTask: Task<(), Never>?
+  private var albumsTask: Task<(), Never>?
+
+  deinit {
+    // the owner was closed: don't keep the server requests and the tiles alive for nobody
+    artistsTask?.cancel()
+    albumsTask?.cancel()
+  }
+
+  /// Requests the artists similar to `artist` and the albums similar to `album` in parallel and
+  /// shows the footer below `tableView` once a row has content, so the artists don't wait for the
+  /// albums (those need the server's external agents and can take several seconds).
+  /// Rows that are still empty, because their request failed or returned nothing, are requested
+  /// again on the next call; rows that have content are kept.
   /// Similar content is optional, so a failing server agent is only logged and never shown.
-  func load(similarTo artist: Artist?, album: Album? = nil) async {
+  func load(similarTo artist: Artist?, album: Album? = nil, in tableView: UITableView) {
+    self.tableView = tableView
     let librarySyncer = appDelegate.getMeta(account.info).librarySyncer
-    if let artist {
-      do {
-        display(artists: try await librarySyncer.requestSimilarArtists(artist: artist, count: 15))
-      } catch {
-        appDelegate.eventLogger.report(topic: "Similar Artists", error: error, displayPopup: false)
+    if let artist, artistsSection.isHidden, artistsTask == nil {
+      artistsTask = Task { [weak self] in
+        let artists: [Artist]
+        do {
+          artists = try await librarySyncer.requestSimilarArtists(artist: artist, count: 15)
+        } catch {
+          self?.report(topic: "Similar Artists", error: error)
+          self?.artistsTask = nil
+          return
+        }
+        guard let self else { return }
+        artistsTask = nil
+        guard !Task.isCancelled else { return }
+        display(artists: artists)
       }
     }
-    if let album {
-      do {
-        let albums = try await librarySyncer.requestSimilarAlbums(album: album, count: 40)
+    if let album, albumsSection.isHidden, albumsTask == nil {
+      albumsTask = Task { [weak self] in
+        let albums: [Album]
+        do {
+          albums = try await librarySyncer.requestSimilarAlbums(album: album, count: 40)
+        } catch {
+          self?.report(topic: "Similar Albums", error: error)
+          self?.albumsTask = nil
+          return
+        }
+        // the artists row is above the albums row: showing it after the albums would push the
+        // albums down while the user may already look at them or tap one
+        let artistsTask = self?.artistsTask
+        await artistsTask?.value
+        guard let self else { return }
+        albumsTask = nil
+        guard !Task.isCancelled else { return }
         display(albums: Array(albums.prefix(12)))
-      } catch {
-        appDelegate.eventLogger.report(topic: "Similar Albums", error: error, displayPopup: false)
       }
     }
+  }
+
+  private func report(topic: String, error: Error) {
+    guard !Task.isCancelled else { return }
+    appDelegate.eventLogger.report(topic: topic, error: error, displayPopup: false)
+  }
+
+  /// Makes the footer the table's footer once it has content and sizes it.
+  private func showInTableView() {
+    guard hasContent, let tableView else { return }
+    if tableView.tableFooterView !== self {
+      tableView.tableFooterView = self
+    }
+    layout(in: tableView)
   }
 
   /// Sizes the footer to fit the width of the table view; the table view only picks up
@@ -237,6 +287,7 @@ class SimilarContentFooterView: UIView {
     isImageCircular: Bool = false,
     onSelect: @escaping (T) -> ()
   ) {
+    guard !containers.isEmpty else { return }
     row.arrangedSubviews.forEach { $0.removeFromSuperview() }
     for container in containers {
       row.addArrangedSubview(SimilarContentTile(
@@ -247,7 +298,8 @@ class SimilarContentFooterView: UIView {
         onSelect(container)
       })
     }
-    section.isHidden = containers.isEmpty
+    section.isHidden = false
+    showInTableView()
   }
 
   private static func createSection(title: String, row: UIStackView) -> UIView {

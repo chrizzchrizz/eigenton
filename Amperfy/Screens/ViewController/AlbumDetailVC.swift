@@ -44,8 +44,7 @@ class AlbumDetailVC: SingleSnapshotFetchedResultsTableViewController<SongMO> {
   private var optionsButton: UIBarButtonItem!
   private var detailOperationsView: GenericDetailTableHeader?
   private var artworkBackground: ArtworkBackgroundController!
-  private var similarContentFooter: SimilarContentFooterView?
-  private var isLoadingSimilarContent = false
+  private lazy var similarContentFooter = SimilarContentFooterView(account: account, owner: self)
   let album: Album
 
   init(account: Account, album: Album) {
@@ -207,27 +206,14 @@ class AlbumDetailVC: SingleSnapshotFetchedResultsTableViewController<SongMO> {
 
   override func viewDidLayoutSubviews() {
     super.viewDidLayoutSubviews()
-    similarContentFooter?.layout(in: tableView)
+    similarContentFooter.layout(in: tableView)
     for header in discHeaders.allObjects {
       header.alignLeading(withRowsOf: tableView)
     }
   }
 
   private func loadSimilarContent() {
-    // the footer is only kept once it has content, so a failed or empty load is tried again
-    guard similarContentFooter == nil, !isLoadingSimilarContent else { return }
-    isLoadingSimilarContent = true
-    let footer = SimilarContentFooterView(account: account, owner: self)
-    let album = album
-    Task { @MainActor [weak self] in
-      await footer.load(similarTo: album.artist, album: album)
-      guard let self else { return }
-      isLoadingSimilarContent = false
-      guard footer.hasContent else { return }
-      similarContentFooter = footer
-      tableView.tableFooterView = footer
-      footer.layout(in: tableView)
-    }
+    similarContentFooter.load(similarTo: album.artist, album: album, in: tableView)
   }
 
   override func viewDidAppear(_ animated: Bool) {

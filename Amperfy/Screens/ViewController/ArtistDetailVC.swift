@@ -61,8 +61,7 @@ class ArtistDetailVC: MultiSourceTableViewController {
   private var albumsGridVC: ArtistAlbumsGridVC!
   private var compilationsGridVC: ArtistAlbumsGridVC!
   private var topSongsGridVC: ArtistTopSongsGridVC!
-  private var similarContentFooter: SimilarContentFooterView?
-  private var isLoadingSimilarContent = false
+  private lazy var similarContentFooter = SimilarContentFooterView(account: account, owner: self)
   /// Top songs ranked by the server; replace the locally computed ones when known at first display.
   private var serverTopSongs = [Song]()
   /// Until the server answered or the timeout passed, the top songs section keeps the space of the
@@ -335,7 +334,7 @@ class ArtistDetailVC: MultiSourceTableViewController {
 
   override func viewDidLayoutSubviews() {
     super.viewDidLayoutSubviews()
-    similarContentFooter?.layout(in: tableView)
+    similarContentFooter.layout(in: tableView)
     layoutBackdrop()
   }
 
@@ -407,20 +406,7 @@ class ArtistDetailVC: MultiSourceTableViewController {
   }
 
   private func loadSimilarContent() {
-    // the footer is only kept once it has content, so a failed or empty load is tried again
-    guard similarContentFooter == nil, !isLoadingSimilarContent else { return }
-    isLoadingSimilarContent = true
-    let footer = SimilarContentFooterView(account: account, owner: self)
-    let artist = artist
-    Task { @MainActor [weak self] in
-      await footer.load(similarTo: artist)
-      guard let self else { return }
-      isLoadingSimilarContent = false
-      guard footer.hasContent else { return }
-      similarContentFooter = footer
-      tableView.tableFooterView = footer
-      footer.layout(in: tableView)
-    }
+    similarContentFooter.load(similarTo: artist, in: tableView)
   }
 
   override func viewWillDisappear(_ animated: Bool) {
