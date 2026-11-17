@@ -1057,16 +1057,23 @@ final class SubsonicServerApi: URLCleanser, Sendable {
     return url
   }
 
+  /// Adds the account's client certificate (mTLS), if one was imported
+  private func withClientCertificate<R: Request>(_ request: R) -> R {
+    guard let credential = ClientCertificateManager.shared.credential(accountIdent: account?.ident)
+    else { return request }
+    return request.authenticate(with: credential)
+  }
+
   private func loginNativeApi() async throws -> String {
     guard let credentials = credentials.wrappedValue else { throw BackendError.noCredentials }
     let url = try createNativeApiUrl(path: "auth/login")
-    let response = await AF.request(
+    let response = await withClientCertificate(AF.request(
       url,
       method: .post,
       parameters: ["username": credentials.username, "password": credentials.password],
       encoder: JSONParameterEncoder.default,
       headers: buildHTTPHeaders()
-    ).serializingData().response
+    )).serializingData().response
     guard let statusCode = response.response?.statusCode, statusCode == 200,
           let data = response.data,
           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -1111,7 +1118,7 @@ final class SubsonicServerApi: URLCleanser, Sendable {
       } else {
         dataRequest = AF.request(url, method: method, headers: headers)
       }
-      let response = await dataRequest.serializingData().response
+      let response = await withClientCertificate(dataRequest).serializingData().response
       let statusCode = response.response?.statusCode ?? 0
       if (200 ..< 300).contains(statusCode) { return }
       if statusCode == 401, attempt == 0 {
@@ -1166,7 +1173,7 @@ final class SubsonicServerApi: URLCleanser, Sendable {
   ) async throws
     -> APIDataResponse {
     try await withUnsafeThrowingContinuation { continuation in
-      var afRequest: DataRequest
+      let afRequest: DataRequest
       if let body {
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = HTTPMethod.post.rawValue
@@ -1180,11 +1187,7 @@ final class SubsonicServerApi: URLCleanser, Sendable {
       } else {
         afRequest = AF.request(url, method: .get, headers: headers)
       }
-      if let credential = ClientCertificateManager.shared
-        .credential(accountIdent: account?.ident) {
-        afRequest = afRequest.authenticate(with: credential)
-      }
-      afRequest.validate().responseData { response in
+      withClientCertificate(afRequest).validate().responseData { response in
         if response.response?.statusCode == 404 {
           let cleanedURL = self.cleanse(url: response.request?.url)
           os_log("API 404: Not Found: %s", log: self.log, type: .info, cleanedURL.description)
