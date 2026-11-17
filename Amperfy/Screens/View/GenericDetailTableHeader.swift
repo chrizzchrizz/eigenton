@@ -174,7 +174,10 @@ class GenericDetailTableHeader: UIView {
     NSLayoutConstraint.activate([
       ratingRow.leadingAnchor.constraint(equalTo: infoStack.leadingAnchor),
       ratingRow.trailingAnchor.constraint(equalTo: infoStack.trailingAnchor),
-      ratingStack.topAnchor.constraint(equalTo: ratingRow.topAnchor, constant: Self.ratingTopPadding),
+      ratingStack.topAnchor.constraint(
+        equalTo: ratingRow.topAnchor,
+        constant: Self.ratingTopPadding
+      ),
       ratingStack.bottomAnchor.constraint(equalTo: ratingRow.bottomAnchor),
     ])
     ratingRow.isAccessibilityElement = true
@@ -367,8 +370,10 @@ class GenericDetailTableHeader: UIView {
     // deactivate first, both at once would conflict
     let ratingAlignment = [ratingLeadingConstraint, ratingCenterXConstraint].compactMap { $0 }
     NSLayoutConstraint.deactivate(ratingAlignment)
-    NSLayoutConstraint.activate([isCompact ? ratingCenterXConstraint : ratingLeadingConstraint]
-      .compactMap { $0 })
+    NSLayoutConstraint.activate(
+      [isCompact ? ratingCenterXConstraint : ratingLeadingConstraint]
+        .compactMap { $0 }
+    )
     let ratingRowHeight = ratingRow.isHidden ? 0 : Self.ratingRowHeight
 
     var height = (traitCollection.horizontalSizeClass == .compact) ?
