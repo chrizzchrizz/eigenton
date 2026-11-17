@@ -912,13 +912,6 @@ class BackendAudioPlayer: NSObject {
         }
         // stations are often set up with a .m3u or .pls link that only names the stream
         let streamUrl = try await RadioPlaylistResolver.resolve(url: radioUrl)
-        try checkIsLatestPlayRequest()
-        // a radio preloaded as the next item doesn't change what is playing now
-        if queueType == .play {
-          playType = .stream
-        } else {
-          perloadedPlayType = .stream
-        }
         return streamUrl
       } else {
         guard let accountInfo = playable.account?.info else {
@@ -954,6 +947,15 @@ class BackendAudioPlayer: NSObject {
     }
     // a preload requested before a stream restart would be queued behind the new stream
     guard queueType == .play || request == streamRestartRequest else { return }
+    // set only now: the playlist request can take long, a dropped radio preload must not change
+    // the play type of a newer preload
+    if playable.isRadio {
+      if queueType == .play {
+        playType = .stream
+      } else {
+        perloadedPlayType = .stream
+      }
+    }
 
     if queueType == .play {
       os_log(
