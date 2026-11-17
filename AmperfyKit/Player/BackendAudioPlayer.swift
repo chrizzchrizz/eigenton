@@ -395,12 +395,15 @@ class BackendAudioPlayer: NSObject {
   }
 
   func preloadNextPlayable() {
-    guard let playable = nextPlayablePreloadCB?(), playable != failedPreloadPlayable else { return }
+    // offline, a song that is not downloaded isn't preloaded: going online preloads its stream
+    guard let playable = nextPlayablePreloadCB?(), playable != failedPreloadPlayable,
+          playable.isCached || !isOfflineMode
+    else { return }
     nextPreloadedPlayable = playable
     os_log(.default, "Preloading: %s", playable.displayString)
     if playable.isCached {
       insertCachedPlayable(playable: playable, queueType: .queue)
-    } else if !isOfflineMode {
+    } else {
       let requestID = playRequestID
       let request = streamRestartRequest
       Task { @MainActor in
@@ -683,9 +686,12 @@ class BackendAudioPlayer: NSObject {
     streamRestartRequest += 1
     shouldPlayAfterStreamRestart = nil
     // a preload whose URL is still generated (e.g. a slow radio playlist) isn't queued yet, it
-    // is requested again below and the late preload is dropped
+    // is requested again below and the late preload is dropped; offline, a stream preloaded
+    // before the switch only plays if the song was downloaded since, like a song that is already
+    // streaming; otherwise the player stops at it
     if isPreviousPlaylableFinshed, let nextPreloadedPlayable = nextPreloadedPlayable,
-       nextPreloadedPlayable == playable, !nextPreloadedUrl.isEmpty {
+       nextPreloadedPlayable == playable, !nextPreloadedUrl.isEmpty,
+       nextPreloadedPlayable.isCached || !isOfflineMode {
       // Do nothing next preloaded playable has already been queued to player
       os_log(.default, "Play Preloaded: %s", nextPreloadedPlayable.displayString)
       currentPreparedUrl = ""
@@ -932,6 +938,7 @@ class BackendAudioPlayer: NSObject {
           preloadTranscodingFormat = streamingTranscodingFormat
         }
         httpHeaders = backendApi.httpHeaders
+        ClientCertificateManager.shared.activeStreamingCertificateAccountIdent = accountInfo.ident
         return try await backendApi.generateUrl(
           forStreamingPlayable: playable.info,
           maxBitrate: streamingMaxBitrate,
@@ -948,10 +955,11 @@ class BackendAudioPlayer: NSObject {
     // a preload requested before a stream restart would be queued behind the new stream
     guard queueType == .play || request == streamRestartRequest else { return }
     // set only now: the playlist request can take long, a dropped radio preload must not change
-    // the play type of a newer preload
+    // the play type of a newer preload or the certificate of the song that is playing now
     if playable.isRadio {
       if queueType == .play {
         playType = .stream
+        ClientCertificateManager.shared.activeStreamingCertificateAccountIdent = nil
       } else {
         perloadedPlayType = .stream
       }
@@ -1014,22 +1022,32 @@ class BackendAudioPlayer: NSObject {
       return
     }
 
+    var headers = Self.cookieHeaders(for: asset.url)
+    headers.merge(httpHeaders) { _, new in new }
+
     switch queueType {
     case .play:
       currentPreparedUrl = asset.url.absoluteString
-      if httpHeaders.isEmpty {
+      if headers.isEmpty {
         player?.play(url: asset.url)
       } else {
-        player?.play(url: asset.url, headers: httpHeaders)
+        player?.play(url: asset.url, headers: headers)
       }
     case .queue:
       nextPreloadedUrl = asset.url.absoluteString
-      if httpHeaders.isEmpty {
+      if headers.isEmpty {
         player?.queue(url: asset.url)
       } else {
-        player?.queue(url: asset.url, headers: httpHeaders)
+        player?.queue(url: asset.url, headers: headers)
       }
     }
+  }
+
+  private static func cookieHeaders(for url: URL) -> [String: String] {
+    guard let cookies = HTTPCookieStorage.shared.cookies(for: url), !cookies.isEmpty else {
+      return [:]
+    }
+    return HTTPCookie.requestHeaderFields(with: cookies)
   }
 
   // MARK: - EQ Implementation

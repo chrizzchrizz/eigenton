@@ -1166,7 +1166,7 @@ final class SubsonicServerApi: URLCleanser, Sendable {
   ) async throws
     -> APIDataResponse {
     try await withUnsafeThrowingContinuation { continuation in
-      let afRequest: DataRequest
+      var afRequest: DataRequest
       if let body {
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = HTTPMethod.post.rawValue
@@ -1179,6 +1179,10 @@ final class SubsonicServerApi: URLCleanser, Sendable {
         afRequest = AF.request(urlRequest)
       } else {
         afRequest = AF.request(url, method: .get, headers: headers)
+      }
+      if let credential = ClientCertificateManager.shared
+        .credential(accountIdent: account?.ident) {
+        afRequest = afRequest.authenticate(with: credential)
       }
       afRequest.validate().responseData { response in
         if response.response?.statusCode == 404 {

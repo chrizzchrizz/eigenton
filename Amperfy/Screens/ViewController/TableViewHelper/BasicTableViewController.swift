@@ -221,6 +221,12 @@ class BasicTableViewController: KeyCommandTableViewController {
   override func viewDidLoad() {
     super.viewDidLoad()
     tableView.keyboardDismissMode = .onDrag
+    appDelegate.notificationHandler.register(
+      self,
+      selector: #selector(refreshOfflineMode),
+      name: .offlineModeChanged,
+      object: nil
+    )
     #if targetEnvironment(macCatalyst)
       if #available(macCatalyst 27.0, *) {
         // the default hard edge on Mac draws an opaque band behind the title bar buttons;
@@ -239,7 +245,25 @@ class BasicTableViewController: KeyCommandTableViewController {
       // the navigation controller resets the title bar for every shown screen
       macLargeTitle?.update()
     #endif
+    applyOfflineMode()
+  }
 
+  /// The account of the listed items (each list returns its own; the base falls back to the
+  /// active one): the lists of an account that is resynced or logged out don't follow a switch
+  var listAccountInfo: AccountInfo? {
+    appDelegate.storage.settings.accounts.active
+  }
+
+  @objc
+  private func refreshOfflineMode() {
+    // a hidden list applies it in viewIsAppearing
+    guard viewIfLoaded?.window != nil, appDelegate.isAccountStarted(listAccountInfo)
+    else { return }
+    applyOfflineMode()
+  }
+
+  /// Offline mode lists only cached items
+  func applyOfflineMode() {
     if searchController.searchBar.scopeButtonTitles?.count ?? 0 > 1,
        appDelegate.storage.settings.user.isOfflineMode {
       searchController.searchBar.selectedScopeButtonIndex = 1

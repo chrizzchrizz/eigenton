@@ -46,6 +46,8 @@ final class LoginFormModel {
   var password = ""
   var apiType: BackenApiType = .notDetected
   var httpHeaders: [String: String] = [:]
+  /// A client certificate (mTLS) imported for the login, moved to the account after it
+  var hasClientCertificate = false
   var isModal = false
   var isLoggingIn = false
 
@@ -56,6 +58,21 @@ final class LoginFormModel {
 
   func prefill(serverUrl: String) {
     address = serverUrl
+  }
+
+  func refreshClientCertificate() {
+    hasClientCertificate = ClientCertificateManager.shared
+      .hasCertificate(tag: ClientCertificateManager.loginTag)
+  }
+
+  /// What the advanced options add to the login, nil while nothing is set
+  var advancedSummary: String? {
+    switch (!httpHeaders.isEmpty, hasClientCertificate) {
+    case (false, false): nil
+    case (true, false): "Headers"
+    case (false, true): "Certificate"
+    case (true, true): "Headers + Certificate"
+    }
   }
 
   /// A typed or pasted URL that contains a scheme selects it in the menu and drops it from the text.
@@ -108,7 +125,7 @@ struct LoginView: View {
   @FocusState
   private var focusedField: Field?
   @State
-  private var isHttpHeadersEditorShown = false
+  private var isAdvancedOptionsShown = false
 
   private var themeColor: Color {
     theme.asSwiftUIColor
@@ -122,7 +139,7 @@ struct LoginView: View {
             .padding(.bottom, 32)
           VStack(spacing: 24) {
             credentialsGroup
-            httpHeadersButton
+            advancedOptionsButton
           }
           loginButton
             .padding(.top, 32)
@@ -149,22 +166,14 @@ struct LoginView: View {
         closeButton
       }
     }
-    .sheet(isPresented: $isHttpHeadersEditorShown) {
-      NavigationStack {
-        CustomHTTPHeadersView(headers: model.httpHeaders) { updated in
-          model.httpHeaders = updated
-        }
-        .toolbar {
-          // Headers are applied on every change, so closing is all that is left to do.
-          // Needed on macOS, where a sheet cannot be swiped down.
-          ToolbarItem(placement: .cancellationAction) {
-            Button(role: .close) {
-              isHttpHeadersEditorShown = false
-            }
-            .keyboardShortcut(.cancelAction)
-          }
-        }
-      }
+    .sheet(isPresented: $isAdvancedOptionsShown) {
+      // headers and certificate are applied on every change, so closing is all that is left
+      AdvancedLoginOptionsView(
+        headers: model.httpHeaders,
+        onHeadersChange: { model.httpHeaders = $0 },
+        onDismiss: { model.refreshClientCertificate() },
+        onDone: { isAdvancedOptionsShown = false }
+      )
     }
   }
 
@@ -317,11 +326,11 @@ struct LoginView: View {
     .accessibilityValue(model.apiType.selectorDescription)
   }
 
-  private var httpHeadersButton: some View {
+  private var advancedOptionsButton: some View {
     Button {
-      isHttpHeadersEditorShown = true
+      isAdvancedOptionsShown = true
     } label: {
-      Text("Custom HTTP Headers")
+      Text(model.advancedSummary.map { "Advanced: \($0)" } ?? "Advanced Options")
         .font(Self.secondaryButtonFont)
         .foregroundStyle(.primary)
         .frame(maxWidth: .infinity)

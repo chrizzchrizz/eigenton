@@ -121,7 +121,12 @@ public class AmperKit {
     playerAudioSessionHandler = AudioSessionHandler()
     let backendAudioPlayer = BackendAudioPlayer(
       createAudioStreamingPlayerCB: {
-        AudioStreamingPlayer(configuration: AudioStreamingPlayer.configuration)
+        AudioStreamingPlayer(
+          configuration: AudioStreamingPlayer.configuration,
+          clientCertificateProvider: { _ in
+            ClientCertificateManager.shared.activeStreamingCredential()
+          }
+        )
       },
       audioSessionHandler: playerAudioSessionHandler!,
       eventLogger: eventLogger,
@@ -182,7 +187,6 @@ public class AmperKit {
       backendAudioPlayer: backendAudioPlayer,
       userStatistics: userStatistics
     )
-    facadeImpl.isOfflineMode = storage.settings.user.isOfflineMode
 
     playerNowPlayingInfoCenterHandler = NowPlayingInfoCenterHandler(
       musicPlayer: curPlayer,
@@ -208,7 +212,11 @@ public class AmperKit {
     )
     playerRemoteCommandCenterHandler?.configureRemoteCommands()
     curPlayer.addNotifier(notifier: playerRemoteCommandCenterHandler!)
-    playerNotificationAdapter = PlayerNotificationAdapter(notificationHandler: notificationHandler)
+    playerNotificationAdapter = PlayerNotificationAdapter(
+      notificationHandler: notificationHandler,
+      player: facadeImpl,
+      settings: storage.settings
+    )
     curPlayer.addNotifier(notifier: playerNotificationAdapter!)
 
     return facadeImpl

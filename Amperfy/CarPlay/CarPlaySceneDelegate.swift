@@ -764,7 +764,8 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
   @objc
   private func refreshOfflineMode() {
     os_log("CarPlay: OfflineModeChanged", log: self.log, type: .info)
-    guard let templates = interfaceController?.templates else { return }
+    // no account after the last one is logged out: CarPlay shows Disconnected
+    guard activeAccount != nil, let templates = interfaceController?.templates else { return }
 
     // lists that aren't shown get a new fetch controller in the current mode once they appear
     resetOfflineModeDependentFetchControllers(except: templates)

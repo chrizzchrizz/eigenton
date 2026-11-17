@@ -158,6 +158,11 @@ class LoginVC: UIViewController {
         }
         meta.backendApi.provideCredentials(credentials: credentials)
 
+        try? ClientCertificateManager.shared.moveCertificate(
+          from: ClientCertificateManager.loginTag,
+          to: ClientCertificateManager.accountTag(for: accountInfo.ident)
+        )
+
         self.appDelegate.notificationHandler.post(name: .accountAdded, object: nil, userInfo: nil)
         self.appDelegate.notificationHandler.post(
           name: .accountActiveChanged,
@@ -220,6 +225,7 @@ class LoginVC: UIViewController {
       formModel.username = credentials.username
       formModel.httpHeaders = credentials.httpHeaders
     }
+    formModel.refreshClientCertificate()
   }
 
   override func viewWillAppear(_ animated: Bool) {

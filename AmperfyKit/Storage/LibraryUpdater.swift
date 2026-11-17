@@ -179,11 +179,6 @@ public class LibraryUpdater {
 
   private var isRunning = true
 
-  public func cancleLibraryUpdate() {
-    os_log("LibraryUpdate: cancle", log: self.log, type: .info)
-    isRunning = false
-  }
-
   @MainActor
   public func performLibraryUpdateWithStatus(
     notifier: LibraryUpdaterCallbacks

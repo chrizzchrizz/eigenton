@@ -86,12 +86,12 @@ struct LibrarySettingsView: View {
     let meta = appDelegate.getMeta(accountInfo)
     meta.stopManager()
     appDelegate.resetMeta(accountInfo)
+    appDelegate.switchOnlineOfflineMode(isOfflineMode: false)
 
     // reset quick actions
     appDelegate.quickActionsManager.configureQuickActions()
     appDelegate.configureMainMenu()
 
-    appDelegate.storage.settings.user.isOfflineMode = false
     appDelegate.storage.settings.accounts.updateSetting(accountInfo) {
       $0.clearInitialSyncCheckpoint()
     }

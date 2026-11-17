@@ -107,6 +107,12 @@ public class MetaManager {
     self.eventLogger = eventLogger
     self.notificationHandler = notificationHandler
     self.localNotificationManager = localNotificationManager
+    notificationHandler.register(
+      self,
+      selector: #selector(startScrobbleUploadIfOnline),
+      name: .offlineModeChanged,
+      object: nil
+    )
   }
 
   private var scrobbleSyncer: ScrobbleSyncer?
@@ -162,7 +168,8 @@ public class MetaManager {
       notificationHandler: notificationHandler,
       urlCleanser: backendApi,
       limitCacheSize: true,
-      isFailWithPopupError: true
+      isFailWithPopupError: true,
+      clientCertificateAccountIdent: account.ident
     )
 
     let configuration = URLSessionConfiguration
@@ -208,7 +215,8 @@ public class MetaManager {
       notificationHandler: notificationHandler,
       urlCleanser: backendApi,
       limitCacheSize: false,
-      isFailWithPopupError: false
+      isFailWithPopupError: false,
+      clientCertificateAccountIdent: account.ident
     )
 
     let validationCB: PreDownloadIsValidCB =
@@ -294,7 +302,7 @@ public class MetaManager {
     )
   }()
 
-  private var isStarted = false
+  public private(set) var isStarted = false
 
   public func startManagerAfterSync(player: PlayerFacade) {
     os_log("Start background manager after sync", log: self.log, type: .info)
@@ -348,6 +356,14 @@ public class MetaManager {
     guard !storage.settings.accounts.getSetting(account.info).read.isInitialSyncResumable
     else { return }
     backgroundLibrarySyncer.start()
+  }
+
+  /// The scrobble upload ends in offline mode: going online starts it again. The background
+  /// library sync observes the mode itself and goes on with a run that ended early
+  @objc
+  private func startScrobbleUploadIfOnline() {
+    guard isStarted, storage.settings.user.isOnlineMode else { return }
+    scrobbleSyncer?.start()
   }
 
   public func stopManager() {

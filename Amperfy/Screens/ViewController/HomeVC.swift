@@ -58,6 +58,8 @@ final class HomeVC: UICollectionViewController {
       self?.showLibraryList(.downloads)
     }
   #endif
+  /// From viewIsAppearing, which fetches the newest elements, to viewDidDisappear
+  private var isAppeared = false
 
   // MARK: - Init
 
@@ -190,12 +192,18 @@ final class HomeVC: UICollectionViewController {
 
   override func viewIsAppearing(_ animated: Bool) {
     super.viewIsAppearing(animated)
+    isAppeared = true
     extendSafeAreaToAccountForMiniPlayer()
     sharedHome.updateFromRemote()
     #if targetEnvironment(macCatalyst)
       // the navigation controller resets the title bar for every shown screen
       macLargeTitle.update()
     #endif
+  }
+
+  override func viewDidDisappear(_ animated: Bool) {
+    super.viewDidDisappear(animated)
+    isAppeared = false
   }
 
   // MARK: - Layout
@@ -427,8 +435,12 @@ final class HomeVC: UICollectionViewController {
   @objc
   private func refreshOfflineMode() {
     os_log("HomeVC: OfflineModeChanged", log: self.log, type: .info)
+    guard appDelegate.isAccountStarted(account.info) else { return }
     sharedHome.createFetchController()
     refreshContinuePlaybackNavButton()
+    // a Home on screen fetches the newest elements right away (a hidden one in viewIsAppearing)
+    guard isAppeared, viewIfLoaded?.window != nil else { return }
+    sharedHome.updateFromRemote()
   }
 
   @objc
