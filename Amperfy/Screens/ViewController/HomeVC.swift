@@ -33,6 +33,15 @@ final class HomeVC: UICollectionViewController {
   private let log = OSLog(subsystem: "Amperfy", category: "HomeVC")
 
   private static let itemWidth: CGFloat = 160.0
+  /// Album tiles keep this estimated height as long as their content fits
+  private static let albumTileEstimatedHeight: CGFloat = 210.0
+
+  /// Distance from the top of an album tile to its artwork: the artwork is centered in the
+  /// space above the labels (two lines of 13 pt at the default text size)
+  private static func albumArtworkTopOffset(for traits: UITraitCollection) -> CGFloat {
+    let labelHeight = AlbumCollectionCell.labelAreaHeight(for: traits, defaultHeight: 33.0)
+    return max(0, (albumTileEstimatedHeight - itemWidth - labelHeight) / 2).rounded()
+  }
 
   private let account: Account
   private var accountNotificationHandler: AccountNotificationHandler?
@@ -231,13 +240,13 @@ final class HomeVC: UICollectionViewController {
     let layout = UICollectionViewCompositionalLayout { sectionIndex, environment in
       guard let _ = HomeSection(rawValue: sectionIndex) else { return nil }
       // playlist tiles have a fixed aspect ratio, the other cells size themselves
-      let groupHeight: NSCollectionLayoutDimension =
-        showsPlaylistTiles(sectionLookup.section(at: sectionIndex))
-          ? .absolute(PlaylistCollectionCell.height(
-            forWidth: itemWidth,
-            compatibleWith: environment.traitCollection
-          ))
-          : .estimated(210)
+      let isPlaylistSection = showsPlaylistTiles(sectionLookup.section(at: sectionIndex))
+      let groupHeight: NSCollectionLayoutDimension = isPlaylistSection
+        ? .absolute(PlaylistCollectionCell.height(
+          forWidth: itemWidth,
+          compatibleWith: environment.traitCollection
+        ))
+        : .estimated(albumTileEstimatedHeight)
 
       // Item: square image with title below
       let itemSize = NSCollectionLayoutSize(
@@ -258,8 +267,9 @@ final class HomeVC: UICollectionViewController {
       sectionLayout.interGroupSpacing = 12
       // horizontal margin comes from the collection view's layoutMargins (system-adaptive)
       sectionLayout.contentInsetsReference = .layoutMargins
+      // playlist tiles start with the cover, move it down to the artwork of the album tiles
       sectionLayout.contentInsets = NSDirectionalEdgeInsets(
-        top: 6,
+        top: 6 + (isPlaylistSection ? albumArtworkTopOffset(for: environment.traitCollection) : 0),
         leading: 0,
         bottom: 30,
         trailing: 0
