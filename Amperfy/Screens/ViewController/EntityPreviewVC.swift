@@ -436,6 +436,15 @@ class EntityPreviewActionBuilder {
   }
 
   private func createAndPlayInstantMix(for song: Song) async {
+    // the menu may have been built online: only the server knows the similar songs
+    guard appDelegate.storage.settings.user.isOnlineMode else {
+      appDelegate.eventLogger.info(
+        topic: "Instant Mix",
+        message: "Instant Mix is not available in offline mode",
+        displayPopup: true
+      )
+      return
+    }
     do {
       // Get the library syncer for the song's account
       guard let account = song.account else {

@@ -300,8 +300,10 @@ class ArtistDetailVC: MultiSourceTableViewController {
   }
 
   /// If the server knows a page of the artist (e.g. Apple Music), the name opens it.
+  /// Only the server knows it: requested once online again, see `offlineModeChanged`.
   private func loadArtistURL() {
-    guard !didLoadArtistURL, !isLoadingArtistURL else { return }
+    guard !didLoadArtistURL, !isLoadingArtistURL,
+          appDelegate.storage.settings.user.isOnlineMode else { return }
     isLoadingArtistURL = true
     Task { @MainActor [weak self] in
       guard let self else { return }
@@ -309,6 +311,8 @@ class ArtistDetailVC: MultiSourceTableViewController {
       do {
         let url = try await appDelegate.getMeta(account.info).librarySyncer
           .requestArtistURL(artist: artist)
+        // switched to offline mode meanwhile: not requested, so requested again once online
+        guard appDelegate.storage.settings.user.isOnlineMode else { return }
         guard let detailOperationsView else { return }
         let titleLabel = detailOperationsView.titleLabel!
         didLoadArtistURL = true
@@ -366,9 +370,10 @@ class ArtistDetailVC: MultiSourceTableViewController {
   /// The server knows the popular songs of an artist (e.g. from Last.fm), the play counts of the
   /// local library only reflect what has been played. A failing or empty answer keeps the local list.
   /// A displayed list is never replaced: an answer after the timeout only fills the cache, which the
-  /// next visit shows.
+  /// next visit shows. Nothing is requested in offline mode, see `offlineModeChanged`.
   private func loadServerTopSongs() {
-    guard !didLoadServerTopSongs, !isLoadingServerTopSongs else { return }
+    guard !didLoadServerTopSongs, !isLoadingServerTopSongs,
+          appDelegate.storage.settings.user.isOnlineMode else { return }
     isLoadingServerTopSongs = true
     if isWaitingForServerTopSongs {
       Task { @MainActor [weak self] in
@@ -384,6 +389,8 @@ class ArtistDetailVC: MultiSourceTableViewController {
         let songs = try await appDelegate.getMeta(account.info).librarySyncer
           .requestTopSongs(artist: artist, count: Self.topSongsLimit)
           .filter { $0.artist == artist }
+        // switched to offline mode meanwhile: not requested, so requested again once online
+        guard appDelegate.storage.settings.user.isOnlineMode else { return }
         didLoadServerTopSongs = true
         if !songs.isEmpty {
           Self.serverTopSongsCache[artist.managedObject.objectID] = songs
@@ -657,6 +664,12 @@ class ArtistDetailVC: MultiSourceTableViewController {
     // the displayed list must not switch again when going back online
     isWaitingForServerTopSongs = false
     reloadSectionsAndGrids([.topSongs])
+    // what was not requested while offline; the server's top songs only fill the cache for the
+    // next visit, as the displayed list must not switch
+    if appDelegate.storage.settings.user.isOnlineMode {
+      loadArtistURL()
+      loadServerTopSongs()
+    }
   }
 
   override func controller(

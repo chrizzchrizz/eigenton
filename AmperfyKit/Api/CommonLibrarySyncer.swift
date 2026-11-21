@@ -141,6 +141,10 @@ class CommonLibrarySyncer {
   let fileManager = CacheFileManager.shared
 
   var isSyncAllowed: Bool { networkMonitor.isConnectedToNetwork }
+  /// Requests for content that only the server knows and that is never stored (similar artists,
+  /// albums and songs, top songs, artist page): not sent in offline mode, as their results are
+  /// not available offline.
+  var isServerRequestAllowed: Bool { storage.settings.user.isOnlineMode && isSyncAllowed }
 
   var accountInfo: AccountInfo {
     account.info

@@ -99,6 +99,8 @@ private class SimilarContentTile: UIControl {
 /// Table footer showing horizontally scrollable rows of similar artists and albums.
 /// Rows without content are hidden; the whole view is hidden if nothing is left.
 /// Selecting an item pushes its detail screen onto the navigation controller of the owner.
+/// The content only comes from the server and is never stored, so the footer is taken out of the
+/// table in offline mode; back online it returns with its rows and loads the empty ones.
 class SimilarContentFooterView: UIView {
   private let account: Account
   private weak var owner: UIViewController?
@@ -144,6 +146,12 @@ class SimilarContentFooterView: UIView {
     ])
     artistsSection.isHidden = true
     albumsSection.isHidden = true
+    appDelegate.notificationHandler.register(
+      self,
+      selector: #selector(offlineModeChanged),
+      name: .offlineModeChanged,
+      object: nil
+    )
   }
 
   required init?(coder: NSCoder) {
@@ -170,6 +178,9 @@ class SimilarContentFooterView: UIView {
   var hasContent: Bool { !artistsSection.isHidden || !albumsSection.isHidden }
 
   private weak var tableView: UITableView?
+  /// What the last `load` was for, to load it again when going back online
+  private var artist: Artist?
+  private var album: Album?
   private var artistsTask: Task<(), Never>?
   private var albumsTask: Task<(), Never>?
 
@@ -185,22 +196,27 @@ class SimilarContentFooterView: UIView {
   /// Rows that are still empty, because their request failed or returned nothing, are requested
   /// again on the next call; rows that have content are kept.
   /// Similar content is optional, so a failing server agent is only logged and never shown.
+  /// Nothing is requested in offline mode.
   func load(similarTo artist: Artist?, album: Album? = nil, in tableView: UITableView) {
     self.tableView = tableView
+    self.artist = artist
+    self.album = album
+    guard appDelegate.storage.settings.user.isOnlineMode else { return }
     let librarySyncer = appDelegate.getMeta(account.info).librarySyncer
+    // a cancelled task (deinit, offline mode) leaves the state alone: a new task may run already
     if let artist, artistsSection.isHidden, artistsTask == nil {
       artistsTask = Task { [weak self] in
         let artists: [Artist]
         do {
           artists = try await librarySyncer.requestSimilarArtists(artist: artist, count: 15)
         } catch {
-          self?.report(topic: "Similar Artists", error: error)
-          self?.artistsTask = nil
+          guard let self, !Task.isCancelled else { return }
+          report(topic: "Similar Artists", error: error)
+          artistsTask = nil
           return
         }
-        guard let self else { return }
+        guard let self, !Task.isCancelled else { return }
         artistsTask = nil
-        guard !Task.isCancelled else { return }
         display(artists: artists)
       }
     }
@@ -210,24 +226,47 @@ class SimilarContentFooterView: UIView {
         do {
           albums = try await librarySyncer.requestSimilarAlbums(album: album, count: 40)
         } catch {
-          self?.report(topic: "Similar Albums", error: error)
-          self?.albumsTask = nil
+          guard let self, !Task.isCancelled else { return }
+          report(topic: "Similar Albums", error: error)
+          albumsTask = nil
           return
         }
         // the artists row is above the albums row: showing it after the albums would push the
         // albums down while the user may already look at them or tap one
         let artistsTask = self?.artistsTask
         await artistsTask?.value
-        guard let self else { return }
+        guard let self, !Task.isCancelled else { return }
         albumsTask = nil
-        guard !Task.isCancelled else { return }
         display(albums: Array(albums.prefix(12)))
       }
     }
   }
 
+  @objc
+  private func offlineModeChanged() {
+    guard let tableView else { return }
+    if appDelegate.storage.settings.user.isOnlineMode {
+      showInTableView()
+      // the album's artist may only be known since the last load
+      load(similarTo: album?.artist ?? artist, album: album, in: tableView)
+    } else {
+      hide()
+    }
+  }
+
+  /// Stops the requests and takes the footer out of the table; the loaded rows are kept for
+  /// going back online.
+  private func hide() {
+    artistsTask?.cancel()
+    artistsTask = nil
+    albumsTask?.cancel()
+    albumsTask = nil
+    if let tableView, tableView.tableFooterView === self {
+      tableView.tableFooterView = nil
+    }
+  }
+
   private func report(topic: String, error: Error) {
-    guard !Task.isCancelled else { return }
     appDelegate.eventLogger.report(topic: topic, error: error, displayPopup: false)
   }
 

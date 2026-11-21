@@ -1013,7 +1013,7 @@ class SubsonicLibrarySyncer: CommonLibrarySyncer, LibrarySyncer {
 
   @MainActor
   private func requestSimilarSongs(id: String, count: Int) async throws -> [Song] {
-    guard isSyncAllowed else { return [] }
+    guard isServerRequestAllowed else { return [] }
     let response = try await subsonicServerApi.requestSimilarSongs(id: id, count: count)
     return try await parseSongs(response: response)
   }
@@ -1021,7 +1021,7 @@ class SubsonicLibrarySyncer: CommonLibrarySyncer, LibrarySyncer {
   /// Top songs of the artist as ranked by the server, e.g. by its Last.fm or Deezer agent.
   @MainActor
   func requestTopSongs(artist: Artist, count: Int) async throws -> [Song] {
-    guard isSyncAllowed else { return [] }
+    guard isServerRequestAllowed else { return [] }
     let response = try await subsonicServerApi.requestTopSongs(
       artistName: artist.name,
       count: count
@@ -1085,7 +1085,7 @@ class SubsonicLibrarySyncer: CommonLibrarySyncer, LibrarySyncer {
 
   @MainActor
   func requestArtistURL(artist: Artist) async throws -> URL? {
-    guard isSyncAllowed else { return nil }
+    guard isServerRequestAllowed else { return nil }
     let response = try await requestArtistInfo(artist: artist)
     let parserDelegate = SsArtistUrlParserDelegate(performanceMonitor: performanceMonitor)
     try parse(response: response, delegate: parserDelegate, isThrowingErrorsAllowed: false)
@@ -1094,7 +1094,7 @@ class SubsonicLibrarySyncer: CommonLibrarySyncer, LibrarySyncer {
 
   @MainActor
   func requestSimilarArtists(artist: Artist, count: Int) async throws -> [Artist] {
-    guard isSyncAllowed, let account = artist.account else { return [] }
+    guard isServerRequestAllowed, let account = artist.account else { return [] }
     let response = try await requestArtistInfo(artist: artist)
     let parserDelegate = SsSimilarArtistParserDelegate(performanceMonitor: performanceMonitor)
     try parse(response: response, delegate: parserDelegate, isThrowingErrorsAllowed: false)
