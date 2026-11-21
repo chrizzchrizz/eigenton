@@ -383,32 +383,34 @@ class HomeManager: NSObject {
     }
   }
 
+  /// A (re-)sync can briefly create the same album twice (parallel album batches), it removes
+  /// the duplicates at the end of its album phase. Until then show each album only once.
+  private func albumHomeItems(from albums: [AlbumMO], section: HomeSection) -> [HomeItem] {
+    var seenIds = Set<String>()
+    return albums
+      .map { Album(managedObject: $0) }
+      .filter { $0.id.isEmpty || seenIds.insert($0.id).inserted }
+      .prefix(Self.sectionMaxItemCount)
+      .map { HomeItem(section: section, playableContainable: $0) }
+  }
+
   func updateAlbumsRecentlyPlayed() {
     if let albums = albumsRecentlyPlayedFetchController?.fetchedObjects as? [AlbumMO] {
-      data[.recentlyPlayedAlbums] = albums.prefix(Self.sectionMaxItemCount)
-        .compactMap { Album(managedObject: $0) }.compactMap {
-          HomeItem(section: .recentlyPlayedAlbums, playableContainable: $0)
-        }
+      data[.recentlyPlayedAlbums] = albumHomeItems(from: albums, section: .recentlyPlayedAlbums)
       notifySnapshotChange()
     }
   }
 
   func updateAlbumsNewest() {
     if let albums = albumsNewestFetchController?.fetchedObjects as? [AlbumMO] {
-      data[.newestAlbums] = albums.prefix(Self.sectionMaxItemCount)
-        .compactMap { Album(managedObject: $0) }.compactMap {
-          HomeItem(section: .newestAlbums, playableContainable: $0)
-        }
+      data[.newestAlbums] = albumHomeItems(from: albums, section: .newestAlbums)
       notifySnapshotChange()
     }
   }
 
   func updateAlbumsLatestReleased() {
     if let albums = albumsLatestReleasedFetchController?.fetchedObjects as? [AlbumMO] {
-      data[.latestReleasedAlbums] = albums.prefix(Self.sectionMaxItemCount)
-        .compactMap { Album(managedObject: $0) }.compactMap {
-          HomeItem(section: .latestReleasedAlbums, playableContainable: $0)
-        }
+      data[.latestReleasedAlbums] = albumHomeItems(from: albums, section: .latestReleasedAlbums)
       notifySnapshotChange()
     }
   }
