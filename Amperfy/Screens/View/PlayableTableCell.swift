@@ -257,14 +257,23 @@ class PlayableTableCell: BasicTableCell {
     ratingStackView = stackView
   }
 
-  private func updateRatingDisplay(rating: Int) {
-    // hidden stars collapse in the stack view
-    for (index, starView) in ratingStarViews.enumerated() {
-      starView.isHidden = index >= rating
+  /// In regular width (iPad, Mac) the stars always take the space of five, so title and artist
+  /// columns stay aligned between rated and unrated songs. Compact width has no room to spare,
+  /// unset stars collapse there.
+  private func refreshRating(userSettings: UserSettings) {
+    guard let ratingStackView else { return }
+    guard userSettings.isShowRating, let song = playable?.asSong else {
+      ratingStackView.isHidden = true
+      return
     }
-
-    // Only show rating if song has a rating > 0
-    ratingStackView?.isHidden = (rating == 0)
+    let rating = song.rating
+    let isSpaceKept = traitCollection.horizontalSizeClass == .regular
+    for (index, starView) in ratingStarViews.enumerated() {
+      let isSet = index < rating
+      starView.isHidden = !isSet && !isSpaceKept
+      starView.alpha = isSet ? 1 : 0
+    }
+    ratingStackView.isHidden = rating == 0 && !isSpaceKept
   }
 
   func resetForReuse() {
@@ -277,6 +286,7 @@ class PlayableTableCell: BasicTableCell {
     // Reset all stars for next use
     for starView in ratingStarViews {
       starView.isHidden = false
+      starView.alpha = 1
     }
   }
 
@@ -492,13 +502,6 @@ class PlayableTableCell: BasicTableCell {
 
     refreshSubtitleColor()
     refreshCacheAndDuration(userSettings: userSettings)
-
-    // Update rating display for songs (only if setting is enabled)
-    if userSettings.isShowRating, let song = playable.asSong {
-      updateRatingDisplay(rating: song.rating)
-    } else {
-      ratingStackView?.isHidden = true
-    }
   }
 
   private func configureTrackNumberLabel() {
@@ -543,6 +546,7 @@ class PlayableTableCell: BasicTableCell {
 
     // The rating stars, cache icon, duration and options button are arranged in a stack view,
     // hidden ones collapse. The labels end before that stack.
+    refreshRating(userSettings: userSettings)
     refreshCacheIcon(playable: playable)
     durationLabel.isHidden = !isDurationVisible
     if isDurationVisible {
