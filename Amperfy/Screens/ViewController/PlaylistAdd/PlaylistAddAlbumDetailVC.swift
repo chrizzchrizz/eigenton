@@ -77,7 +77,7 @@ class PlaylistAddAlbumDetailVC: SingleSnapshotFetchedResultsTableViewController<
 
     configureSearchController(
       placeholder: "Search in \"Album\"",
-      scopeButtonTitles: ["All", "Cached"]
+      scopeButtonTitles: ["All", "Loaded"]
     )
     tableView.register(nibName: PlayableTableCell.typeName)
     tableView.reloadOnTextSizeChange { PlayableTableCell.rowHeight }

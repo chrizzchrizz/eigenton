@@ -279,7 +279,7 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
   var homeImageRowArtworkTargets: [String: [HomeImageRowArtworkTarget]] = [:] // Artwork.uniqueID
 
   lazy var cachedTab = {
-    let cachedTab = CPListTemplate(title: "Cached", sections: createCachedSections())
+    let cachedTab = CPListTemplate(title: "Loaded", sections: createCachedSections())
     cachedTab.tabImage = UIImage.cache
     return cachedTab
   }()

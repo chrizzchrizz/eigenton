@@ -239,7 +239,7 @@ class SearchVC: BasicTableViewController {
     appDelegate.userStatistics.visited(.search)
     configureSearchController(
       placeholder: "Search in \"Library\"",
-      scopeButtonTitles: ["All", "Cached"]
+      scopeButtonTitles: ["All", "Loaded"]
     )
     // the scope bar exists only from here: on its first appearance the base could not select Cached
     if appDelegate.storage.settings.user.isOfflineMode,

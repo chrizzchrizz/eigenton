@@ -86,7 +86,7 @@ extension Directory: PlayableContainable {
 
     if details.type == .long {
       if isCached {
-        infoContent.append("Cached")
+        infoContent.append("Loaded")
       }
       if details.isShowDetailedInfo {
         infoContent.append("ID: \(!id.isEmpty ? id : "-")")

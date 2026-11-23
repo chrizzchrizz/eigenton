@@ -554,7 +554,7 @@ extension Playlist: PlayableContainable {
     }
     if details.type == .long {
       if isCached {
-        infoContent.append("Cached")
+        infoContent.append("Loaded")
       }
       if duration > 0 {
         infoContent.append("\(duration.asDurationShortString)")

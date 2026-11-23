@@ -80,7 +80,7 @@ class GenreDetailVC: MultiSourceTableViewController {
 
     configureSearchController(
       placeholder: "Artists, Albums and Songs",
-      scopeButtonTitles: ["All", "Cached"]
+      scopeButtonTitles: ["All", "Loaded"]
     )
     setNavBarTitle(title: genre.name)
 

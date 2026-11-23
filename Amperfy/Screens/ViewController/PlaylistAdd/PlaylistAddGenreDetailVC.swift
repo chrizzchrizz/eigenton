@@ -79,7 +79,7 @@ class PlaylistAddGenreDetailVC: MultiSourceTableViewController, PlaylistVCAddabl
 
     configureSearchController(
       placeholder: "Artists, Albums and Songs",
-      scopeButtonTitles: ["All", "Cached"]
+      scopeButtonTitles: ["All", "Loaded"]
     )
   }
 

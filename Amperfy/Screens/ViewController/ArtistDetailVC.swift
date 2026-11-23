@@ -195,7 +195,7 @@ class ArtistDetailVC: MultiSourceTableViewController {
     tableView.sectionHeaderTopPadding = 0.0
     tableView.backgroundColor = .clear
 
-    configureSearchController(placeholder: "Albums and Songs", scopeButtonTitles: ["All", "Cached"])
+    configureSearchController(placeholder: "Albums and Songs", scopeButtonTitles: ["All", "Loaded"])
     if let cachedSongIDs = Self.serverTopSongsCache[artist.managedObject.objectID] {
       // songs deleted from the library since then are dropped
       let context = appDelegate.storage.main.context

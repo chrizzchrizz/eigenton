@@ -81,7 +81,7 @@ class PlaylistAddArtistsVC: SingleSnapshotFetchedResultsTableViewController<Arti
     change(filterType: appDelegate.storage.settings.user.artistsFilterSetting)
     configureSearchController(
       placeholder: "Search in \"\(sceneTitle ?? "Artists")\"",
-      scopeButtonTitles: ["All", "Cached"]
+      scopeButtonTitles: ["All", "Loaded"]
     )
     tableView.register(nibName: GenericTableCell.typeName)
     tableView.reloadOnTextSizeChange { GenericTableCell.rowHeight }

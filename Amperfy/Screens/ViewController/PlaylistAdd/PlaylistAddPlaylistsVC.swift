@@ -105,9 +105,9 @@ class PlaylistAddPlaylistsVC: SingleSnapshotFetchedResultsTableViewController<Pl
 
     var searchTiles: [String]? = nil
     if account.apiType.asServerApiType == .ampache {
-      searchTiles = ["All", "Cached", "User", "Smart"]
+      searchTiles = ["All", "Loaded", "User", "Smart"]
     } else if account.apiType.asServerApiType == .subsonic {
-      searchTiles = ["All", "Cached"]
+      searchTiles = ["All", "Loaded"]
     }
     configureSearchController(
       placeholder: "Search in \"Playlists\"",

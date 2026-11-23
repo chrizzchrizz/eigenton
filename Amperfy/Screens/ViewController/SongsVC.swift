@@ -61,7 +61,7 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
     applyFilter()
     configureSearchController(
       placeholder: "Search in \"\(filterTitle)\"",
-      scopeButtonTitles: ["All", "Cached"]
+      scopeButtonTitles: ["All", "Loaded"]
     )
     tableView.register(nibName: PlayableTableCell.typeName)
     tableView.reloadOnTextSizeChange { [weak self] in

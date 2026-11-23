@@ -57,7 +57,7 @@ class PodcastsVC: MultiSourceTableViewController {
 
     configureSearchController(
       placeholder: "Search in \"Podcasts\"",
-      scopeButtonTitles: ["All", "Cached"]
+      scopeButtonTitles: ["All", "Loaded"]
     )
     setNavBarTitle(title: "Podcasts")
     tableView.register(nibName: GenericTableCell.typeName)

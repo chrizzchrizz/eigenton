@@ -62,7 +62,7 @@ class PlaylistAddSongsVC: SingleFetchedResultsTableViewController<SongMO>, Playl
 
     configureSearchController(
       placeholder: "Search in \"\(sceneTitle ?? "Songs")\"",
-      scopeButtonTitles: ["All", "Cached"]
+      scopeButtonTitles: ["All", "Loaded"]
     )
   }
 

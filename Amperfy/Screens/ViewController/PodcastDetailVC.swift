@@ -60,7 +60,7 @@ class PodcastDetailVC: SingleFetchedResultsTableViewController<PodcastEpisodeMO>
 
     configureSearchController(
       placeholder: "Search in \"Podcast\"",
-      scopeButtonTitles: ["All", "Cached"]
+      scopeButtonTitles: ["All", "Loaded"]
     )
     tableView.register(nibName: PodcastEpisodeTableCell.typeName)
     tableView.reloadOnTextSizeChange { PodcastEpisodeTableCell.rowHeight }

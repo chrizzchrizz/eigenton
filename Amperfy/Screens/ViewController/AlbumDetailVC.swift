@@ -98,7 +98,7 @@ class AlbumDetailVC: SingleSnapshotFetchedResultsTableViewController<SongMO> {
 
     configureSearchController(
       placeholder: "Search in \"Album\"",
-      scopeButtonTitles: ["All", "Cached"]
+      scopeButtonTitles: ["All", "Loaded"]
     )
     tableView.register(nibName: PlayableTableCell.typeName)
     // Catalyst also need an estimate to calculate the correct height before scrolling

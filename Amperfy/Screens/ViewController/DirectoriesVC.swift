@@ -59,7 +59,7 @@ class DirectoriesVC: MultiSourceTableViewController {
 
     configureSearchController(
       placeholder: "Directories and Songs",
-      scopeButtonTitles: ["All", "Cached"]
+      scopeButtonTitles: ["All", "Loaded"]
     )
     setNavBarTitle(title: directory.name)
     tableView.register(nibName: DirectoryTableCell.typeName)

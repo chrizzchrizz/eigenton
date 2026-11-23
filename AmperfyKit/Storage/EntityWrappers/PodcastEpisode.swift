@@ -79,7 +79,7 @@ public enum PodcastEpisodeUserStatus {
     switch self {
     case .syncingOnServer: return "Server syncing"
     case .availableOnServer: return "Available"
-    case .cached: return "Cached"
+    case .cached: return "Loaded"
     case .deleted: return "Deleted on server"
     }
   }

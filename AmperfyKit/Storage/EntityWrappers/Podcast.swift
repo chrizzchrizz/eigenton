@@ -98,7 +98,7 @@ extension Podcast: PlayableContainable {
     }
     if details.type == .long || details.type == .noCountInfo {
       if isCached {
-        infoContent.append("Cached")
+        infoContent.append("Loaded")
       }
       if details.isShowDetailedInfo {
         infoContent.append("ID: \(!id.isEmpty ? id : "-")")

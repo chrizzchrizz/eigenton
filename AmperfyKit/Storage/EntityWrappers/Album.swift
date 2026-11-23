@@ -216,7 +216,7 @@ extension Album: PlayableContainable {
     }
     if details.type == .long {
       if isCached {
-        infoContent.append("Cached")
+        infoContent.append("Loaded")
       }
       if year > 0 {
         infoContent.append("\(year)")

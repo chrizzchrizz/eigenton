@@ -70,7 +70,7 @@ class PlaylistAddArtistDetailVC: MultiSourceTableViewController, PlaylistVCAddab
     tableView.sectionFooterHeight = 0.0
     tableView.estimatedSectionFooterHeight = 0.0
 
-    configureSearchController(placeholder: "Albums and Songs", scopeButtonTitles: ["All", "Cached"])
+    configureSearchController(placeholder: "Albums and Songs", scopeButtonTitles: ["All", "Loaded"])
   }
 
   override func viewIsAppearing(_ animated: Bool) {
