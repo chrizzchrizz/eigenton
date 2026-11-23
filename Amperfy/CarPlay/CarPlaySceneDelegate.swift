@@ -299,7 +299,7 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
   }()
 
   lazy var podcastCachedSection = {
-    let template = CPListTemplate(title: "Cached Podcasts", sections: [
+    let template = CPListTemplate(title: "Loaded Podcasts", sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template
@@ -313,7 +313,7 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
   }()
 
   lazy var genresCachedSection = {
-    let template = CPListTemplate(title: "Cached Genres", sections: [
+    let template = CPListTemplate(title: "Loaded Genres", sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template
@@ -327,7 +327,7 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
   }()
 
   lazy var artistsCachedSection = {
-    let template = CPListTemplate(title: "Cached Artists", sections: [
+    let template = CPListTemplate(title: "Loaded Artists", sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template
@@ -341,7 +341,7 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
   }()
 
   lazy var artistsFavoriteCachedSection = {
-    let template = CPListTemplate(title: "Favorite Cached Artists", sections: [
+    let template = CPListTemplate(title: "Favorite Loaded Artists", sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template
@@ -355,7 +355,7 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
   }()
 
   lazy var albumsCachedSection = {
-    let template = CPListTemplate(title: "Cached Albums", sections: [
+    let template = CPListTemplate(title: "Loaded Albums", sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template
@@ -369,7 +369,7 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
   }()
 
   lazy var albumsFavoriteCachedSection = {
-    let template = CPListTemplate(title: "Favorite Cached Albums", sections: [
+    let template = CPListTemplate(title: "Favorite Loaded Albums", sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template
@@ -383,7 +383,7 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
   }()
 
   lazy var albumsNewestCachedSection = {
-    let template = CPListTemplate(title: "Newest Cached Albums", sections: [
+    let template = CPListTemplate(title: "Newest Loaded Albums", sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template
@@ -397,7 +397,7 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
   }()
 
   lazy var albumsRecentCachedSection = {
-    let template = CPListTemplate(title: "Recently Played Cached Albums", sections: [
+    let template = CPListTemplate(title: "Recently Played Loaded Albums", sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template
@@ -411,7 +411,7 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
   }()
 
   lazy var songsFavoriteCachedSection = {
-    let template = CPListTemplate(title: "Favorite Cached Songs", sections: [
+    let template = CPListTemplate(title: "Favorite Loaded Songs", sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template

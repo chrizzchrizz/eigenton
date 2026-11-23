@@ -30,9 +30,9 @@ enum PlayRandomSongsFilterTypeAppEnum: Int, AppEnum {
   static let caseDisplayRepresentations: [Self: DisplayRepresentation] = [
     .all: DisplayRepresentation(title: "All", image: .init(systemName: "circle.circle")),
     .cache: DisplayRepresentation(
-      title: "Cached only",
+      title: "Loaded only",
       image: .init(systemName: "arrow.down.circle"),
-      synonyms: ["cached", "cache", "downloaded"]
+      synonyms: ["loaded", "cached", "cache", "downloaded"]
     ),
   ]
 }

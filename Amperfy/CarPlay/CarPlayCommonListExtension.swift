@@ -1016,7 +1016,7 @@ extension CarPlaySceneDelegate {
     let songs = appDelegate.storage.main.library
       .getRandomSongs(for: activeAccount, onlyCached: onlyCached || isOfflineMode)
     let playContext = PlayContext(
-      name: "Random\(onlyCached ? " Cached" : "") Songs",
+      name: "Random\(onlyCached ? " Loaded" : "") Songs",
       playables: songs
     )
     appDelegate.player.playShuffled(context: playContext)
@@ -1039,7 +1039,7 @@ extension CarPlaySceneDelegate {
           )
       }
     let playContext = PlayContext(
-      name: "Random\(onlyCached ? " Cached" : "") Albums",
+      name: "Random\(onlyCached ? " Loaded" : "") Albums",
       playables: songs
     )
     appDelegate.player.play(context: playContext)

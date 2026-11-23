@@ -221,8 +221,8 @@ struct LibrarySettingsView: View {
             }
           }
 
-          SettingsRow(title: "Cached Songs") { SecondaryText(cachedSongCount.description) }
-          SettingsRow(title: "Cached Podcast Episodes") {
+          SettingsRow(title: "Loaded Songs") { SecondaryText(cachedSongCount.description) }
+          SettingsRow(title: "Loaded Podcast Episodes") {
             SecondaryText(cachedPodcastEpisodesCount.description)
           }
           SettingsRow(title: "Complete Cache Size") {

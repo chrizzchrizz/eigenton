@@ -109,7 +109,7 @@ struct ArtworkSettingsView: View {
           SettingsRow(title: "Not checked Artworks") {
             SecondaryText(artworkNotCheckedCountText)
           }
-          SettingsRow(title: "Cached Artworks") {
+          SettingsRow(title: "Loaded Artworks") {
             SecondaryText(cachedArtworksCountText)
           }
           SettingsRow(title: "Artwork Cache Size") {

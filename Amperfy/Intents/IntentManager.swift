@@ -415,7 +415,7 @@ public class IntentManager {
             name: NSUserActivity.ActivityKeys.onlyCached.rawValue,
             type: "Int",
             isMandatory: false,
-            description: "0 (false) or 1 (true), use only cached songs from library",
+            description: "0 (false) or 1 (true), use only loaded songs from library",
             defaultIfNotGiven: "false"
           ),
         ]
