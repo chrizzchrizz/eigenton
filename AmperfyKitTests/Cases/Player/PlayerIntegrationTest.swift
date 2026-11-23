@@ -303,6 +303,54 @@ final class PlayerIntegrationTest: XCTestCase {
     XCTAssertTrue(player.isPlaying)
   }
 
+  func testPrefetch_NextSongsPlayFromFilesDuringOutage() async throws {
+    await playPrefetchedSongsWithoutServer(isOfflineModeSwitchedOn: false)
+  }
+
+  func testPrefetch_NextSongsPlayFromFilesInOfflineMode() async throws {
+    await playPrefetchedSongsWithoutServer(isOfflineModeSwitchedOn: true)
+  }
+
+  private func playPrefetchedSongsWithoutServer(isOfflineModeSwitchedOn: Bool) async {
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent("PrefetchIntegration-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let prefetcher = StreamPrefetcher(directory: directory)
+    backendPlayer.prefetcher = prefetcher
+    // longer than the preload lead time, so the next song isn't preloaded as a stream at once
+    let data = LocalAudioServer.makeWav(seconds: 50, sampleRate: Self.sampleRate)
+    let songs = (1 ... 3).map { createSong(id: "song\($0)", data: data) }
+    play(songs)
+
+    await wait("next songs prefetched", timeout: 25) {
+      prefetcher.file(for: songs[1]) != nil && prefetcher.file(for: songs[2]) != nil
+    }
+    XCTAssertEqual(streamAttempts(for: songs[1]), 0, "the preload uses the prefetched file")
+    // skip ahead, the rest of the first song is loaded before the outage
+    player.seek(toSecond: 44)
+    await wait("first song near its end", timeout: 10) { player.elapsedTime >= 45 }
+
+    server.isOffline = true
+    if isOfflineModeSwitchedOn {
+      player.isOfflineMode = true
+    }
+    await wait("second song plays offline", timeout: 15) {
+      player.currentlyPlaying?.id == songs[1].id && player.elapsedTime >= 1
+    }
+    XCTAssertEqual(player.playType, .prefetched)
+    player.seek(toSecond: 46)
+    await wait("third song plays offline", timeout: 15) {
+      player.currentlyPlaying?.id == songs[2].id && player.elapsedTime >= 1
+    }
+    XCTAssertEqual(player.playType, .prefetched)
+    XCTAssertTrue(player.isPlaying)
+    XCTAssertEqual(streamAttempts(for: songs[1]), 0)
+    XCTAssertEqual(streamAttempts(for: songs[2]), 0)
+    // the file of the first song is gone, the playing third one is kept
+    XCTAssertNil(prefetcher.file(for: songs[1]))
+    XCTAssertNotNil(prefetcher.file(for: songs[2]))
+  }
+
   func testStream_OutageShorterThanStallTimeout_KeepsPlaying() async {
     // reconnecting and refilling the buffer after the 4 s outage takes several seconds more
     backendPlayer.stallTimeout = 20

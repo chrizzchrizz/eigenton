@@ -199,6 +199,14 @@ public struct UserSettings: Sendable, Codable {
     set { _isAutoplayEnabled = newValue }
   }
 
+  public static let maxPrefetchSongCount = 3
+  private var _prefetchSongCount: Int = 2
+  /// Number of upcoming songs downloaded while streaming, to play through network dead zones
+  public var prefetchSongCount: Int {
+    get { min(max(_prefetchSongCount, 0), Self.maxPrefetchSongCount) }
+    set { _prefetchSongCount = newValue }
+  }
+
   private var _isHapticsEnabled: Bool = true
   public var isHapticsEnabled: Bool {
     get { _isHapticsEnabled }

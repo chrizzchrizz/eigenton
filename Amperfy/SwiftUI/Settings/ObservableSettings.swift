@@ -107,4 +107,7 @@ final class Settings: ObservableObject {
 
   @Published
   var isSimplifiedQueueEnabled = true
+
+  @Published
+  var prefetchSongCount = 2
 }

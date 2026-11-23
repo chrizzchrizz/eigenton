@@ -147,6 +147,8 @@ public class AmperKit {
       cellular: storage.settings.user.streamingFormatCellularPreference
     ))
 
+    backendAudioPlayer.prefetcher = StreamPrefetcher()
+
     let playerData = storage.main.library.getPlayerData()
     let queueHandler = PlayQueueHandler(playerData: playerData)
     let curPlayer = AudioPlayer(

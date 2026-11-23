@@ -64,6 +64,14 @@ struct PlayerSettingsView: View {
     ))
   }
 
+  private func prefetchDescription(_ count: Int) -> String {
+    switch count {
+    case 0: return "Off"
+    case 1: return "1 Song"
+    default: return "\(count) Songs"
+    }
+  }
+
   private func updateCacheFormat(_ format: CacheTranscodingFormatPreference) {
     settings.cacheTranscodingFormatPreference = format
   }
@@ -218,6 +226,22 @@ struct PlayerSettingsView: View {
           },
           footer: "MP3 and AAC are transcoded by the server. AAC needs a server with an AAC transcoder, e.g. Navidrome; Ampache streams MP3 instead. “Original” streams the file unchanged, so the bitrate limit does not apply. With “Server default”, the codec and quality depend on your server's transcoding settings.",
           header: "WiFi Streaming"
+        )
+
+        SettingsSection(
+          content: {
+            SettingsRow(title: "Upcoming Songs") {
+              Menu(prefetchDescription(settings.prefetchSongCount)) {
+                ForEach(0 ... UserSettings.maxPrefetchSongCount, id: \.self) { count in
+                  Button(prefetchDescription(count)) {
+                    settings.prefetchSongCount = count
+                  }
+                }
+              }
+            }
+          },
+          footer: "While a song streams, the next songs in the queue are loaded in the streaming format, so playback continues through short network dead zones, e.g. in the car. The files are temporary and deleted once the songs have played.",
+          header: "Preload"
         )
 
         // Download Format Settings

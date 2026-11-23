@@ -2216,6 +2216,53 @@ class MusicPlayerTest: XCTestCase {
     XCTAssertEqual(playerData.currentIndex, 0)
   }
 
+  func testUpcomingPlayables_UserQueueBeforeNextQueue() {
+    prepareNoWaitingQueuePlaying()
+    let expected = testQueueHandler.getAllUserQueueItems() + testQueueHandler
+      .getAllNextQueueItems()
+    XCTAssertGreaterThan(expected.count, 5)
+    XCTAssertEqual(
+      testMusicPlayer.upcomingPlayables(count: 6).map { $0.objectID },
+      expected.prefix(6).map { $0.objectID }
+    )
+    XCTAssertEqual(
+      testMusicPlayer.upcomingPlayables(count: 2).map { $0.objectID },
+      expected.prefix(2).map { $0.objectID }
+    )
+    XCTAssertTrue(testMusicPlayer.upcomingPlayables(count: 0).isEmpty)
+  }
+
+  func testUpcomingPlayablesForPrefetch_ExcludedSongsTakeNoSlot() {
+    prepareNoWaitingQueuePlaying()
+    storage.settings.user.prefetchSongCount = 2
+    let all = testQueueHandler.getAllUserQueueItems() + testQueueHandler.getAllNextQueueItems()
+    // e.g. downloaded songs
+    let excluded = Set(all.prefix(2).map { $0.objectID })
+    let upcoming = backendPlayer.upcomingPlayablesCB? { !excluded.contains($0.objectID) } ?? []
+    XCTAssertEqual(
+      upcoming.map { $0.objectID },
+      all.dropFirst(2).prefix(2).map { $0.objectID }
+    )
+
+    storage.settings.user.prefetchSongCount = 0
+    XCTAssertTrue((backendPlayer.upcomingPlayablesCB? { _ in true } ?? []).isEmpty)
+    storage.settings.user.prefetchSongCount = 2
+  }
+
+  func testUpcomingPlayables_RepeatAllContinuesWithFirst() {
+    prepareWithCachedPlaylist()
+    let all = playerData.contextQueue.playables
+    testPlayer.play(context: PlayContext(name: "", index: all.count - 1, playables: all))
+    XCTAssertEqual(testQueueHandler.nextQueueCount, 0)
+    XCTAssertTrue(testMusicPlayer.upcomingPlayables(count: 2).isEmpty)
+
+    testPlayer.setRepeatMode(.all)
+    XCTAssertEqual(
+      testMusicPlayer.upcomingPlayables(count: 2).map { $0.objectID },
+      all.prefix(2).map { $0.objectID }
+    )
+  }
+
   func testPlayPrevious_StartPlayIfPaused() {
     prepareWithCachedPlaylist()
     testPlayer.play(playerIndex: PlayerIndex(queueType: .next, index: 3))

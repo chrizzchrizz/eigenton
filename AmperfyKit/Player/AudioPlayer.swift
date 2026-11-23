@@ -125,6 +125,41 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
       guard let nextPlayerIndex = self.nextPlayerIndex else { return nil }
       return self.queueHandler.getPlayable(at: nextPlayerIndex)
     }
+    self.backendAudioPlayer.upcomingPlayablesCB = { [weak self] isIncluded in
+      guard let self, !isShouldPauseAfterFinishedPlaying,
+            playerStatus.repeatMode != .single
+      else { return [] }
+      let count = settings.user.prefetchSongCount
+      guard count > 0 else { return [] }
+      return Array(
+        upcomingPlayables(count: Self.prefetchLookAheadCount).filter(isIncluded).prefix(count)
+      )
+    }
+  }
+
+  /// Upcoming playables searched for ones to prefetch, e.g. behind downloaded songs
+  static let prefetchLookAheadCount = 20
+
+  /// The playables that follow the current one, in the order playNext plays them
+  func upcomingPlayables(count: Int) -> [AbstractPlayable] {
+    var playables = [AbstractPlayable]()
+    func append(itemCount: Int, items: (_ from: Int, _ to: Int) -> [AbstractPlayable]) {
+      let missing = count - playables.count
+      guard missing > 0, itemCount > 0 else { return }
+      playables.append(contentsOf: items(0, min(missing, itemCount) - 1))
+    }
+    append(itemCount: queueHandler.userQueueCount) {
+      queueHandler.getUserQueueItems(from: $0, to: $1)
+    }
+    append(itemCount: queueHandler.nextQueueCount) {
+      queueHandler.getNextQueueItems(from: $0, to: $1)
+    }
+    if playerStatus.repeatMode == .all {
+      append(itemCount: queueHandler.prevQueueCount) {
+        queueHandler.getPrevQueueItems(from: $0, to: $1)
+      }
+    }
+    return playables
   }
 
   private func shouldCurrentItemReplayedInsteadOfPrevious() -> Bool {

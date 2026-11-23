@@ -93,11 +93,16 @@ struct StreamStallError: LocalizedError {
 public enum PlayType {
   case stream
   case cache
+  /// A stream downloaded ahead by the `StreamPrefetcher`, played from its temporary file
+  case prefetched
 }
 
 public typealias CreateAudioStreamingPlayerCallback = () -> AudioStreamingPlayer
 public typealias TriggerReinsertPlayableCallback = @MainActor () -> ()
 typealias NextPlayablePreloadCallback = () -> AbstractPlayable?
+/// The next playables that pass the filter, in the order they will play
+typealias UpcomingPlayablesCallback = (_ isIncluded: (AbstractPlayable) -> Bool)
+  -> [AbstractPlayable]
 
 // MARK: - BackendAudioQueueType
 
@@ -127,6 +132,11 @@ class BackendAudioPlayer: NSObject {
   private let fileManager = CacheFileManager.shared
   /// Queue the next item before the player starts reading it
   private let preloadLeadTimeInSeconds = AudioStreamingPlayer.bufferSizeInSeconds + 10
+  /// A prefetch download of the next item that is still running delays its preload until the
+  /// remaining time of the current item reaches this value, then the next item is streamed
+  private let preloadLatestTimeInSeconds = AudioStreamingPlayer.bufferSizeInSeconds + 2
+  /// The current stream gets the connection for itself at first, its start must not be delayed
+  static let prefetchStartDelayInSeconds = 10.0
   private var audioSessionHandler: AudioSessionHandler
   private var wasPlayingBeforeErrorOccurred: Bool = false
   private var userDefinedPlaybackRate: PlaybackRate = .one
@@ -178,6 +188,12 @@ class BackendAudioPlayer: NSObject {
 
   public var isOfflineMode: Bool = false
   public var nextPlayablePreloadCB: NextPlayablePreloadCallback?
+  /// The playables to download ahead, in the order they will play
+  var upcomingPlayablesCB: UpcomingPlayablesCallback?
+  /// Last time a stream was requested from its start or a new position (play, seek, restart)
+  private var lastStreamRequestDate = Date.distantPast
+  /// Downloads upcoming playables, so they play through network dead zones; nil disables it
+  var prefetcher: StreamPrefetcher?
   public var triggerReinsertPlayableCB: TriggerReinsertPlayableCallback?
   public private(set) var isPlaying: Bool = false {
     didSet { updateStallTimer() }
@@ -324,6 +340,8 @@ class BackendAudioPlayer: NSObject {
     ) { [weak self] timer in
       Task { @MainActor in
         guard let self = self else { return }
+        // a prefetch download that starts now delays the preload of the same playable
+        self.updatePrefetch()
         self.checkForPreloadNextPlayerItem()
         self.responder?.didElapsedTimeChange()
       }
@@ -395,14 +413,24 @@ class BackendAudioPlayer: NSObject {
   }
 
   func preloadNextPlayable() {
-    // offline, a song that is not downloaded isn't preloaded: going online preloads its stream
+    // offline, a song that is neither downloaded nor prefetched isn't preloaded: going online
+    // preloads its stream
     guard let playable = nextPlayablePreloadCB?(), playable != failedPreloadPlayable,
-          playable.isCached || !isOfflineMode
+          playable.isCached || !isOfflineMode || prefetcher?.file(for: playable) != nil
     else { return }
+    let prefetchedFile = playable.isCached ? nil : prefetcher?.file(for: playable)
+    if !playable.isCached, prefetchedFile == nil, let prefetcher,
+       prefetcher.isDownloading(playable) {
+      // the download usually completes soon, streaming would load the same data again
+      guard duration - elapsedTime <= preloadLatestTimeInSeconds else { return }
+      prefetcher.cancelDownload(of: playable)
+    }
     nextPreloadedPlayable = playable
     os_log(.default, "Preloading: %s", playable.displayString)
     if playable.isCached {
       insertCachedPlayable(playable: playable, queueType: .queue)
+    } else if let prefetchedFile {
+      insertPrefetchedPlayable(playable: playable, file: prefetchedFile, queueType: .queue)
     } else {
       let requestID = playRequestID
       let request = streamRestartRequest
@@ -469,11 +497,24 @@ class BackendAudioPlayer: NSObject {
     }
     isErrorOccurred = true
     isStallErrorOccurred = error is StreamStallError
+    let isDecodingError: Bool
     switch error as? AudioStreaming.AudioPlayerError {
-    case .codecError, .streamParseBytesFailure:
-      // the error belongs to the entry being read, which can already be the preloaded next one
-      isDataErrorOccurred = nextPreloadedPlayable == nil
-    default: isDataErrorOccurred = false
+    case .codecError, .streamParseBytesFailure: isDecodingError = true
+    default: isDecodingError = false
+    }
+    // the error belongs to the entry being read, which can already be the preloaded next one
+    isDataErrorOccurred = isDecodingError && nextPreloadedPlayable == nil
+    // a retry streams the playable instead of reading the file again. A decoding error can also
+    // belong to the prefetched file queued next. With a stream queued next, the error is most
+    // likely its connection (e.g. a dead zone), the file of the current item stays.
+    if let prefetcher {
+      let isStreamQueuedNext = nextPreloadedPlayable != nil && perloadedPlayType == .stream
+      if playType == .prefetched, !isStreamQueuedNext, let currentPlayable {
+        prefetcher.discard(currentPlayable)
+      }
+      if isDecodingError, perloadedPlayType == .prefetched, let nextPreloadedPlayable {
+        prefetcher.discard(nextPreloadedPlayable)
+      }
     }
     elapsedTimeBeforeErrorOccurred = elapsedTime
     pause()
@@ -524,6 +565,7 @@ class BackendAudioPlayer: NSObject {
   }
 
   func seek(toSecond: Double) {
+    lastStreamRequestDate = Date()
     if let currentPlayable, !currentPlayable.isRadio, toSecond.isFinite {
       pendingSeek = PendingSeek(target: max(toSecond, 0), date: Date())
     }
@@ -691,7 +733,7 @@ class BackendAudioPlayer: NSObject {
     // streaming; otherwise the player stops at it
     if isPreviousPlaylableFinshed, let nextPreloadedPlayable = nextPreloadedPlayable,
        nextPreloadedPlayable == playable, !nextPreloadedUrl.isEmpty,
-       nextPreloadedPlayable.isCached || !isOfflineMode {
+       nextPreloadedPlayable.isCached || !isOfflineMode || perloadedPlayType == .prefetched {
       // Do nothing next preloaded playable has already been queued to player
       os_log(.default, "Play Preloaded: %s", nextPreloadedPlayable.displayString)
       currentPreparedUrl = ""
@@ -731,6 +773,19 @@ class BackendAudioPlayer: NSObject {
       insertCachedPlayable(playable: playable)
       isPlaying = shouldPlaybackStart
       responder?.notifyItemPreparationFinished()
+    } else if let prefetchedFile = prefetcher?.file(for: playable) {
+      // a complete local file, also played in offline mode
+      currentPlayUrl = ""
+      nextPreloadedPlayable = nil
+      nextPreloadedUrl = ""
+      perloadedStreamingBitrate = nil
+      preloadTranscodingFormat = nil
+      currentReplayGainValue = playable.replayGainTrackGain
+      currentReplayGainPeak = playable.replayGainTrackPeak
+      applyReplayGain()
+      insertPrefetchedPlayable(playable: playable, file: prefetchedFile, queueType: .play)
+      isPlaying = shouldPlaybackStart
+      responder?.notifyItemPreparationFinished()
     } else if !isOfflineMode {
       currentPlayUrl = ""
       nextPreloadedPlayable = nil
@@ -739,6 +794,8 @@ class BackendAudioPlayer: NSObject {
       perloadedStreamingBitrate = nil
       activeTranscodingFormat = nil
       preloadTranscodingFormat = nil
+      // streaming loads the same data, an unfinished download of it is wasted
+      prefetcher?.cancelDownload(of: playable)
       guard playable.isPlayableOniOS || streamingTranscodings
         .isTranscodingActive(networkMonitor: networkMonitor) else {
         reactToIncompatibleContentType(
@@ -868,6 +925,79 @@ class BackendAudioPlayer: NSObject {
     if playable.isSong { userStatistics.playedSong(isPlayedFromCache: true) }
     insert(playable: playable, withUrl: fileURL, queueType: queueType)
     determineCachedBitrateIfMissing(playable: playable, fileURL: fileURL)
+  }
+
+  private func insertPrefetchedPlayable(
+    playable: AbstractPlayable,
+    file: PrefetchedFile,
+    queueType: BackendAudioQueueType
+  ) {
+    if queueType == .play {
+      playType = .prefetched
+      perloadedPlayType = nil
+      activeStreamingBitrate = file.streamingMaxBitrate
+      activeTranscodingFormat = file.transcodingFormat
+      os_log(.default, "Play Prefetched: %s", playable.displayString)
+    } else {
+      perloadedPlayType = .prefetched
+      perloadedStreamingBitrate = file.streamingMaxBitrate
+      preloadTranscodingFormat = file.transcodingFormat
+      os_log(.default, "Insert Prefetched: %s", playable.displayString)
+    }
+    if playable.isSong { userStatistics.playedSong(isPlayedFromCache: false) }
+    insert(playable: playable, withUrl: file.fileURL, queueType: queueType)
+  }
+
+  /// Keeps the prefetched files of the upcoming playables and of those in the player, and
+  /// downloads the missing ones while playing
+  private func updatePrefetch() {
+    guard let prefetcher else { return }
+    // the player already streams a preloaded next item, downloading it too doubles the data
+    let streamedPreload = perloadedPlayType == .stream ? nextPreloadedPlayable : nil
+    let isTranscodingActive = streamingTranscodings.isTranscodingActive(
+      networkMonitor: networkMonitor
+    )
+    // downloaded songs don't take a slot, the songs after them are prefetched instead
+    let upcoming = upcomingPlayablesCB? { playable in
+      playable != streamedPreload && !playable.isRadio && !playable.isCached &&
+        playable.account != nil && (playable.isPlayableOniOS || isTranscodingActive)
+    } ?? []
+    let inUse = [currentPlayable, nextPreloadedPlayable].compactMap { $0 }
+    // also after a seek or a stream restart at a later position
+    let isCurrentStreamStarted = playType != .stream ||
+      Date().timeIntervalSince(lastStreamRequestDate) >= Self.prefetchStartDelayInSeconds
+    let isDownloadAllowed = isPlaying && !isOfflineMode && currentPlayable != nil &&
+      isCurrentStreamStarted && networkMonitor.isConnectedToNetwork
+    prefetcher.update(
+      upcoming: upcoming,
+      inUse: inUse,
+      isDownloadAllowed: isDownloadAllowed
+    ) { [weak self] playable in
+      guard let self else { throw CancellationError() }
+      return try await prefetchRequest(for: playable)
+    }
+  }
+
+  /// The same stream as `insertStreamPlayable` would request with the current network
+  private func prefetchRequest(for playable: AbstractPlayable) async throws -> PrefetchRequest {
+    guard let accountInfo = playable.account?.info else { throw BackendError.noCredentials }
+    let backendApi = getBackendApiCB(accountInfo)
+    let streamingMaxBitrate = streamingMaxBitrates.getActive(networkMonitor: networkMonitor)
+    let transcodingFormat = backendApi.streamingFormat(
+      for: streamingTranscodings.getActive(networkMonitor: networkMonitor)
+    )
+    let url = try await backendApi.generateUrl(
+      forStreamingPlayable: playable.info,
+      maxBitrate: streamingMaxBitrate,
+      formatPreference: transcodingFormat
+    )
+    return PrefetchRequest(
+      url: url,
+      httpHeaders: backendApi.httpHeaders,
+      clientCertificateAccountIdent: accountInfo.ident,
+      streamingMaxBitrate: streamingMaxBitrate,
+      transcodingFormat: transcodingFormat
+    )
   }
 
   /// Files cached before model v54 have no stored bitrate yet: determine it once
@@ -1027,6 +1157,7 @@ class BackendAudioPlayer: NSObject {
 
     switch queueType {
     case .play:
+      lastStreamRequestDate = Date()
       currentPreparedUrl = asset.url.absoluteString
       if headers.isEmpty {
         player?.play(url: asset.url)

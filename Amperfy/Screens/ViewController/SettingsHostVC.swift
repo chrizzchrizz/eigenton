@@ -235,6 +235,11 @@ class SettingsHostVC: UIViewController {
       self.appDelegate.storage.settings.user.isAutoplayEnabled = newValue
     }))
 
+    settings.prefetchSongCount = appDelegate.storage.settings.user.prefetchSongCount
+    changesAgent.append(settings.$prefetchSongCount.sink(receiveValue: { newValue in
+      self.appDelegate.storage.settings.user.prefetchSongCount = newValue
+    }))
+
     settings.isSimplifiedQueueEnabled = appDelegate.storage.settings.user.isSimplifiedQueueEnabled
     changesAgent.append(settings.$isSimplifiedQueueEnabled.sink(receiveValue: { newValue in
       self.appDelegate.storage.settings.user.isSimplifiedQueueEnabled = newValue
