@@ -160,8 +160,7 @@ extension CarPlaySceneDelegate {
       with: UIImage.shuffle,
       iconSizeType: .small,
       theme: getPreference(activeAccountInfo).theme,
-      lightDarkMode: traits.userInterfaceStyle.asModeType,
-      switchColors: true
+      lightDarkMode: traits.userInterfaceStyle.asModeType
     ).carPlayImage(carTraitCollection: traits)
     let item = CPListItem(text: "Refresh", detailText: nil, image: image)
     item.handler = { [weak self] _, completion in

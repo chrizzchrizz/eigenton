@@ -115,8 +115,7 @@ extension CarPlaySceneDelegate {
         with: UIImage.album,
         iconSizeType: .small,
         theme: getPreference(activeAccountInfo).theme,
-        lightDarkMode: traits.userInterfaceStyle.asModeType,
-        switchColors: true
+        lightDarkMode: traits.userInterfaceStyle.asModeType
       ).carPlayImage(carTraitCollection: traits),
       title: Self.playRandomAlbumsTitle, subtitle: nil
     )
@@ -126,8 +125,7 @@ extension CarPlaySceneDelegate {
         with: UIImage.musicalNotes,
         iconSizeType: .small,
         theme: getPreference(activeAccountInfo).theme,
-        lightDarkMode: traits.userInterfaceStyle.asModeType,
-        switchColors: true
+        lightDarkMode: traits.userInterfaceStyle.asModeType
       ).carPlayImage(carTraitCollection: traits),
       title: Self.playRandomSongsTitle, subtitle: nil
     )

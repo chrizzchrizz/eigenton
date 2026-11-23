@@ -107,8 +107,7 @@ extension CarPlaySceneDelegate {
       with: UIImage.letterPicker,
       iconSizeType: .small,
       theme: getPreference(activeAccountInfo).theme,
-      lightDarkMode: traits.userInterfaceStyle.asModeType,
-      switchColors: true
+      lightDarkMode: traits.userInterfaceStyle.asModeType
     ).carPlayImage(carTraitCollection: traits)
     let pickerItem = CPListItem(
       text: "A–Z",
@@ -322,8 +321,7 @@ extension CarPlaySceneDelegate {
         with: UIImage.musicalNotes,
         iconSizeType: .small,
         theme: getPreference(activeAccountInfo).theme,
-        lightDarkMode: traits.userInterfaceStyle.asModeType,
-        switchColors: true
+        lightDarkMode: traits.userInterfaceStyle.asModeType
       ).carPlayImage(carTraitCollection: traits),
       accessoryImage: nil,
       accessoryType: .disclosureIndicator
@@ -851,8 +849,7 @@ extension CarPlaySceneDelegate {
       with: UIImage.shuffle,
       iconSizeType: .small,
       theme: getPreference(activeAccountInfo).theme,
-      lightDarkMode: traits.userInterfaceStyle.asModeType,
-      switchColors: true
+      lightDarkMode: traits.userInterfaceStyle.asModeType
     ).carPlayImage(carTraitCollection: traits)
     let listItem = CPListItem(text: text, detailText: nil, image: img)
     listItem.handler = { [weak self] item, completion in
@@ -874,8 +871,7 @@ extension CarPlaySceneDelegate {
       with: UIImage.shuffle,
       iconSizeType: .small,
       theme: getPreference(activeAccountInfo).theme,
-      lightDarkMode: traits.userInterfaceStyle.asModeType,
-      switchColors: true
+      lightDarkMode: traits.userInterfaceStyle.asModeType
     ).carPlayImage(carTraitCollection: traits)
     let listItem = CPListItem(text: text, detailText: nil, image: img)
     listItem.handler = { [weak self] item, completion in

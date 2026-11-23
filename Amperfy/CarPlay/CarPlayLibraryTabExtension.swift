@@ -64,8 +64,7 @@ extension CarPlaySceneDelegate {
         with: baseImage,
         iconSizeType: .small,
         theme: getPreference(activeAccountInfo).theme,
-        lightDarkMode: traits.userInterfaceStyle.asModeType,
-        switchColors: true
+        lightDarkMode: traits.userInterfaceStyle.asModeType
       ).carPlayImage(carTraitCollection: traits),
       title: type.displayName, subtitle: nil
     )
@@ -140,8 +139,7 @@ extension CarPlaySceneDelegate {
         with: UIImage.album,
         iconSizeType: .small,
         theme: getPreference(activeAccountInfo).theme,
-        lightDarkMode: traits.userInterfaceStyle.asModeType,
-        switchColors: true
+        lightDarkMode: traits.userInterfaceStyle.asModeType
       ).carPlayImage(carTraitCollection: traits),
       title: Self.playRandomAlbumsTitle, subtitle: nil
     )
@@ -151,8 +149,7 @@ extension CarPlaySceneDelegate {
         with: UIImage.musicalNotes,
         iconSizeType: .small,
         theme: getPreference(activeAccountInfo).theme,
-        lightDarkMode: traits.userInterfaceStyle.asModeType,
-        switchColors: true
+        lightDarkMode: traits.userInterfaceStyle.asModeType
       ).carPlayImage(carTraitCollection: traits),
       title: Self.playRandomSongsTitle, subtitle: nil
     )
@@ -193,8 +190,7 @@ extension CarPlaySceneDelegate {
           with: UIImage.musicalNotes,
           iconSizeType: .small,
           theme: getPreference(activeAccountInfo).theme,
-          lightDarkMode: traits.userInterfaceStyle.asModeType,
-          switchColors: true
+          lightDarkMode: traits.userInterfaceStyle.asModeType
         ).carPlayImage(carTraitCollection: traits),
         title: Self.continuePlaybackMusicTitle, subtitle: nil
       )
@@ -206,8 +202,7 @@ extension CarPlaySceneDelegate {
           with: UIImage.podcast,
           iconSizeType: .small,
           theme: getPreference(activeAccountInfo).theme,
-          lightDarkMode: traits.userInterfaceStyle.asModeType,
-          switchColors: true
+          lightDarkMode: traits.userInterfaceStyle.asModeType
         ).carPlayImage(carTraitCollection: traits),
         title: Self.continuePlaybackPodcastTitle, subtitle: nil
       )
@@ -219,8 +214,7 @@ extension CarPlaySceneDelegate {
           with: UIImage.userPerson,
           iconSizeType: .small,
           theme: getPreference(activeAccountInfo).theme,
-          lightDarkMode: traits.userInterfaceStyle.asModeType,
-          switchColors: true
+          lightDarkMode: traits.userInterfaceStyle.asModeType
         ).carPlayImage(carTraitCollection: traits),
         title: Self.switchAccountTitle, subtitle: nil
       )
@@ -283,8 +277,7 @@ extension CarPlaySceneDelegate {
           with: isActive ? UIImage.userCircleCheckmark : UIImage.userCircle(),
           iconSizeType: .big,
           theme: getPreference(accountInfo).theme,
-          lightDarkMode: traits.userInterfaceStyle.asModeType,
-          switchColors: true
+          lightDarkMode: traits.userInterfaceStyle.asModeType
         ).carPlayImage(carTraitCollection: traits),
         accessoryImage: nil,
         accessoryType: isActive ? .none : .disclosureIndicator
