@@ -115,6 +115,7 @@ public class AmperKit {
   private var playerNowPlayingInfoCenterHandler: NowPlayingInfoCenterHandler?
   private var playerRemoteCommandCenterHandler: RemoteCommandCenterHandler?
   private var playerNotificationAdapter: PlayerNotificationAdapter?
+  private var playerUpcomingArtworkPreloader: UpcomingArtworkPreloader?
 
   @MainActor
   private func createPlayer() -> PlayerFacade {
@@ -203,6 +204,18 @@ public class AmperKit {
       }
     )
     curPlayer.addNotifier(notifier: playerNowPlayingInfoCenterHandler!)
+    playerUpcomingArtworkPreloader = UpcomingArtworkPreloader(
+      upcomingPlayables: { [weak curPlayer] count in
+        curPlayer?.upcomingPlayables(count: count) ?? []
+      },
+      artworkDisplayPreference: { accountInfo in
+        self.storage.settings.accounts.getSetting(accountInfo).read.artworkDisplayPreference
+      },
+      downloadArtwork: { artwork, accountInfo in
+        self.getMeta(accountInfo).artworkDownloadManager.download(object: artwork)
+      }
+    )
+    curPlayer.addNotifier(notifier: playerUpcomingArtworkPreloader!)
     playerRemoteCommandCenterHandler = RemoteCommandCenterHandler(
       musicPlayer: facadeImpl,
       backendAudioPlayer: backendAudioPlayer,
