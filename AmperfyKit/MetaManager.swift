@@ -219,12 +219,13 @@ public class MetaManager {
       clientCertificateAccountIdent: account.ident
     )
 
+    // the setting of this manager's account, its artworks are also downloaded while another
+    // account is active (e.g. for songs of that account in the queue)
+    let accountInfo = account.info
     let validationCB: PreDownloadIsValidCB =
       { (downloadInfos: [DownloadElementInfo]) -> [DownloadElementInfo] in
         let artworkDownloadInfos = downloadInfos.filter { $0.type == .artwork }
 
-        guard let accountInfo = await self.settings.accounts.active
-        else { return [DownloadElementInfo]() }
         let artworkDownloadSetting = await self.settings.accounts.getSetting(accountInfo).read
           .artworkDownloadSetting
         guard artworkDownloadSetting != .never else { return [DownloadElementInfo]() }
