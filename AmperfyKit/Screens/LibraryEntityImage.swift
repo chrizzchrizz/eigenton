@@ -211,6 +211,13 @@ public class LibraryEntityImage: RoundedImage {
   private var failedCacheKey: String?
   /// The artwork is loaded once the view has a size
   private var isWaitingForLayout = false
+  /// The artwork shown before stays while the next one is decoded (see
+  /// `keepsArtworkWhileLoading`)
+  private var isShowingPreviousArtwork = false
+
+  /// Keeps the shown artwork until the next one is decoded instead of showing the placeholder
+  /// meanwhile, e.g. in the player, whose artwork changes with every song
+  public var keepsArtworkWhileLoading = false
 
   /// True if the generated placeholder is shown because there is no artwork
   /// (false while an existing artwork is still loading).
@@ -303,6 +310,7 @@ public class LibraryEntityImage: RoundedImage {
 
   internal func display(image: UIImage) {
     isShowingPlaceholder = false
+    isShowingPreviousArtwork = false
     shownPixelSize = 0
     // a load still in progress must not replace this image
     loadGeneration += 1
@@ -405,6 +413,7 @@ public class LibraryEntityImage: RoundedImage {
     if let imagePathToDisplay,
        let cached = Self.cachedImage(imagePath: imagePathToDisplay, minPixelSize: pixelSize) {
       isShowingPlaceholder = false
+      isShowingPreviousArtwork = false
       shownPixelSize = cached.pixelSize
       image = cached.image
       return
@@ -414,18 +423,30 @@ public class LibraryEntityImage: RoundedImage {
     if let imagePathToDisplay,
        let smaller = Self.cachedImage(imagePath: imagePathToDisplay, minPixelSize: 0) {
       isShowingPlaceholder = false
+      isShowingPreviousArtwork = false
       shownPixelSize = smaller.pixelSize
       image = smaller.image
+    } else if keepsArtworkWhileLoading, isShowingArtwork, !bounds.isEmpty,
+              let imagePathToDisplay,
+              Self.cacheKey(imagePath: imagePathToDisplay, pixelSize: pixelSize) != failedCacheKey {
+      // the artwork exists, only its decoding is pending: no placeholder in between
+      // (one that failed before is not decoded again, see `loadImage`)
+      isShowingPreviousArtwork = true
     } else {
-      isShowingPlaceholder = imagePathToDisplay == nil
-      shownPixelSize = 0
-      image = placeholderImage
+      showPlaceholder(isArtworkMissing: imagePathToDisplay == nil)
     }
     guard let imagePathToDisplay else { return }
     // the required size is only known after layout
     isWaitingForLayout = bounds.isEmpty
     guard !isWaitingForLayout else { return }
     loadImage(imagePath: imagePathToDisplay)
+  }
+
+  private func showPlaceholder(isArtworkMissing: Bool) {
+    isShowingPlaceholder = isArtworkMissing
+    isShowingPreviousArtwork = false
+    shownPixelSize = 0
+    image = placeholderImage
   }
 
   /// `isForced` loads the file again, e.g. after it was downloaded
@@ -444,7 +465,11 @@ public class LibraryEntityImage: RoundedImage {
         let isLatestLoad = generation == loadGeneration
         if isLatestLoad { loadingCacheKey = nil }
         guard let readyImage else {
-          if isLatestLoad { failedCacheKey = cacheKey }
+          if isLatestLoad {
+            failedCacheKey = cacheKey
+            // the artwork shown before doesn't belong to the entity
+            if isShowingPreviousArtwork { showPlaceholder(isArtworkMissing: false) }
+          }
           return
         }
         Self.cache.setObject(

@@ -366,6 +366,8 @@ class PlayerUIHandler: NSObject {
   }
 
   func refreshArtwork(artworkImage: LibraryEntityImage) {
+    // the artwork changes with every song, no placeholder while the next one is decoded
+    artworkImage.keepsArtworkWhileLoading = true
     if let playableInfo = player.currentlyPlaying {
       artworkImage.display(entity: playableInfo)
     } else {
