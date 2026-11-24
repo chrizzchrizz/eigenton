@@ -369,7 +369,11 @@ class PlayerUIHandler: NSObject {
     // the artwork changes with every song, no placeholder while the next one is decoded
     artworkImage.keepsArtworkWhileLoading = true
     if let playableInfo = player.currentlyPlaying {
-      artworkImage.display(entity: playableInfo)
+      // the album artwork until the song's own one is downloaded
+      artworkImage.display(
+        entity: playableInfo,
+        fallbackEntity: playableInfo.artworkFallbackEntity
+      )
     } else {
       switch player.playerMode {
       case .music:

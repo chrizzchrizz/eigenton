@@ -55,6 +55,12 @@ public enum ArtworkDisplayPreference: Int, CaseIterable, Sendable, Codable {
 
   public static let defaultValue: ArtworkDisplayPreference = .preferId3Tag
 
+  /// Whether a missing artwork may be replaced by the one of a related entity (e.g. a song's
+  /// by its album's): only server artworks are shown in place of others, so not with ID3 tags only
+  public var isFallbackArtworkAllowed: Bool {
+    self != .id3TagOnly
+  }
+
   public var description: String {
     switch self {
     case .id3TagOnly:

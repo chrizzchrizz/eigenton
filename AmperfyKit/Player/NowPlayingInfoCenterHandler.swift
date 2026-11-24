@@ -113,17 +113,17 @@ public class NowPlayingInfoCenterHandler {
       let setting = storage.settings.accounts.getSetting(accountInfo).read
       themePreference = setting.themePreference
       artworkDisplayPreference = setting.artworkDisplayPreference
-      filePath = playable.imagePath(setting: artworkDisplayPreference)
+      // the album artwork until the song's own one is downloaded
+      filePath = playable.imagePathWithFallback(setting: artworkDisplayPreference)
     }
     let key = "\(playable.uniqueID)|\(filePath ?? "")|\(themePreference)"
     if let currentArtwork, currentArtwork.key == key {
       return currentArtwork.artwork
     }
-    let fallbackImage = LibraryEntityImage.getImageToDisplayImmediately(
-      libraryEntity: playable,
-      themePreference: themePreference,
-      artworkDisplayPreference: artworkDisplayPreference,
-      useCache: true
+    // only shown without artwork file or if it can't be decoded
+    let fallbackImage = UIImage.getGeneratedArtwork(
+      theme: themePreference,
+      artworkType: playable.getDefaultArtworkType()
     )
     let artwork = Self.createArtwork(filePath: filePath, fallbackImage: fallbackImage)
     currentArtwork = (key, artwork)
@@ -178,22 +178,19 @@ public class NowPlayingInfoCenterHandler {
   @objc
   private func downloadFinishedSuccessful(notification: Notification) {
     guard let downloadNotification = DownloadNotification.fromNotification(notification),
-          let curPlayable = musicPlayer.currentlyPlaying
+          let curPlayable = musicPlayer.currentlyPlaying,
+          let accountInfo = curPlayable.account?.info,
+          curPlayable.isShownArtworkChanged(
+            byDownloadID: downloadNotification.id,
+            setting: storage.settings.accounts.getSetting(accountInfo).read
+              .artworkDisplayPreference
+          )
     else { return }
-    if curPlayable.uniqueID == downloadNotification.id {
-      Task { @MainActor in
-        // the downloaded file can contain an embedded artwork
-        currentArtwork = nil
-        updateNowPlayingInfo(playable: curPlayable)
-      }
-    }
-    if let artwork = curPlayable.artwork,
-       artwork.uniqueID == downloadNotification.id {
-      Task { @MainActor in
-        // the file at the same path was replaced
-        currentArtwork = nil
-        updateNowPlayingInfo(playable: curPlayable)
-      }
+    Task { @MainActor in
+      // the downloaded file can contain an embedded artwork, an artwork file can be replaced
+      // at the same path
+      currentArtwork = nil
+      updateNowPlayingInfo(playable: curPlayable)
     }
   }
 }

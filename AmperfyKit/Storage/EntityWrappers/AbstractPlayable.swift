@@ -70,6 +70,38 @@ public class AbstractPlayable: AbstractLibraryEntity, Downloadable {
     }
   }
 
+  /// Shown while the playable's own artwork isn't downloaded yet: a song with an embedded cover
+  /// has its own server artwork (e.g. Navidrome), the album's is usually downloaded already and
+  /// mostly the same image
+  public var artworkFallbackEntity: AbstractLibraryEntity? {
+    asSong?.album
+  }
+
+  /// The playable's artwork or, while it isn't downloaded, the one of `artworkFallbackEntity`
+  /// (see `ArtworkDisplayPreference.isFallbackArtworkAllowed`)
+  @MainActor
+  public func imagePathWithFallback(setting: ArtworkDisplayPreference) -> String? {
+    if let imagePath = imagePath(setting: setting) { return imagePath }
+    guard setting.isFallbackArtworkAllowed else { return nil }
+    return artworkFallbackEntity?.imagePath(setting: setting)
+  }
+
+  /// Whether the finished download with `downloadID` changes the artwork shown for the playable
+  /// by `imagePathWithFallback`: its file (embedded artwork), its artwork, or the fallback artwork
+  /// while its own one is missing
+  @MainActor
+  public func isShownArtworkChanged(
+    byDownloadID downloadID: String,
+    setting: ArtworkDisplayPreference
+  )
+    -> Bool {
+    if downloadID == uniqueID || downloadID == artwork?.uniqueID { return true }
+    guard let fallbackArtwork = artworkFallbackEntity?.artwork,
+          fallbackArtwork.uniqueID == downloadID
+    else { return false }
+    return setting.isFallbackArtworkAllowed && imagePath(setting: setting) == nil
+  }
+
   public var embeddedArtwork: EmbeddedArtwork? {
     get {
       guard let embeddedArtworkMO = playableManagedObject.embeddedArtwork else { return nil }

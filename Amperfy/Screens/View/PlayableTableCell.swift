@@ -463,7 +463,7 @@ class PlayableTableCell: BasicTableCell {
     entityImage.display(
       theme: themePreference,
       container: playable,
-      fallbackEntity: isAlbumArtworkFallback ? playable.asSong?.album : nil
+      fallbackEntity: isAlbumArtworkFallback ? playable.artworkFallbackEntity : nil
     )
     configurePlayIndicator(playable: playable)
 

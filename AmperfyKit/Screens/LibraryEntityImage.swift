@@ -25,17 +25,23 @@ import UIKit
 
 extension LibraryEntityImage {
   // Cache should not be used between different instances -> iOS and Carplay
+  /// `fallbackEntity` is shown while the artwork of `libraryEntity` isn't downloaded, e.g. the
+  /// album of a song (see `ArtworkDisplayPreference.isFallbackArtworkAllowed`)
   static public func getImageToDisplayImmediately(
     libraryEntity: AbstractLibraryEntity,
     themePreference: ThemePreference,
     artworkDisplayPreference: ArtworkDisplayPreference,
     useCache: Bool,
-    maxPixelSize: Int? = nil
+    maxPixelSize: Int? = nil,
+    fallbackEntity: AbstractLibraryEntity? = nil
   )
     -> UIImage {
-    if let artworkImagePath = libraryEntity.imagePath(
-      setting: artworkDisplayPreference
-    ) {
+    let imagePath = libraryEntity.imagePath(setting: artworkDisplayPreference) ??
+      (
+        artworkDisplayPreference.isFallbackArtworkAllowed
+          ? fallbackEntity?.imagePath(setting: artworkDisplayPreference) : nil
+      )
+    if let artworkImagePath = imagePath {
       if useCache, let cachedImg = Self.cachedImage(
         imagePath: artworkImagePath,
         minPixelSize: 0
@@ -272,7 +278,8 @@ public class LibraryEntityImage: RoundedImage {
     display(entity: entity, fallbackEntity: nil)
   }
 
-  private func display(entity: AbstractLibraryEntity, fallbackEntity: AbstractLibraryEntity?) {
+  /// `fallbackEntity` is shown until the artwork of `entity` is downloaded, nothing is downloaded
+  public func display(entity: AbstractLibraryEntity, fallbackEntity: AbstractLibraryEntity?) {
     self.entity = entity
     self.fallbackEntity = fallbackEntity
     standaloneArtwork = nil
@@ -360,7 +367,7 @@ public class LibraryEntityImage: RoundedImage {
 
   /// Only server artworks are shown in place of others, so none with "ID3 tag only".
   private func fallbackImagePath(setting: ArtworkDisplayPreference) -> String? {
-    guard setting != .id3TagOnly else { return nil }
+    guard setting.isFallbackArtworkAllowed else { return nil }
     return fallbackEntity?.imagePath(setting: setting)
   }
 

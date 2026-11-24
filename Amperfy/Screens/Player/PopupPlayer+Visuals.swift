@@ -132,7 +132,8 @@ extension PopupPlayerVC {
         themePreference: themePreference,
         artworkDisplayPreference: appDelegate.storage.settings.accounts.getSetting(accountInfo).read
           .artworkDisplayPreference,
-        useCache: true
+        useCache: true,
+        fallbackEntity: playableInfo.artworkFallbackEntity
       )
     } else {
       switch player.playerMode {
@@ -168,18 +169,16 @@ extension PopupPlayerVC {
   @objc
   internal func downloadFinishedSuccessful(notification: Notification) {
     guard let downloadNotification = DownloadNotification.fromNotification(notification),
-          let curPlayable = player.currentlyPlaying
+          let curPlayable = player.currentlyPlaying,
+          let accountInfo = curPlayable.account?.info,
+          curPlayable.isShownArtworkChanged(
+            byDownloadID: downloadNotification.id,
+            setting: appDelegate.storage.settings.accounts.getSetting(accountInfo).read
+              .artworkDisplayPreference
+          )
     else { return }
-    if curPlayable.uniqueID == downloadNotification.id {
-      Task { @MainActor in
-        refreshBackgroundItemArtwork()
-      }
-    }
-    if let artwork = curPlayable.artwork,
-       artwork.uniqueID == downloadNotification.id {
-      Task { @MainActor in
-        refreshBackgroundItemArtwork()
-      }
+    Task { @MainActor in
+      refreshBackgroundItemArtwork()
     }
   }
 

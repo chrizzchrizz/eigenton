@@ -144,6 +144,81 @@ class SongTest: XCTestCase {
     try! CacheFileManager.shared.removeItem(at: absFilePath, accountInfo: account.info)
   }
 
+  private func createDownloadedArtwork(relFilePath: String) -> Artwork {
+    let artwork = library.createArtwork(account: account)
+    artwork.relFilePath = URL(string: relFilePath)
+    artwork.status = .CustomImage
+    return artwork
+  }
+
+  func testImagePathWithFallback_AlbumArtworkUntilOwnIsDownloaded() {
+    let album = library.createAlbum(account: account)
+    album.artwork = createDownloadedArtwork(relFilePath: "albumArtwork")
+    testSong.album = album
+    let ownArtwork = library.createArtwork(account: account)
+    testSong.artwork = ownArtwork
+    let albumPath = album.imagePath(setting: .serverArtworkOnly)
+    XCTAssertNotNil(albumPath)
+
+    for setting in [
+      ArtworkDisplayPreference.serverArtworkOnly,
+      .preferServerArtwork,
+      .preferId3Tag,
+    ] {
+      XCTAssertNil(testSong.imagePath(setting: setting))
+      XCTAssertEqual(testSong.imagePathWithFallback(setting: setting), albumPath)
+    }
+    XCTAssertNil(testSong.imagePathWithFallback(setting: .id3TagOnly))
+
+    ownArtwork.relFilePath = URL(string: "songArtwork")
+    ownArtwork.status = .CustomImage
+    XCTAssertEqual(
+      testSong.imagePathWithFallback(setting: .serverArtworkOnly),
+      testSong.imagePath(setting: .serverArtworkOnly)
+    )
+    XCTAssertNotEqual(testSong.imagePathWithFallback(setting: .serverArtworkOnly), albumPath)
+  }
+
+  func testIsShownArtworkChanged() {
+    let album = library.createAlbum(account: account)
+    album.artwork = library.createArtwork(account: account)
+    testSong.album = album
+    let ownArtwork = library.createArtwork(account: account)
+    testSong.artwork = ownArtwork
+    let albumArtworkID = album.artwork!.uniqueID
+
+    XCTAssertTrue(testSong.isShownArtworkChanged(
+      byDownloadID: testSong.uniqueID,
+      setting: .preferId3Tag
+    ))
+    XCTAssertTrue(testSong.isShownArtworkChanged(
+      byDownloadID: ownArtwork.uniqueID,
+      setting: .preferId3Tag
+    ))
+    XCTAssertFalse(testSong.isShownArtworkChanged(byDownloadID: "other", setting: .preferId3Tag))
+    // the album artwork only while the own one is missing
+    XCTAssertTrue(testSong.isShownArtworkChanged(
+      byDownloadID: albumArtworkID,
+      setting: .preferId3Tag
+    ))
+    XCTAssertFalse(testSong.isShownArtworkChanged(
+      byDownloadID: albumArtworkID,
+      setting: .id3TagOnly
+    ))
+    ownArtwork.relFilePath = URL(string: "songArtwork")
+    ownArtwork.status = .CustomImage
+    XCTAssertFalse(testSong.isShownArtworkChanged(
+      byDownloadID: albumArtworkID,
+      setting: .preferId3Tag
+    ))
+  }
+
+  func testImagePathWithFallback_NoAlbum() {
+    testSong.album = nil
+    testSong.artwork = library.createArtwork(account: account)
+    XCTAssertNil(testSong.imagePathWithFallback(setting: .serverArtworkOnly))
+  }
+
   func testRating() {
     testSong.rating = -1
     XCTAssertEqual(testSong.rating, 0)
