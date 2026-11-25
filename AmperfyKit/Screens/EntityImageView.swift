@@ -55,6 +55,7 @@ open class EntityImageView: UIView {
   )?
   /// Accounts whose artwork downloads are observed
   private var observedAccounts = Set<AccountInfo>()
+  private var requestedQuadArtworkIDs = [String]()
 
   private var quadImages: [LibraryEntityImage] {
     [
@@ -244,6 +245,7 @@ open class EntityImageView: UIView {
 
     let display = collection.display
     collectionWaitingForServerArtwork = nil
+    if case .quad = display {} else { requestedQuadArtworkIDs = [] }
     if case .standalone = display {
       // downloaded by the single image
     } else if let serverArtwork = collection.serverArtwork {
@@ -262,6 +264,7 @@ open class EntityImageView: UIView {
         guard index < quadImages.count else { break }
         quadImages[index].display(entity: entity)
       }
+      download(quadEntities: quadEntities)
     case let .single(entity):
       singleImage.displayAndUpdate(entity: entity, fallbackEntity: fallbackEntity)
     case let .standalone(artwork):
@@ -272,6 +275,17 @@ open class EntityImageView: UIView {
     case .placeholder:
       singleImage.display(artworkType: collection.defaultArtworkType)
     }
+  }
+
+  /// Requests the missing covers of the quad images (e.g. of a new playlist's songs),
+  /// once per set of covers and not again on every redisplay.
+  private func download(quadEntities: [AbstractLibraryEntity]) {
+    let artworks = quadEntities.compactMap { $0.artwork }
+    let artworkIDs = artworks.map { $0.uniqueID }
+    guard artworkIDs != requestedQuadArtworkIDs else { return }
+    requestedQuadArtworkIDs = artworkIDs
+    guard let accountInfo = artworks.first?.account?.info else { return }
+    AmperKit.shared.getMeta(accountInfo).artworkDownloadManager.download(objects: artworks)
   }
 
   private func download(serverArtwork: Artwork) {
