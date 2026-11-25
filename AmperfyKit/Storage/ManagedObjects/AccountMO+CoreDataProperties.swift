@@ -51,6 +51,8 @@ extension AccountMO {
   @NSManaged
   public var musicFolders: NSSet?
   @NSManaged
+  public var pendingLibraryChanges: NSSet?
+  @NSManaged
   public var player: NSSet?
   @NSManaged
   public var playlistItems: NSSet?

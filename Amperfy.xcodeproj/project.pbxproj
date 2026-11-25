@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5E7A1D0F2B3D4E5F6A7B8C04 /* PendingLibraryChangeMO+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E7A1D0F2B3D4E5F6A7B8C03 /* PendingLibraryChangeMO+CoreDataProperties.swift */; };
+		5E7A1D0F2B3D4E5F6A7B8C02 /* PendingLibraryChangeMO+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E7A1D0F2B3D4E5F6A7B8C01 /* PendingLibraryChangeMO+CoreDataClass.swift */; };
 		CC2E3AA97CCEC560A3CD1AB6 /* RadioPlaylistResolverTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184C35D13DD08532BF5EA7F4 /* RadioPlaylistResolverTest.swift */; };
 		5E7A1C0F2B3D4E5F6A7B8C14 /* UpcomingArtworkPreloaderTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E7A1C0F2B3D4E5F6A7B8C13 /* UpcomingArtworkPreloaderTest.swift */; };
 		5E7A1C0F2B3D4E5F6A7B8C04 /* StreamPrefetcherTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E7A1C0F2B3D4E5F6A7B8C03 /* StreamPrefetcherTest.swift */; };
@@ -623,6 +625,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		5E7A1D0F2B3D4E5F6A7B8C03 /* PendingLibraryChangeMO+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PendingLibraryChangeMO+CoreDataProperties.swift"; sourceTree = "<group>"; };
+		5E7A1D0F2B3D4E5F6A7B8C01 /* PendingLibraryChangeMO+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PendingLibraryChangeMO+CoreDataClass.swift"; sourceTree = "<group>"; };
 		184C35D13DD08532BF5EA7F4 /* RadioPlaylistResolverTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadioPlaylistResolverTest.swift; sourceTree = "<group>"; };
 		5E7A1C0F2B3D4E5F6A7B8C13 /* UpcomingArtworkPreloaderTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpcomingArtworkPreloaderTest.swift; sourceTree = "<group>"; };
 		5E7A1C0F2B3D4E5F6A7B8C03 /* StreamPrefetcherTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamPrefetcherTest.swift; sourceTree = "<group>"; };
@@ -807,6 +811,7 @@
 		506C31522EE6D2100011A2C3 /* Amperfy v54.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "Amperfy v54.xcdatamodel"; sourceTree = "<group>"; };
 		506C31532EE6D2100011A2C3 /* Amperfy v55.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "Amperfy v55.xcdatamodel"; sourceTree = "<group>"; };
 		506C31542EE6D2100011A2C3 /* Amperfy v56.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "Amperfy v56.xcdatamodel"; sourceTree = "<group>"; };
+		506C31552EE6D2100011A2C3 /* Amperfy v57.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "Amperfy v57.xcdatamodel"; sourceTree = "<group>"; };
 		5070ED2C2D46979A00EB2972 /* Amperfy v42.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "Amperfy v42.xcdatamodel"; sourceTree = "<group>"; };
 		507148AB2B767FE200557904 /* ContextQueuePrevSectionHeader.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = ContextQueuePrevSectionHeader.xib; sourceTree = "<group>"; };
 		507148AC2B767FE200557904 /* ContextQueuePrevSectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextQueuePrevSectionHeader.swift; sourceTree = "<group>"; };
@@ -1339,6 +1344,8 @@
 				5046DAF22689B97600B3C37E /* AbstractPlayableMO+CoreDataProperties.swift */,
 				50814C9F27D9FF660072738F /* ScrobbleEntryMO+CoreDataClass.swift */,
 				50814CA027D9FF660072738F /* ScrobbleEntryMO+CoreDataProperties.swift */,
+				5E7A1D0F2B3D4E5F6A7B8C03 /* PendingLibraryChangeMO+CoreDataProperties.swift */,
+				5E7A1D0F2B3D4E5F6A7B8C01 /* PendingLibraryChangeMO+CoreDataClass.swift */,
 				505CA1F72B87387600AA81CD /* SearchHistoryItemMO+CoreDataClass.swift */,
 				505CA1F82B87387600AA81CD /* SearchHistoryItemMO+CoreDataProperties.swift */,
 				50F81ED223BF6B1D00EAAC3E /* PlayerMO+CoreDataClass.swift */,
@@ -2786,6 +2793,8 @@
 				50C9D6BA284FAA87007F18D0 /* MusicFolder.swift in Sources */,
 				50CEC6412D1EDE1100D0E696 /* Radio.swift in Sources */,
 				50C9D68C284FAA6C007F18D0 /* ScrobbleEntryMO+CoreDataClass.swift in Sources */,
+				5E7A1D0F2B3D4E5F6A7B8C04 /* PendingLibraryChangeMO+CoreDataProperties.swift in Sources */,
+				5E7A1D0F2B3D4E5F6A7B8C02 /* PendingLibraryChangeMO+CoreDataClass.swift in Sources */,
 				50C9D6A0284FAA6C007F18D0 /* ScrobbleEntryMO+CoreDataProperties.swift in Sources */,
 				50C9D6E9284FACAF007F18D0 /* ArtworkCollection.swift in Sources */,
 				50C9D658284FAA02007F18D0 /* SsXmlParser.swift in Sources */,
@@ -3634,6 +3643,7 @@
 				506C31522EE6D2100011A2C3 /* Amperfy v54.xcdatamodel */,
 				506C31532EE6D2100011A2C3 /* Amperfy v55.xcdatamodel */,
 				506C31542EE6D2100011A2C3 /* Amperfy v56.xcdatamodel */,
+				506C31552EE6D2100011A2C3 /* Amperfy v57.xcdatamodel */,
 				506C314D2EE6D2100011A2C3 /* Amperfy v49.xcdatamodel */,
 				5084F70C2ED9D87500D8D3DA /* Amperfy v48.xcdatamodel */,
 				507C9AD82E29905D001589F8 /* Amperfy v47.xcdatamodel */,
@@ -3684,7 +3694,7 @@
 				506B3A3823B4539D00E31F21 /* Amperfy v2.xcdatamodel */,
 				500BB49621CAAA2700D367CF /* Amperfy.xcdatamodel */,
 			);
-			currentVersion = 506C31542EE6D2100011A2C3 /* Amperfy v56.xcdatamodel */;
+			currentVersion = 506C31552EE6D2100011A2C3 /* Amperfy v57.xcdatamodel */;
 			path = Amperfy.xcdatamodeld;
 			sourceTree = "<group>";
 			versionGroupType = wrapper.xcdatamodel;

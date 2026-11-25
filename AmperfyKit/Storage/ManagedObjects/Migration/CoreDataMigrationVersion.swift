@@ -68,6 +68,7 @@ enum CoreDataMigrationVersion: String, CaseIterable {
   case v54 = "Amperfy v54" // AbstractPlayable: add bitrateCached (#564)
   case v55 = "Amperfy v55" // Album: add addedDate
   case v56 = "Amperfy v56" // Album: add addedDateSection (stored recently added group)
+  case v57 = "Amperfy v57" // PendingLibraryChange: offline rating and favorite changes
 
   // MARK: - Current
 
@@ -194,6 +195,8 @@ enum CoreDataMigrationVersion: String, CaseIterable {
     case .v55:
       return .v56
     case .v56:
+      return .v57
+    case .v57:
       return nil
     }
   }
