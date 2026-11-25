@@ -582,11 +582,6 @@ extension Playlist: PlayableContainable {
     try await librarySyncer.syncDown(playlist: self)
   }
 
-  @MainActor
-  public func remoteToggleFavorite(syncer: LibrarySyncer) async throws {
-    throw BackendError.notSupported
-  }
-
   public func getArtworkCollection(theme: ThemePreference) -> ArtworkCollection {
     // The server cover replaces the song covers once it is downloaded
     let artworkItems = artworkItems

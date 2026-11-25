@@ -104,9 +104,7 @@ public struct XCallbackActionDocu: Hashable {
 enum AmperfyAppIntentError: Error, LocalizedError {
   case notFound
   case accountNotValid
-  case changesOnlyInOnlineMode
   case noItemIsPlaying
-  case serverSyncFailed
 
   var errorDescription: String? {
     switch self {
@@ -114,12 +112,8 @@ enum AmperfyAppIntentError: Error, LocalizedError {
       return "I couldn’t find an element with the provided information."
     case .accountNotValid:
       return "The provided account is not valid."
-    case .changesOnlyInOnlineMode:
-      return "Can only be changed in online mode."
     case .noItemIsPlaying:
       return "There is currently no item playing."
-    case .serverSyncFailed:
-      return "Changes could not be send to server."
     }
   }
 
@@ -135,6 +129,7 @@ public class IntentManager {
   public private(set) var documentation: [XCallbackActionDocu]
   private let storage: PersistentStorage
   private let getLibrarySyncerCB: GetLibrarySyncerCallback
+  private let getLibraryChangeSyncerCB: GetLibraryChangeSyncerCallback
   private let getPlayableDownloadManagerCB: GetPlayableDownloadManagerCallback
   private let library: LibraryStorage
   private let getActiveAccountCallback: GetActiveAccountCallback
@@ -147,6 +142,7 @@ public class IntentManager {
   init(
     storage: PersistentStorage,
     getLibrarySyncerCB: @escaping GetLibrarySyncerCallback,
+    getLibraryChangeSyncerCB: @escaping GetLibraryChangeSyncerCallback,
     getPlayableDownloadManagerCB: @escaping GetPlayableDownloadManagerCallback,
     library: LibraryStorage,
     getActiveAccountCallback: @escaping GetActiveAccountCallback,
@@ -157,6 +153,7 @@ public class IntentManager {
   ) {
     self.storage = storage
     self.getLibrarySyncerCB = getLibrarySyncerCB
+    self.getLibraryChangeSyncerCB = getLibraryChangeSyncerCB
     self.getPlayableDownloadManagerCB = getPlayableDownloadManagerCB
     self.library = library
     self.getActiveAccountCallback = getActiveAccountCallback
@@ -698,13 +695,6 @@ public class IntentManager {
           ))
           return
         }
-        guard self.storage.settings.user.isOnlineMode else {
-          failure(NSError.error(
-            code: .missingParameter,
-            failureReason: "Rating can only be changed in Online Mode."
-          ))
-          return
-        }
         guard let currentlyPlaying = self.player.currentlyPlaying else {
           failure(NSError.error(
             code: .missingParameter,
@@ -717,19 +707,10 @@ public class IntentManager {
           return
         }
 
-        song.rating = rating
-        self.storage.main.saveContext()
-        Task { @MainActor in
-          do {
-            if let accountInfo = song.account?.info {
-              let librarySyncer = self.getLibrarySyncerCB(accountInfo)
-              try await librarySyncer.setRating(song: song, rating: rating)
-            }
-          } catch {
-            // ignore error here
-          }
-          success(nil)
+        if let accountInfo = song.account?.info {
+          self.getLibraryChangeSyncerCB(accountInfo).setRating(song, rating: rating)
         }
+        success(nil)
       }
 
     documentation.append(
@@ -771,14 +752,6 @@ public class IntentManager {
           ))
           return
         }
-        guard self.storage.settings.user.isOnlineMode else {
-          failure(NSError.error(
-            code: .missingParameter,
-            failureReason: "Favorite can only be changed in Online Mode."
-          ))
-          return
-        }
-
         guard let currentlyPlaying = self.player.currentlyPlaying else {
           failure(NSError.error(
             code: .missingParameter,
@@ -796,17 +769,10 @@ public class IntentManager {
           return
         }
 
-        Task { @MainActor in
-          do {
-            if let accountInfo = currentlyPlaying.account?.info {
-              let librarySyncer = self.getLibrarySyncerCB(accountInfo)
-              try await currentlyPlaying.remoteToggleFavorite(syncer: librarySyncer)
-            }
-          } catch {
-            // ignore error here
-          }
-          success(nil)
+        if let accountInfo = currentlyPlaying.account?.info {
+          self.getLibraryChangeSyncerCB(accountInfo).toggleFavorite(currentlyPlaying)
         }
+        success(nil)
       }
   }
 

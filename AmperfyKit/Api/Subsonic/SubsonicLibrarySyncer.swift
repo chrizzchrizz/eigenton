@@ -830,6 +830,8 @@ class SubsonicLibrarySyncer: CommonLibrarySyncer, LibrarySyncer {
       let notFavoriteArtistsAnymore = oldFavoriteArtists
         .subtracting(parserDelegateArtist.parsedArtists)
       notFavoriteArtistsAnymore.forEach { $0.isFavorite = false; $0.starredDate = nil }
+      // a change that is not on the server yet stays a favorite
+      asyncCompanion.library.applyPendingLibraryChanges(account: accountAsync)
 
       os_log("Sync favorite albums", log: self.log, type: .info)
       let oldFavoriteAlbums = Set(asyncCompanion.library.getFavoriteAlbums(for: accountAsync))
@@ -840,6 +842,8 @@ class SubsonicLibrarySyncer: CommonLibrarySyncer, LibrarySyncer {
       try self.parse(response: response, delegate: parserDelegateAlbum)
       let notFavoriteAlbumsAnymore = oldFavoriteAlbums.subtracting(parserDelegateAlbum.parsedAlbums)
       notFavoriteAlbumsAnymore.forEach { $0.isFavorite = false; $0.starredDate = nil }
+      // a change that is not on the server yet stays a favorite
+      asyncCompanion.library.applyPendingLibraryChanges(account: accountAsync)
 
       os_log("Sync favorite songs", log: self.log, type: .info)
       let oldFavoriteSongs = Set(asyncCompanion.library.getFavoriteSongs(for: accountAsync))
@@ -850,6 +854,8 @@ class SubsonicLibrarySyncer: CommonLibrarySyncer, LibrarySyncer {
       try self.parse(response: response, delegate: parserDelegateSong)
       let notFavoriteSongsAnymore = oldFavoriteSongs.subtracting(parserDelegateSong.parsedSongs)
       notFavoriteSongsAnymore.forEach { $0.isFavorite = false; $0.starredDate = nil }
+      // a change that is not on the server yet stays a favorite
+      asyncCompanion.library.applyPendingLibraryChanges(account: accountAsync)
     }
   }
 
@@ -1441,7 +1447,8 @@ class SubsonicLibrarySyncer: CommonLibrarySyncer, LibrarySyncer {
 
   @MainActor
   func setRating(song: Song, rating: Int) async throws {
-    guard isSyncAllowed, rating >= 0, rating <= 5 else { return }
+    guard isSyncAllowed else { throw BackendError.noNetworkConnection }
+    guard rating >= 0, rating <= 5 else { return }
     os_log("Rate %i stars: %s", log: log, type: .info, rating, song.displayString)
     let response = try await subsonicServerApi.requestRating(id: song.id, rating: rating)
     try parseForError(response: response)
@@ -1449,7 +1456,8 @@ class SubsonicLibrarySyncer: CommonLibrarySyncer, LibrarySyncer {
 
   @MainActor
   func setRating(album: Album, rating: Int) async throws {
-    guard isSyncAllowed, rating >= 0, rating <= 5 else { return }
+    guard isSyncAllowed else { throw BackendError.noNetworkConnection }
+    guard rating >= 0, rating <= 5 else { return }
     os_log("Rate %i stars: %s", log: log, type: .info, rating, album.name)
     let response = try await subsonicServerApi.requestRating(id: album.id, rating: rating)
     try parseForError(response: response)
@@ -1457,7 +1465,8 @@ class SubsonicLibrarySyncer: CommonLibrarySyncer, LibrarySyncer {
 
   @MainActor
   func setRating(artist: Artist, rating: Int) async throws {
-    guard isSyncAllowed, rating >= 0, rating <= 5 else { return }
+    guard isSyncAllowed else { throw BackendError.noNetworkConnection }
+    guard rating >= 0, rating <= 5 else { return }
     os_log("Rate %i stars: %s", log: log, type: .info, rating, artist.name)
     let response = try await subsonicServerApi.requestRating(id: artist.id, rating: rating)
     try parseForError(response: response)
@@ -1465,7 +1474,7 @@ class SubsonicLibrarySyncer: CommonLibrarySyncer, LibrarySyncer {
 
   @MainActor
   func setFavorite(song: Song, isFavorite: Bool) async throws {
-    guard isSyncAllowed else { return }
+    guard isSyncAllowed else { throw BackendError.noNetworkConnection }
     os_log(
       "Set Favorite %s: %s",
       log: log,
@@ -1482,7 +1491,7 @@ class SubsonicLibrarySyncer: CommonLibrarySyncer, LibrarySyncer {
 
   @MainActor
   func setFavorite(album: Album, isFavorite: Bool) async throws {
-    guard isSyncAllowed else { return }
+    guard isSyncAllowed else { throw BackendError.noNetworkConnection }
     os_log("Set Favorite %s: %s", log: log, type: .info, isFavorite ? "TRUE" : "FALSE", album.name)
     let response = try await subsonicServerApi.requestSetFavorite(
       albumId: album.id,
@@ -1493,7 +1502,7 @@ class SubsonicLibrarySyncer: CommonLibrarySyncer, LibrarySyncer {
 
   @MainActor
   func setFavorite(artist: Artist, isFavorite: Bool) async throws {
-    guard isSyncAllowed else { return }
+    guard isSyncAllowed else { throw BackendError.noNetworkConnection }
     os_log("Set Favorite %s: %s", log: log, type: .info, isFavorite ? "TRUE" : "FALSE", artist.name)
     let response = try await subsonicServerApi.requestSetFavorite(
       artistId: artist.id,
@@ -1794,6 +1803,10 @@ class SubsonicLibrarySyncer: CommonLibrarySyncer, LibrarySyncer {
     let parser = XMLParser(data: response.data)
     parser.delegate = delegate
     parser.parse()
+    // the parsed favorites and ratings are the server's: changes that are not uploaded yet stay
+    if let libParser = delegate as? SsXmlLibParser {
+      libParser.library.applyPendingLibraryChanges(account: libParser.account)
+    }
     if let error = parser.parserError, isThrowingErrorsAllowed {
       os_log(
         "Error during response parsing: %s",

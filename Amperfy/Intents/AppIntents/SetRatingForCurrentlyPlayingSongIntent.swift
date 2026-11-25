@@ -97,9 +97,6 @@ struct SetRatingForCurrentlyPlayingSongIntent: AppIntent {
 
   @MainActor
   func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
-    guard appDelegate.storage.settings.user.isOnlineMode else {
-      throw AmperfyAppIntentError.changesOnlyInOnlineMode
-    }
     guard let currentlyPlaying = appDelegate.player.currentlyPlaying else {
       throw AmperfyAppIntentError.noItemIsPlaying
     }
@@ -108,15 +105,9 @@ struct SetRatingForCurrentlyPlayingSongIntent: AppIntent {
       return .result(dialog: "This option is only available for songs.")
     }
 
-    song.rating = rating.numeric
-    appDelegate.storage.main.saveContext()
-    do {
-      if let accountInfo = song.account?.info {
-        let librarySyncer = appDelegate.getMeta(accountInfo).librarySyncer
-        try await librarySyncer.setRating(song: song, rating: rating.numeric)
-      }
-    } catch {
-      throw AmperfyAppIntentError.serverSyncFailed
+    // also in offline mode: uploaded once online
+    if let accountInfo = song.account?.info {
+      appDelegate.getMeta(accountInfo).libraryChangeSyncer.setRating(song, rating: rating.numeric)
     }
 
     let dialog =

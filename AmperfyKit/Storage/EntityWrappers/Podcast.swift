@@ -122,11 +122,6 @@ extension Podcast: PlayableContainable {
   }
 
   @MainActor
-  public func remoteToggleFavorite(syncer: LibrarySyncer) async throws {
-    throw BackendError.notSupported
-  }
-
-  @MainActor
   public func getArtworkCollection(theme: ThemePreference) -> ArtworkCollection {
     ArtworkCollection(defaultArtworkType: getDefaultArtworkType(), singleImageEntity: self)
   }

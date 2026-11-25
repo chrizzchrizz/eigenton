@@ -28,20 +28,20 @@ import MediaPlayer
 public class RemoteCommandCenterHandler {
   private var musicPlayer: PlayerFacade
   private let backendAudioPlayer: BackendAudioPlayer
-  private let getLibrarySyncerCB: GetLibrarySyncerCallback
+  private let getLibraryChangeSyncerCB: GetLibraryChangeSyncerCallback
   private let eventLogger: EventLogger
   private let remoteCommandCenter: MPRemoteCommandCenter
 
   init(
     musicPlayer: PlayerFacade,
     backendAudioPlayer: BackendAudioPlayer,
-    getLibrarySyncerCB: @escaping GetLibrarySyncerCallback,
+    getLibraryChangeSyncerCB: @escaping GetLibraryChangeSyncerCallback,
     eventLogger: EventLogger,
     remoteCommandCenter: MPRemoteCommandCenter
   ) {
     self.musicPlayer = musicPlayer
     self.backendAudioPlayer = backendAudioPlayer
-    self.getLibrarySyncerCB = getLibrarySyncerCB
+    self.getLibraryChangeSyncerCB = getLibraryChangeSyncerCB
     self.eventLogger = eventLogger
     self.remoteCommandCenter = remoteCommandCenter
   }
@@ -158,12 +158,8 @@ public class RemoteCommandCenterHandler {
               let song = currentItem.asSong
         else { return .noSuchContent }
 
-        let rating = Int(command.rating)
-        firstly {
-          self.librarySyncer.setRating(song: song, rating: rating)
-        }.catch { error in
-          self.eventLogger.report(topic: "Song Rating Sync", error: error)
-        }
+        guard let accountInfo = song.account?.info else { return .noSuchContent }
+        self.getLibraryChangeSyncerCB(accountInfo).setRating(song, rating: Int(command.rating))
         return .success
       })
     #endif
@@ -183,15 +179,8 @@ public class RemoteCommandCenterHandler {
         return .success
       }
       self.remoteCommandCenter.likeCommand.isActive = !command.isNegative
-      Task { @MainActor in
-        do {
-          if let accountInfo = currentItem.account?.info {
-            let librarySyncer = self.getLibrarySyncerCB(accountInfo)
-            try await currentItem.remoteToggleFavorite(syncer: librarySyncer)
-          }
-        } catch {
-          self.eventLogger.report(topic: "Toggle Favorite", error: error)
-        }
+      if let accountInfo = currentItem.account?.info {
+        self.getLibraryChangeSyncerCB(accountInfo).toggleFavorite(currentItem)
       }
       return .success
     })

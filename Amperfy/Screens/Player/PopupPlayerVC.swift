@@ -497,18 +497,8 @@ class PopupPlayerVC: UIViewController, UIScrollViewDelegate {
     case .music:
       guard let playableInfo = player.currentlyPlaying else { return }
       if playableInfo.isSong, let account = playableInfo.account {
-        Task { @MainActor in
-          do {
-            try await playableInfo
-              .remoteToggleFavorite(
-                syncer: self.appDelegate.getMeta(account.info)
-                  .librarySyncer
-              )
-          } catch {
-            self.appDelegate.eventLogger.report(topic: "Toggle Favorite", error: error)
-          }
-          self.refresh()
-        }
+        appDelegate.getMeta(account.info).libraryChangeSyncer.toggleFavorite(playableInfo)
+        refresh()
       } else if let radio = playableInfo.asRadio,
                 let siteURL = radio.siteURL {
         UIApplication.shared.open(siteURL)

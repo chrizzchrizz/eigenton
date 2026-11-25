@@ -128,11 +128,6 @@ extension Genre: PlayableContainable {
     try await librarySyncer.sync(genre: self)
   }
 
-  @MainActor
-  public func remoteToggleFavorite(syncer: LibrarySyncer) async throws {
-    throw BackendError.notSupported
-  }
-
   public func getArtworkCollection(theme: ThemePreference) -> ArtworkCollection {
     ArtworkCollection(defaultArtworkType: getDefaultArtworkType(), singleImageEntity: self)
   }

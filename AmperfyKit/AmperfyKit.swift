@@ -219,8 +219,8 @@ public class AmperKit {
     playerRemoteCommandCenterHandler = RemoteCommandCenterHandler(
       musicPlayer: facadeImpl,
       backendAudioPlayer: backendAudioPlayer,
-      getLibrarySyncerCB: { accountInfo in
-        self.getMeta(accountInfo).librarySyncer
+      getLibraryChangeSyncerCB: { accountInfo in
+        self.getMeta(accountInfo).libraryChangeSyncer
       },
       eventLogger: eventLogger,
       remoteCommandCenter: MPRemoteCommandCenter.shared()

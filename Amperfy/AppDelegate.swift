@@ -98,6 +98,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       getLibrarySyncerCB: { accountInfo in
         self.getMeta(accountInfo).librarySyncer
       },
+      getLibraryChangeSyncerCB: { accountInfo in
+        self.getMeta(accountInfo).libraryChangeSyncer
+      },
       getPlayableDownloadManagerCB: { accountInfo in
         self.getMeta(accountInfo).playableDownloadManager
       },

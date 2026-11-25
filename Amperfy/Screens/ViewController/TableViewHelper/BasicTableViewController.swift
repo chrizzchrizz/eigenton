@@ -568,21 +568,12 @@ class BasicTableViewController: KeyCommandTableViewController {
                 .filterCached(dependigOn: self.appDelegate.storage.settings.user.isOfflineMode)
             )
         case .favorite:
-          Task { @MainActor in
-            do {
-              if let account = actionContext.containable.account {
-                try await actionContext.containable
-                  .remoteToggleFavorite(
-                    syncer: self.appDelegate
-                      .getMeta(account.info).librarySyncer
-                  )
-              }
-            } catch {
-              self.appDelegate.eventLogger.report(topic: "Toggle Favorite", error: error)
-            }
-            if let cell = self.tableView.cellForRow(at: indexPath) as? PlayableTableCell {
-              cell.refresh()
-            }
+          if let account = actionContext.containable.account {
+            self.appDelegate.getMeta(account.info).libraryChangeSyncer
+              .toggleFavorite(actionContext.containable)
+          }
+          if let cell = self.tableView.cellForRow(at: indexPath) as? PlayableTableCell {
+            cell.refresh()
           }
         }
       }

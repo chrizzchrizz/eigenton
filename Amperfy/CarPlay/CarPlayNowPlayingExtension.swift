@@ -58,18 +58,8 @@ extension CarPlaySceneDelegate {
               guard let self = self else { return }
               guard let playableInfo = appDelegate.player.currentlyPlaying,
                     let account = playableInfo.account else { return }
-              Task { @MainActor in
-                do {
-                  try await playableInfo
-                    .remoteToggleFavorite(
-                      syncer: self.appDelegate
-                        .getMeta(account.info).librarySyncer
-                    )
-                } catch {
-                  self.appDelegate.eventLogger.report(topic: "Toggle Favorite", error: error)
-                }
-                self.configureNowPlayingTemplate()
-              }
+              appDelegate.getMeta(account.info).libraryChangeSyncer.toggleFavorite(playableInfo)
+              configureNowPlayingTemplate()
             }
           )
         )

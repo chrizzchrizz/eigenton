@@ -530,18 +530,6 @@ extension AbstractPlayable: PlayableContainable {
     }
   }
 
-  @MainActor
-  public func remoteToggleFavorite(syncer: LibrarySyncer) async throws {
-    guard let song = asSong else { return }
-    guard let context = song.managedObject.managedObjectContext else {
-      throw BackendError.persistentSaveFailed
-    }
-    isFavorite.toggle()
-    let library = LibraryStorage(context: context)
-    library.saveContext()
-    try await syncer.setFavorite(song: song, isFavorite: isFavorite)
-  }
-
   public var isDownloadAvailable: Bool {
     switch derivedType {
     case .song:

@@ -71,6 +71,7 @@ public class LibraryStorage: PlayableFileCachable {
     Radio.typeName,
     Download.typeName,
     ScrobbleEntry.typeName,
+    PendingLibraryChange.typeName,
     SearchHistoryItem.typeName,
     // Accounts are not going to get deleted
   ]
@@ -2228,6 +2229,132 @@ public class LibraryStorage: PlayableFileCachable {
     return entries?.lazy.compactMap { ScrobbleEntry(managedObject: $0) }.first
   }
 
+  // MARK: PendingLibraryChanges
+
+  /// Records a local favorite or rating change for the upload to the server. A change of the
+  /// same entity and kind that is still pending is replaced (the last change wins).
+  @discardableResult
+  public func recordPendingLibraryChange(
+    account: Account,
+    entityType: PendingLibraryChangeEntityType,
+    entityId: String,
+    kind: PendingLibraryChangeKind,
+    isFavorite: Bool = false,
+    rating: Int = 0
+  )
+    -> PendingLibraryChange {
+    let change = getPendingLibraryChange(
+      account: account,
+      entityType: entityType,
+      entityId: entityId,
+      kind: kind
+    ) ?? {
+      let change = PendingLibraryChange(managedObject: PendingLibraryChangeMO(context: context))
+      change.account = account
+      change.entityType = entityType
+      change.entityId = entityId
+      change.kind = kind
+      return change
+    }()
+    change.isFavorite = isFavorite
+    change.rating = rating
+    change.changeDate = Date()
+    return change
+  }
+
+  public func getPendingLibraryChange(
+    account: Account,
+    entityType: PendingLibraryChangeEntityType,
+    entityId: String,
+    kind: PendingLibraryChangeKind
+  )
+    -> PendingLibraryChange? {
+    let fetchRequest = PendingLibraryChangeMO.fetchRequest()
+    fetchRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+      getFetchPredicate(forAccount: account),
+      NSPredicate(
+        format: "%K == %i",
+        #keyPath(PendingLibraryChangeMO.entityType),
+        entityType.rawValue
+      ),
+      NSPredicate(format: "%K == %@", #keyPath(PendingLibraryChangeMO.entityId), entityId),
+      NSPredicate(format: "%K == %i", #keyPath(PendingLibraryChangeMO.kind), kind.rawValue),
+    ])
+    fetchRequest.fetchLimit = 1
+    let changes = try? context.fetch(fetchRequest)
+    return changes?.lazy.compactMap { PendingLibraryChange(managedObject: $0) }.first
+  }
+
+  /// Oldest first, the upload order
+  private func createPendingLibraryChangesFetchRequest(
+    for account: Account
+  )
+    -> NSFetchRequest<PendingLibraryChangeMO> {
+    let fetchRequest = PendingLibraryChangeMO.fetchRequest()
+    fetchRequest.sortDescriptors = [
+      NSSortDescriptor(key: #keyPath(PendingLibraryChangeMO.changeDate), ascending: true),
+    ]
+    fetchRequest.predicate = getFetchPredicate(forAccount: account)
+    return fetchRequest
+  }
+
+  public func getPendingLibraryChanges(for account: Account) -> [PendingLibraryChange] {
+    let fetchRequest = createPendingLibraryChangesFetchRequest(for: account)
+    let changes = try? context.fetch(fetchRequest)
+    return changes?.compactMap { PendingLibraryChange(managedObject: $0) } ?? []
+  }
+
+  public func getPendingLibraryChangeCount(for account: Account) -> Int {
+    let fetchRequest = createPendingLibraryChangesFetchRequest(for: account)
+    return (try? context.count(for: fetchRequest)) ?? 0
+  }
+
+  /// The oldest pending change that is not excluded, it is uploaded next
+  public func getFirstPendingLibraryChange(
+    for account: Account,
+    excluding excludedIds: [NSManagedObjectID] = []
+  )
+    -> PendingLibraryChange? {
+    let fetchRequest = createPendingLibraryChangesFetchRequest(for: account)
+    if !excludedIds.isEmpty {
+      fetchRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+        getFetchPredicate(forAccount: account),
+        NSPredicate(format: "NOT (SELF IN %@)", excludedIds),
+      ])
+    }
+    fetchRequest.fetchLimit = 1
+    let changes = try? context.fetch(fetchRequest)
+    return changes?.lazy.compactMap { PendingLibraryChange(managedObject: $0) }.first
+  }
+
+  public func deletePendingLibraryChange(_ change: PendingLibraryChange) {
+    context.delete(change.managedObject)
+  }
+
+  /// The entity the change belongs to, nil if it is not in the library (anymore)
+  public func getEntity(of change: PendingLibraryChange) -> AbstractLibraryEntity? {
+    guard let account = change.account, !change.entityId.isEmpty else { return nil }
+    switch change.entityType {
+    case .song:
+      return getSong(for: account, id: change.entityId)
+    case .album:
+      return getAlbum(for: account, id: change.entityId, isDetailFaultResolution: false)
+    case .artist:
+      return getArtist(for: account, id: change.entityId)
+    case .none:
+      return nil
+    }
+  }
+
+  /// Sets the pending changes on their entities again: a server sync writes the server's
+  /// favorites and ratings, which don't contain the changes that are not uploaded yet
+  public func applyPendingLibraryChanges(account: Account) {
+    for change in getPendingLibraryChanges(for: account) {
+      guard let entity = getEntity(of: change) else { continue }
+      change.apply(to: entity)
+    }
+  }
+
   // MARK: Playlists
 
   public func getAllPlaylists(
@@ -3409,6 +3536,13 @@ public class LibraryStorage: PlayableFileCachable {
     // Scrobble Entries
     do {
       let request: NSFetchRequest<ScrobbleEntryMO> = ScrobbleEntryMO.fetchRequest()
+      request.predicate = getFetchPredicate(forAccount: account)
+      clearStorage(fetchRequest: request as! NSFetchRequest<NSFetchRequestResult>)
+    }
+
+    // Pending Library Changes
+    do {
+      let request: NSFetchRequest<PendingLibraryChangeMO> = PendingLibraryChangeMO.fetchRequest()
       request.predicate = getFetchPredicate(forAccount: account)
       clearStorage(fetchRequest: request as! NSFetchRequest<NSFetchRequestResult>)
     }

@@ -123,8 +123,6 @@ public protocol PlayableContainable {
   ) async throws
   var isFavoritable: Bool { get }
   var isFavorite: Bool { get }
-  @MainActor
-  func remoteToggleFavorite(syncer: LibrarySyncer) async throws
   func playedViaContext()
   var containerIdentifier: PlayableContainerIdentifier { get }
 }

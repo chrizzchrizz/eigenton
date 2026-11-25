@@ -932,6 +932,8 @@ class AmpacheLibrarySyncer: CommonLibrarySyncer, LibrarySyncer {
 
       let notFavoriteArtistsAnymore = oldFavoriteArtists.subtracting(parserDelegate.artistsParsed)
       notFavoriteArtistsAnymore.forEach { $0.isFavorite = false; $0.starredDate = nil }
+      // a change that is not on the server yet stays a favorite
+      asyncCompanion.library.applyPendingLibraryChanges(account: accountAsync)
     }
 
     let albumsResponse = try await ampacheXmlServerApi.requestFavoriteAlbums()
@@ -959,6 +961,8 @@ class AmpacheLibrarySyncer: CommonLibrarySyncer, LibrarySyncer {
 
       let notFavoriteAlbumsAnymore = oldFavoriteAlbums.subtracting(parserDelegate.albumsParsedSet)
       notFavoriteAlbumsAnymore.forEach { $0.isFavorite = false; $0.starredDate = nil }
+      // a change that is not on the server yet stays a favorite
+      asyncCompanion.library.applyPendingLibraryChanges(account: accountAsync)
     }
 
     let songsResponse = try await ampacheXmlServerApi.requestFavoriteSongs()
@@ -986,6 +990,8 @@ class AmpacheLibrarySyncer: CommonLibrarySyncer, LibrarySyncer {
 
       let notFavoriteSongsAnymore = oldFavoriteSongs.subtracting(parserDelegate.parsedSongs)
       notFavoriteSongsAnymore.forEach { $0.isFavorite = false; $0.starredDate = nil }
+      // a change that is not on the server yet stays a favorite
+      asyncCompanion.library.applyPendingLibraryChanges(account: accountAsync)
     }
   }
 
@@ -1337,7 +1343,8 @@ class AmpacheLibrarySyncer: CommonLibrarySyncer, LibrarySyncer {
 
   @MainActor
   func setRating(song: Song, rating: Int) async throws {
-    guard isSyncAllowed, rating >= 0, rating <= 5 else { return }
+    guard isSyncAllowed else { throw BackendError.noNetworkConnection }
+    guard rating >= 0, rating <= 5 else { return }
     os_log("Rate %i stars: %s", log: log, type: .info, rating, song.displayString)
     let response = try await ampacheXmlServerApi.requestRate(songId: song.id, rating: rating)
     try parseForError(response: response)
@@ -1345,7 +1352,8 @@ class AmpacheLibrarySyncer: CommonLibrarySyncer, LibrarySyncer {
 
   @MainActor
   func setRating(album: Album, rating: Int) async throws {
-    guard isSyncAllowed, rating >= 0, rating <= 5 else { return }
+    guard isSyncAllowed else { throw BackendError.noNetworkConnection }
+    guard rating >= 0, rating <= 5 else { return }
     os_log("Rate %i stars: %s", log: log, type: .info, rating, album.name)
     let response = try await ampacheXmlServerApi.requestRate(albumId: album.id, rating: rating)
     try parseForError(response: response)
@@ -1353,7 +1361,8 @@ class AmpacheLibrarySyncer: CommonLibrarySyncer, LibrarySyncer {
 
   @MainActor
   func setRating(artist: Artist, rating: Int) async throws {
-    guard isSyncAllowed, rating >= 0, rating <= 5 else { return }
+    guard isSyncAllowed else { throw BackendError.noNetworkConnection }
+    guard rating >= 0, rating <= 5 else { return }
     os_log("Rate %i stars: %s", log: log, type: .info, rating, artist.name)
     let response = try await ampacheXmlServerApi.requestRate(artistId: artist.id, rating: rating)
     try parseForError(response: response)
@@ -1361,7 +1370,7 @@ class AmpacheLibrarySyncer: CommonLibrarySyncer, LibrarySyncer {
 
   @MainActor
   func setFavorite(song: Song, isFavorite: Bool) async throws {
-    guard isSyncAllowed else { return }
+    guard isSyncAllowed else { throw BackendError.noNetworkConnection }
     os_log(
       "Set Favorite %s: %s",
       log: log,
@@ -1378,7 +1387,7 @@ class AmpacheLibrarySyncer: CommonLibrarySyncer, LibrarySyncer {
 
   @MainActor
   func setFavorite(album: Album, isFavorite: Bool) async throws {
-    guard isSyncAllowed else { return }
+    guard isSyncAllowed else { throw BackendError.noNetworkConnection }
     os_log("Set Favorite %s: %s", log: log, type: .info, isFavorite ? "TRUE" : "FALSE", album.name)
     let response = try await ampacheXmlServerApi.requestSetFavorite(
       albumId: album.id,
@@ -1389,7 +1398,7 @@ class AmpacheLibrarySyncer: CommonLibrarySyncer, LibrarySyncer {
 
   @MainActor
   func setFavorite(artist: Artist, isFavorite: Bool) async throws {
-    guard isSyncAllowed else { return }
+    guard isSyncAllowed else { throw BackendError.noNetworkConnection }
     os_log("Set Favorite %s: %s", log: log, type: .info, isFavorite ? "TRUE" : "FALSE", artist.name)
     let response = try await ampacheXmlServerApi.requestSetFavorite(
       artistId: artist.id,
@@ -1498,6 +1507,10 @@ class AmpacheLibrarySyncer: CommonLibrarySyncer, LibrarySyncer {
     let parser = XMLParser(data: response.data)
     parser.delegate = delegate
     parser.parse()
+    // the parsed favorites and ratings are the server's: changes that are not uploaded yet stay
+    if let libParser = delegate as? AmpacheXmlLibParser {
+      libParser.library.applyPendingLibraryChanges(account: libParser.account)
+    }
     if let error = parser.parserError, isThrowingErrorsAllowed {
       os_log(
         "Error during response parsing: %s",

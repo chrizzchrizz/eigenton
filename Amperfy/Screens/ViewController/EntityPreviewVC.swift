@@ -145,13 +145,12 @@ class EntityPreviewActionBuilder {
     if !gotoActions.isEmpty {
       menuActions.append(UIMenu(options: .displayInline, children: gotoActions))
     }
+    // also in offline mode: the change is uploaded once online
     if isFavoriteActionAllowed, let libraryEntity = entityContainer as? AbstractLibraryEntity,
-       entityContainer.isFavoritable,
-       appDelegate.storage.settings.user.isOnlineMode {
+       entityContainer.isFavoritable {
       ratingFavActions.append(createFavoriteMenu(libraryEntity: libraryEntity))
     }
-    if let libraryEntity = entityContainer as? AbstractLibraryEntity, entityContainer.isRateable,
-       appDelegate.storage.settings.user.isOnlineMode {
+    if let libraryEntity = entityContainer as? AbstractLibraryEntity, entityContainer.isRateable {
       ratingFavActions.append(createRatingMenu(libraryEntity: libraryEntity))
     }
     if !ratingFavActions.isEmpty {
@@ -555,20 +554,9 @@ class EntityPreviewActionBuilder {
   }
 
   private func toggleFavorite() {
-    guard appDelegate.storage.settings.user.isOnlineMode,
-          let account = entityContainer.account else { return }
-    Task { @MainActor in
-      do {
-        try await entityContainer
-          .remoteToggleFavorite(
-            syncer: self.appDelegate.getMeta(account.info)
-              .librarySyncer
-          )
-      } catch {
-        self.appDelegate.eventLogger.report(topic: "Toggle Favorite", error: error)
-      }
-      self.reloadRootView()
-    }
+    guard let account = entityContainer.account else { return }
+    appDelegate.getMeta(account.info).libraryChangeSyncer.toggleFavorite(entityContainer)
+    reloadRootView()
   }
 
   private func createRatingMenu(libraryEntity: AbstractLibraryEntity) -> UIMenu {
@@ -597,44 +585,11 @@ class EntityPreviewActionBuilder {
   }
 
   private func setRating(rating: Int) {
-    guard appDelegate.storage.settings.user.isOnlineMode,
-          let account = entityContainer.account else { return }
+    guard let account = entityContainer.account,
+          let libraryEntity = entityContainer as? AbstractLibraryEntity else { return }
+    appDelegate.getMeta(account.info).libraryChangeSyncer.setRating(libraryEntity, rating: rating)
     // e.g. the album rating in the detail header and the stars of the song rows
-    defer { reloadRootView() }
-    if let song = (entityContainer as? AbstractPlayable)?.asSong {
-      song.rating = rating
-      appDelegate.storage.main.saveContext()
-      Task { @MainActor in do {
-        try await self.appDelegate.getMeta(account.info).librarySyncer.setRating(
-          song: song,
-          rating: rating
-        )
-      } catch {
-        self.appDelegate.eventLogger.report(topic: "Song Rating Sync", error: error)
-      }}
-    } else if let album = entityContainer as? Album {
-      album.rating = rating
-      appDelegate.storage.main.saveContext()
-      Task { @MainActor in do {
-        try await self.appDelegate.getMeta(account.info).librarySyncer.setRating(
-          album: album,
-          rating: rating
-        )
-      } catch {
-        self.appDelegate.eventLogger.report(topic: "Album Rating Sync", error: error)
-      }}
-    } else if let artist = entityContainer as? Artist {
-      artist.rating = rating
-      appDelegate.storage.main.saveContext()
-      Task { @MainActor in do {
-        try await self.appDelegate.getMeta(account.info).librarySyncer.setRating(
-          artist: artist,
-          rating: rating
-        )
-      } catch {
-        self.appDelegate.eventLogger.report(topic: "Artist Rating Sync", error: error)
-      }}
-    }
+    reloadRootView()
   }
 
   private func createAddToPlaylistAction() -> UIAction {

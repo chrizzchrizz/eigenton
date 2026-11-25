@@ -225,12 +225,41 @@ final class MOCK_LibrarySyncer: LibrarySyncer {
   func requestPodcastEpisodeDelete(podcastEpisode: PodcastEpisode) async throws {}
   func syncNowPlaying(song: Song, songPosition: NowPlayingSongPosition) async throws {}
   func scrobble(song: Song, date: Date?) async throws {}
-  func setRating(song: Song, rating: Int) async throws {}
-  func setRating(album: Album, rating: Int) async throws {}
-  func setRating(artist: Artist, rating: Int) async throws {}
-  func setFavorite(song: Song, isFavorite: Bool) async throws {}
-  func setFavorite(album: Album, isFavorite: Bool) async throws {}
-  func setFavorite(artist: Artist, isFavorite: Bool) async throws {}
+  /// The favorite and rating requests, e.g. "favorite song 3 true"
+  nonisolated(unsafe) var libraryChangeRequests = [String]()
+  /// Thrown by all favorite and rating requests
+  nonisolated(unsafe) var libraryChangeError: Error?
+  /// Thrown by the favorite or rating request, e.g. ["favorite song 3 true": error]
+  nonisolated(unsafe) var libraryChangeErrors = [String: Error]()
+  private func requestLibraryChange(_ request: String) throws {
+    if let error = libraryChangeError ?? libraryChangeErrors[request] { throw error }
+    libraryChangeRequests.append(request)
+  }
+
+  func setRating(song: Song, rating: Int) async throws {
+    try requestLibraryChange("rating song \(song.id) \(rating)")
+  }
+
+  func setRating(album: Album, rating: Int) async throws {
+    try requestLibraryChange("rating album \(album.id) \(rating)")
+  }
+
+  func setRating(artist: Artist, rating: Int) async throws {
+    try requestLibraryChange("rating artist \(artist.id) \(rating)")
+  }
+
+  func setFavorite(song: Song, isFavorite: Bool) async throws {
+    try requestLibraryChange("favorite song \(song.id) \(isFavorite)")
+  }
+
+  func setFavorite(album: Album, isFavorite: Bool) async throws {
+    try requestLibraryChange("favorite album \(album.id) \(isFavorite)")
+  }
+
+  func setFavorite(artist: Artist, isFavorite: Bool) async throws {
+    try requestLibraryChange("favorite artist \(artist.id) \(isFavorite)")
+  }
+
   func parseLyrics(relFilePath: URL) async throws -> LyricsList { LyricsList() }
 
   nonisolated(unsafe) var playQueueSyncSupportResults = [Result<Bool, Error>]()

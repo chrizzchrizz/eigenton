@@ -104,6 +104,7 @@ public enum BackendError: LocalizedError {
   case noCredentials
   case persistentSaveFailed
   case notSupported
+  case noNetworkConnection
   case incorrectServerBehavior(message: String)
 
   public var errorDescription: String? {
@@ -117,6 +118,8 @@ public enum BackendError: LocalizedError {
       ret = "Change could not be saved."
     case .notSupported:
       ret = "Requested functionality is not supported."
+    case .noNetworkConnection:
+      ret = "No network connection."
     case let .incorrectServerBehavior(message: message):
       ret = "Server didn't behave as expected: \(message)"
     }

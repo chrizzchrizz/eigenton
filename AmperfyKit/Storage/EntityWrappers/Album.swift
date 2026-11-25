@@ -238,17 +238,6 @@ extension Album: PlayableContainable {
   public var isRateable: Bool { true }
   public var isFavoritable: Bool { true }
   @MainActor
-  public func remoteToggleFavorite(syncer: LibrarySyncer) async throws {
-    guard let context = managedObject.managedObjectContext else {
-      throw BackendError.persistentSaveFailed
-    }
-    isFavorite.toggle()
-    let library = LibraryStorage(context: context)
-    library.saveContext()
-    try await syncer.setFavorite(album: self, isFavorite: isFavorite)
-  }
-
-  @MainActor
   public func fetchFromServer(
     storage: PersistentStorage,
     librarySyncer: LibrarySyncer,

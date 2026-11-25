@@ -74,9 +74,6 @@ struct SetFavoriteForCurrentlyPlayingSongIntent: AppIntent {
 
   @MainActor
   func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
-    guard appDelegate.storage.settings.user.isOnlineMode else {
-      throw AmperfyAppIntentError.changesOnlyInOnlineMode
-    }
     guard let currentlyPlaying = appDelegate.player.currentlyPlaying else {
       throw AmperfyAppIntentError.noItemIsPlaying
     }
@@ -96,13 +93,12 @@ struct SetFavoriteForCurrentlyPlayingSongIntent: AppIntent {
       )
     }
 
-    do {
-      if let accountInfo = currentlyPlaying.account?.info {
-        let librarySyncer = appDelegate.getMeta(accountInfo).librarySyncer
-        try await currentlyPlaying.remoteToggleFavorite(syncer: librarySyncer)
-      }
-    } catch {
-      throw AmperfyAppIntentError.serverSyncFailed
+    // also in offline mode: uploaded once online
+    if let accountInfo = song.account?.info {
+      appDelegate.getMeta(accountInfo).libraryChangeSyncer.setFavorite(
+        song,
+        isFavorite: isFavoriteBool
+      )
     }
     return .result(
       dialog: IntentDialog(stringLiteral: dialog),

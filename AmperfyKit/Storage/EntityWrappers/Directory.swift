@@ -103,11 +103,6 @@ extension Directory: PlayableContainable {
   public var isRateable: Bool { false }
   public var isFavoritable: Bool { false }
   @MainActor
-  public func remoteToggleFavorite(syncer: LibrarySyncer) async throws {
-    throw BackendError.notSupported
-  }
-
-  @MainActor
   public func fetchFromServer(
     storage: PersistentStorage,
     librarySyncer: LibrarySyncer,

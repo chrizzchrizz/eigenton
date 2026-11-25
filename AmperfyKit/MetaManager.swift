@@ -25,6 +25,7 @@ import MediaPlayer
 import os.log
 
 public typealias GetLibrarySyncerCallback = (AccountInfo) -> LibrarySyncer
+public typealias GetLibraryChangeSyncerCallback = (AccountInfo) -> LibraryChangeSyncer
 public typealias GetPlayableDownloadManagerCallback = (AccountInfo) -> DownloadManageable
 public typealias GetArtworkDownloadManagerCallback = (AccountInfo) -> DownloadManageable
 public typealias GetBackendApiCallback = (AccountInfo) -> BackendApi
@@ -113,6 +114,34 @@ public class MetaManager {
       name: .offlineModeChanged,
       object: nil
     )
+    notificationHandler.register(
+      self,
+      selector: #selector(startLibraryChangeUpload),
+      name: .offlineModeChanged,
+      object: nil
+    )
+    notificationHandler.register(
+      self,
+      selector: #selector(startLibraryChangeUpload),
+      name: .networkStatusChanged,
+      object: nil
+    )
+  }
+
+  private var _libraryChangeSyncer: LibraryChangeSyncer?
+  /// Favorite and rating changes, also in offline mode: uploaded once online while the
+  /// managers run
+  public var libraryChangeSyncer: LibraryChangeSyncer {
+    if let _libraryChangeSyncer { return _libraryChangeSyncer }
+    let syncer = LibraryChangeSyncer(
+      account: account,
+      storage: storage,
+      librarySyncer: librarySyncer,
+      networkMonitor: networkMonitor,
+      eventLogger: eventLogger
+    )
+    _libraryChangeSyncer = syncer
+    return syncer
   }
 
   private var scrobbleSyncer: ScrobbleSyncer?
@@ -322,6 +351,7 @@ public class MetaManager {
     let scrobbler = createScrobbleSyncer(player: player)
     player.addNotifier(notifier: scrobbler)
     player.addNotifier(notifier: createPlayQueueSyncer(player: player))
+    libraryChangeSyncer.start()
   }
 
   public func startManagerForNormalOperation(player: PlayerFacade) {
@@ -342,6 +372,7 @@ public class MetaManager {
     let scrobbler = createScrobbleSyncer(player: player)
     player.addNotifier(notifier: scrobbler)
     scrobbler.start()
+    libraryChangeSyncer.start()
     player.addNotifier(notifier: createPlayQueueSyncer(player: player))
   }
 
@@ -367,11 +398,20 @@ public class MetaManager {
     scrobbleSyncer?.start()
   }
 
+  /// Going online or the network coming back: the changes made meanwhile are uploaded. Each
+  /// change also starts the upload itself
+  @objc
+  private func startLibraryChangeUpload() {
+    guard isStarted else { return }
+    _libraryChangeSyncer?.requestUpload()
+  }
+
   public func stopManager() {
     os_log("Start meta managers", log: self.log, type: .info)
     isStarted = false
     scrobbleSyncer?.stop()
     scrobbleSyncer = nil
+    _libraryChangeSyncer?.stop()
     playQueueSyncer = nil
     backgroundLibrarySyncer.stop()
     artworkDownloadManager.stop()
